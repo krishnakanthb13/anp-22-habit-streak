@@ -54,27 +54,33 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
 - `saveState(app, state)`: Formats state into `` ```json `` block and replaces content in the authoritative data note.
 
 ### `lib/engine/streakEngine.js`
-- `getHabitDayStatus(habit, dateStr, todayStr)`: Determines day status (`completed` vs `skipped`) based on `habit.type`.
+- `formatDate(date)`: Formats a Date or timestamp string as `YYYY-MM-DD` with defensive `isNaN` validation (returns empty string if invalid).
+- `getTodayString()`: Returns current local date formatted as `YYYY-MM-DD`.
+- `getDateRange(startStr, endStr)`: Returns array of dates between start and end (inclusive) with validation.
+- `getHabitDayStatus(habit, dateStr, todayStr, cachedSets)`: Determines day status (`completed` vs `skipped` vs `future` vs `before_start`). Accepts optional pre-computed `cachedSets` (`{ skips: Set, completions: Set }`) to eliminate redundant heap allocations in tight loops.
   - For `skip`: Clean/completed unless date is in `habit.skips`.
   - For `complete`: Skipped unless date is in `habit.completions`.
-- `calculateHabitStats(habit, todayStr)`: Computes current streak, longest record, completion rate, and streak anchor timestamp for sub-second live ticking.
+- `calculateHabitStats(habit, todayStr)`: Computes current streak, longest record, completion rate, and streak anchor timestamp for sub-second live ticking using high-performance pre-computed `Set` caches.
 - `calculateTierProgress(currentStreak)`: Determines the user's active laurel tier, percentage progress, and remaining days.
 - `calculateWeeklyFrequency(habit, todayStr)`: Computes log/repetition counts across the last 7 days for the weekly frequency bar chart.
 - `calculateAllHabitsSummary(habits, todayStr)`: Aggregates metrics across all counters for the main dashboard view.
+- `generateMonthCalendar(habit, year, month, todayStr)`: Builds calendar grid metadata for interactive widget rendering with pre-allocated date caches.
 
 ### `lib/features/`
-- `createHabit.js`: Handles custom creation modal and 1-click template instantiation.
+All feature modules are hardened with top-level `try/catch` error boundaries, user alert notifications, and full JSDoc `@param` and `@returns` typing:
+- `createHabit.js`: Handles custom creation modal and 1-click template instantiation with error boundaries and data validation.
 - `importFromNote.js`: 
   - Resolves note handle from `app.prompt({ type: "note" })` supporting single values, arrays, and markdown links.
   - Queries `app.getNoteTasks({ uuid }, { includeDone: true })` with fallback regex parser for checklist items (`- [ ]`, `- [x]`, `* [ ]`).
+  - Utilizes `getTaskDisplayText` helper for clean label extraction across varying Amplenote task schemas.
   - Normalizes single-input vs multi-input checkbox confirmations from `app.prompt`.
   - Runs an interactive per-task setup wizard allowing users to customize title, emoji, color theme, cadence, and choose between **Positive Habit** vs **Bad Habit / Abstinence**.
   - Activates newly imported habits immediately on the dashboard.
-- `editHabit.js`: Edits existing counter properties.
-- `resetStreak.js`: Handles `handleSkipToday`, `handleCompleteToday`, and `handleResetToDate` (logging reflection notes and timestamped multi-events).
-- `toggleDay.js`: Handles single-day clicks and batch `handleSaveCalendarEdits` for in-calendar editing mode.
-- `habitManagement.js`: Deletes counters and handles tab switching.
-- `launcher.js`: Opens the habit embed in full or sidebar mode.
+- `editHabit.js`: Edits existing counter properties with input validation and error recovery.
+- `resetStreak.js`: Handles `handleSkipToday`, `handleCompleteToday`, `handleUndoToday`, and `handleResetToDate` with defensive ISO timestamp parsing, reflection notes, and multi-event logs.
+- `toggleDay.js`: Unified single state-transition handler for toggling completed vs skipped days with automatic linked Amplenote task synchronization (`app.updateTask`).
+- `habitManagement.js`: Deletes counters and handles tab switching with safe state cleanup.
+- `launcher.js`: Opens the habit embed in full or sidebar mode with nullish coalescing settings access (`app.settings?.["Last Embed View"]`).
 
 ### `lib/ui/dashboardTemplate.js`
 - Single-page client-side embedded application.

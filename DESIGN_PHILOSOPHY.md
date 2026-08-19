@@ -54,4 +54,12 @@ Text glyphs and basic emojis often render inconsistently across operating system
 
 To maintain high software quality, ongoing maintenance, and responsive community feature requests, transparent and non-intrusive developer patronage options are provided in the settings layer.
 
+---
+
+## 7. Defensive Architecture & Algorithmic Efficiency
+
+Habit and calendar calculations run continuously on every render cycle and live ticker tick:
+- **Pre-Computed Set Lookup Caching**: Day statuses are evaluated over long date intervals using O(1) Set lookups with pre-allocated structures, avoiding redundant garbage collection churn.
+- **Fail-Safe User Touchpoints**: Every user prompt, modal dialog, and storage mutation is wrapped in an explicit error boundary with helpful alerts, ensuring the UI never locks or silently fails if host operations are interrupted.
+- **Deterministic Historical Preservation**: Date parsers defensively validate against malformed inputs and invalid ISO strings to ensure historical integrity is unconditionally preserved.
 

@@ -1,5 +1,23 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.8 (2026-08-19)
+
+### ⚡ Performance & Engine Optimization
+- **Pre-Computed Set Lookups in Streak Engine**: Refactored `getHabitDayStatus` in [`streakEngine.js`](./lib/engine/streakEngine.js) to accept pre-allocated Set caches from `calculateHabitStats` and `generateMonthCalendar`, eliminating thousands of short-lived Set allocations during full month renders and continuous ticks.
+- **Defensive Date Validation**: Hardened `formatDate` against invalid inputs and `NaN` values, preventing corrupted date strings.
+
+### 🛡️ Error Boundary Hardening & Logic Consolidation
+- **Comprehensive Error Boundaries**: Wrapped all action handlers in `createHabit.js`, `editHabit.js`, `resetStreak.js`, `toggleDay.js`, `habitManagement.js`, and `importFromNote.js` with structured `try/catch` blocks and user-friendly error alerts.
+- **Safe Date Parsing**: Added safe parsing for ISO timestamp validation in `handleUndoToday` to prevent unhandled `RangeError` on malformed event timestamps.
+- **Logic Consolidation**: Streamlined `toggleDay.js` to eliminate redundant duplicated branches between positive and abstinence tracking types.
+- **Safe UUID Verification & Storage**: Eliminated bare `catch` blocks in `store.js` with structured error logging and recovery fallbacks.
+
+### 📚 Documentation & Developer Ergonomics
+- **Complete JSDoc Annotations**: Standardized JSDoc `@param` and `@returns` typing across all exported functions in the `lib/` module hierarchy.
+- **Synchronized Documentation**: Updated `CODE_DOCUMENTATION.md`, `DESIGN_PHILOSOPHY.md`, and `README.md`.
+
+---
+
 ## v0.0.7 (2026-08-19)
 
 ### 🎨 Vector Iconography & Keyboard Ergonomics
