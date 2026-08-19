@@ -2,6 +2,7 @@ import {
   getHabitDayStatus, 
   calculateHabitStats, 
   calculateTierProgress, 
+  calculateAllHabitsSummary,
   generateMonthCalendar, 
   getDateRange,
   formatDate 
@@ -96,5 +97,33 @@ describe("streakEngine", () => {
     expect(cal.totalDaysInMonth).toBe(31);
     expect(cal.days.length).toBe(31);
     expect(cal.days[18].isToday).toBe(true); // 19th
+  });
+
+  test("calculateAllHabitsSummary aggregates metrics across multiple habits", () => {
+    const habits = [
+      {
+        id: "h1",
+        name: "Morning Meditation",
+        type: TRACK_TYPES.SKIP,
+        createdAt: "2026-08-01",
+        skips: [],
+        completions: []
+      },
+      {
+        id: "h2",
+        name: "Evening Reading",
+        type: TRACK_TYPES.COMPLETE,
+        createdAt: "2026-08-01",
+        skips: [],
+        completions: ["2026-08-01", "2026-08-02"]
+      }
+    ];
+
+    const summary = calculateAllHabitsSummary(habits, "2026-08-05");
+    expect(summary.totalHabits).toBe(2);
+    expect(summary.bestOverallStreak).toBe(5); // h1 has 5 days streak
+    expect(summary.habitCards.length).toBe(2);
+    expect(summary.habitCards[0].stats.currentStreak).toBe(5);
+    expect(summary.habitCards[1].stats.currentStreak).toBe(0);
   });
 });

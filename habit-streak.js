@@ -2,11 +2,13 @@ import { loadState } from "./lib/data/store.js";
 import { 
   calculateHabitStats, 
   calculateTierProgress, 
+  calculateAllHabitsSummary,
   generateMonthCalendar 
 } from "./lib/engine/streakEngine.js";
 import { buildDashboardTemplate } from "./lib/ui/dashboardTemplate.js";
 import { launchHabitDashboard } from "./lib/features/launcher.js";
-import { handleCreateHabit } from "./lib/features/createHabit.js";
+import { handleCreateHabit, handleCreateFromTemplate } from "./lib/features/createHabit.js";
+import { handleEditHabit } from "./lib/features/editHabit.js";
 import { handleToggleDay } from "./lib/features/toggleDay.js";
 import { handleSkipToday, handleCompleteToday, handleResetToDate } from "./lib/features/resetStreak.js";
 import { handleDeleteHabit, handleSelectHabit } from "./lib/features/habitManagement.js";
@@ -45,6 +47,14 @@ const plugin = {
           await handleCreateHabit(app);
           break;
 
+        case "createFromTemplate":
+          await handleCreateFromTemplate(app, args[1]);
+          break;
+
+        case "editHabit":
+          await handleEditHabit(app, args[1]);
+          break;
+
         case "selectHabit":
           await handleSelectHabit(app, args[1]);
           break;
@@ -69,10 +79,8 @@ const plugin = {
           await handleResetToDate(app, args[1]);
           break;
 
-        case "navigateMonth":
-          if (app.context && typeof app.context.updateEmbedArgs === "function") {
-            await app.context.updateEmbedArgs({ year: args[2], month: args[3] });
-          } else if (app.context && typeof app.context.renderEmbed === "function") {
+        case "refreshData":
+          if (app.context && typeof app.context.renderEmbed === "function") {
             await app.context.renderEmbed();
           }
           break;
@@ -96,9 +104,11 @@ const plugin = {
     const state = await loadState(app);
     const habits = state.habits || [];
 
+    const summary = calculateAllHabitsSummary(habits);
+
     let activeHabit = null;
-    if (habits.length > 0) {
-      activeHabit = habits.find(h => h.id === state.activeHabitId) || habits[0];
+    if (state.activeHabitId) {
+      activeHabit = habits.find(h => h.id === state.activeHabitId) || null;
     }
 
     const embedOpts = (args && args.length > 0 && typeof args[0] === "object") ? args[0] : {};
@@ -106,22 +116,19 @@ const plugin = {
     const viewingYear = embedOpts.year || now.getFullYear();
     const viewingMonth = embedOpts.month || (now.getMonth() + 1);
 
-    if (!activeHabit) {
-      return buildDashboardTemplate({
-        habits: [],
-        activeHabit: null,
-        stats: null,
-        tiers: [],
-        calendar: null
-      });
-    }
+    let stats = null;
+    let tiers = [];
+    let calendar = null;
 
-    const stats = calculateHabitStats(activeHabit);
-    const tiers = calculateTierProgress(stats.currentStreak);
-    const calendar = generateMonthCalendar(activeHabit, viewingYear, viewingMonth);
+    if (activeHabit) {
+      stats = calculateHabitStats(activeHabit);
+      tiers = calculateTierProgress(stats.currentStreak);
+      calendar = generateMonthCalendar(activeHabit, viewingYear, viewingMonth);
+    }
 
     return buildDashboardTemplate({
       habits,
+      summary,
       activeHabit,
       stats,
       tiers,
