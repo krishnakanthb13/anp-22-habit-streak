@@ -246,7 +246,7 @@ describe("streakEngine — Edge Cases & Live Anchors", () => {
   });
 
   test("calculateHabitStats preserves exact streakStartedAt ISO timestamp", () => {
-    const exactISO = "2026-08-18T14:32:10.500Z";
+    const exactISO = "2026-08-01T14:32:10.500Z";
     const habit = {
       type: TRACK_TYPES.SKIP,
       trackingStartDate: "2026-08-01",

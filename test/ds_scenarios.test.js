@@ -5,7 +5,8 @@ import {
   isScheduledDate, 
   getDateRange,
   formatDate,
-  getTodayString
+  getTodayString,
+  isValidDateString
 } from "../lib/engine/streakEngine.js";
 import { 
   loadState, 
@@ -20,7 +21,7 @@ import {
 } from "../lib/data/store.js";
 import { handleSkipToday, handleUndoToday, handleCompleteToday, handleResetToDate } from "../lib/features/resetStreak.js";
 import { handleSaveCalendarEdits } from "../lib/features/toggleDay.js";
-import { TRACK_TYPES, INTERVAL_PERIODS, DATA_NOTE_NAME, DATA_NOTE_TAGS, DEFAULT_STATE } from "../lib/constants.js";
+import { TRACK_TYPES, INTERVAL_PERIODS, DATA_NOTE_NAME, DATA_NOTE_TAGS, DEFAULT_STATE, VALID_THEMES } from "../lib/constants.js";
 
 describe("Design Spec Audit Scenarios (1-18) Verification", () => {
 
@@ -383,5 +384,108 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(normalized.skips).toEqual([]);
     expect(normalized.completions).toEqual([]);
     expect(normalized.id).toBeDefined();
+  });
+
+  // 19. Invariant: Off-day manual entry cannot become scheduled/tracked day
+  test("Invariant 1: Off-day manual entry in completions/skips cannot become a scheduled day", () => {
+    const habit = {
+      type: TRACK_TYPES.COMPLETE,
+      trackingStartDate: "2026-08-18",
+      createdAt: "2026-08-18",
+      interval: { n: 2, period: INTERVAL_PERIODS.DAY }, // Every 2 days: Aug 18, Aug 20
+      completions: ["2026-08-18", "2026-08-19", "2026-08-20"], // 2026-08-19 is OFF-DAY
+      skips: []
+    };
+
+    // Off-day Aug 19 must evaluate to not_applicable
+    const offDayStatus = getHabitDayStatus(habit, "2026-08-19", "2026-08-20");
+    expect(offDayStatus).toBe("not_applicable");
+
+    const stats = calculateHabitStats(habit, "2026-08-20");
+    // Only Aug 18 and Aug 20 are scheduled days
+    expect(stats.totalScheduledDays).toBe(2);
+    expect(stats.completedDays).toBe(2);
+    expect(stats.currentStreak).toBe(2);
+  });
+
+  // 20. Invariant: Reset-to-date only resets scheduled days for recurrence
+  test("Invariant 2: handleResetToDate only marks scheduled days as skipped", async () => {
+    let savedState = null;
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      prompt: jest.fn().mockResolvedValue(["2026-08-03", "Reset weekly habit", true]),
+      getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown({
+        version: 2,
+        revision: 1,
+        habits: [
+          {
+            id: "weekly_h1",
+            name: "Weekly Monday Review",
+            type: TRACK_TYPES.COMPLETE,
+            trackingStartDate: "2026-08-03", // Monday
+            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+            skips: [],
+            completions: []
+          }
+        ]
+      })),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    await handleResetToDate(app, "weekly_h1");
+    expect(savedState).not.toBeNull();
+    const habit = savedState.habits[0];
+
+    // Out of 2026-08-03 to 2026-08-19 (17 days), only Mondays (Aug 3, Aug 10, Aug 17) should be in skips
+    expect(habit.skips).toEqual(["2026-08-03", "2026-08-10", "2026-08-17"]);
+  });
+
+  // 21. Invariant: Mutually exclusive sets (skips ∩ completions = ∅)
+  test("Invariant 3: skips and completions are strictly mutually exclusive", () => {
+    const rawHabit = {
+      id: "h_mut",
+      name: "Mutually Exclusive Test",
+      skips: ["2026-08-18", "2026-08-19"],
+      completions: ["2026-08-18", "2026-08-20"]
+    };
+
+    const normalized = normalizeHabit(rawHabit);
+    expect(normalized.skips).toEqual(["2026-08-18", "2026-08-19"]);
+    // 2026-08-18 is in skips, so it must be removed from completions
+    expect(normalized.completions).toEqual(["2026-08-20"]);
+  });
+
+  // 22. Invariant: Strict date validation
+  test("Invariant 4: isValidDateString strictly validates real calendar dates", () => {
+    expect(isValidDateString("2026-08-19")).toBe(true);
+    expect(isValidDateString("2026-02-28")).toBe(true);
+    expect(isValidDateString("2026-02-30")).toBe(false); // Invalid Feb 30
+    expect(isValidDateString("2026-04-31")).toBe(false); // Invalid April 31
+    expect(isValidDateString("invalid-date")).toBe(false);
+    expect(isValidDateString("")).toBe(false);
+  });
+
+  // 23. Invariant: Theme validation at persistence boundary
+  test("Invariant 5: Theme validation enforces valid themes", () => {
+    const state = normalizeState({
+      theme: "invalid_theme_xyz",
+      habits: [
+        {
+          id: "h1",
+          name: "Theme Test",
+          colorTheme: "neon_rainbow_invalid"
+        }
+      ]
+    });
+
+    expect(state.theme).toBe("midnight");
+    expect(state.habits[0].colorTheme).toBe("blue");
   });
 });

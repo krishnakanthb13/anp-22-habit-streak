@@ -89,9 +89,11 @@ var COLOR_THEMES = {
     text: "#a5b4fc"
   }
 };
+var VALID_THEMES = ["midnight", "glass", "dark", "light", "neon"];
 var DEFAULT_STATE = {
   version: 2,
   revision: 0,
+  theme: "midnight",
   activeHabitId: null,
   habits: []
 };
@@ -104,6 +106,312 @@ function generateUniqueId(prefix = "habit") {
   return `${prefix}_${timestamp}_${randomPart}`;
 }
 
+// anp-22-habit-streak/lib/engine/streakEngine.js
+function isValidDateString(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}
+function formatDate(date) {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) {
+    return "";
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+function getTodayString() {
+  return formatDate(/* @__PURE__ */ new Date());
+}
+function getDateRange(startStr, endStr) {
+  const dates = [];
+  if (!isValidDateString(startStr) || !isValidDateString(endStr) || startStr > endStr) {
+    return dates;
+  }
+  const start = /* @__PURE__ */ new Date(startStr + "T00:00:00");
+  const end = /* @__PURE__ */ new Date(endStr + "T00:00:00");
+  const current = new Date(start);
+  while (current <= end) {
+    dates.push(formatDate(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+function isScheduledDate(habit, dateStr, refStartStr) {
+  if (!isValidDateString(dateStr)) {
+    return false;
+  }
+  const habitStart = refStartStr && isValidDateString(refStartStr) ? refStartStr : habit?.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit?.createdAt ? habit.createdAt.split("T")[0] : getTodayString();
+  if (dateStr < habitStart) {
+    return false;
+  }
+  const interval = habit?.interval || { n: 1, period: INTERVAL_PERIODS.DAY };
+  const n = interval.n && Number.isInteger(interval.n) && interval.n >= 1 ? interval.n : 1;
+  const period = interval.period || INTERVAL_PERIODS.DAY;
+  if (period === INTERVAL_PERIODS.DAY && n === 1) {
+    return true;
+  }
+  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00");
+  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
+    return true;
+  }
+  const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
+  if (diffInDays < 0) {
+    return false;
+  }
+  if (period === INTERVAL_PERIODS.DAY) {
+    return diffInDays % n === 0;
+  }
+  if (period === INTERVAL_PERIODS.WEEK) {
+    const isSameWeekday = targetDate.getDay() === startDate.getDay();
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    return isSameWeekday && diffInWeeks % n === 0;
+  }
+  if (period === INTERVAL_PERIODS.MONTH) {
+    const sYear = startDate.getFullYear();
+    const sMonth = startDate.getMonth();
+    const sDay = startDate.getDate();
+    const tYear = targetDate.getFullYear();
+    const tMonth = targetDate.getMonth();
+    const tDay = targetDate.getDate();
+    const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
+    if (monthDiff < 0 || monthDiff % n !== 0) {
+      return false;
+    }
+    const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
+    const expectedDay = Math.min(sDay, lastDayInTargetMonth);
+    return tDay === expectedDay;
+  }
+  return true;
+}
+function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSets = null, effectiveStartStr = null) {
+  if (dateStr > todayStr) {
+    return "future";
+  }
+  const habitStart = effectiveStartStr && isValidDateString(effectiveStartStr) ? effectiveStartStr : habit?.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit?.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  if (dateStr < habitStart) {
+    return "before_start";
+  }
+  const scheduled = isScheduledDate(habit, dateStr, habitStart);
+  if (!scheduled) {
+    return "not_applicable";
+  }
+  const skips = cachedSets?.skips ?? new Set(habit?.skips || []);
+  const completions = cachedSets?.completions ?? new Set(habit?.completions || []);
+  if (skips.has(dateStr)) {
+    return "skipped";
+  }
+  if (completions.has(dateStr)) {
+    return "completed";
+  }
+  if (habit?.type === TRACK_TYPES.COMPLETE) {
+    return "skipped";
+  }
+  return "completed";
+}
+function calculateHabitStats(habit, todayStr = getTodayString()) {
+  let habitStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(isValidDateString).sort();
+  if (allRecordedDates.length > 0 && allRecordedDates[0] < habitStart) {
+    habitStart = allRecordedDates[0];
+  }
+  const allDates = getDateRange(habitStart, todayStr);
+  if (allDates.length === 0) {
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalTrackedDays: 0,
+      totalScheduledDays: 0,
+      completedDays: 0,
+      skippedDays: 0,
+      completionRate: 0,
+      streakStartDate: null,
+      streakAnchorTimestamp: null,
+      statusToday: "completed"
+    };
+  }
+  const cachedSets = {
+    skips: new Set(habit.skips || []),
+    completions: new Set(habit.completions || [])
+  };
+  const dayStatuses = allDates.map((dateStr) => ({
+    dateStr,
+    status: getHabitDayStatus(habit, dateStr, todayStr, cachedSets, habitStart)
+  }));
+  const totalTrackedDays = dayStatuses.length;
+  let completedDays = 0;
+  let skippedDays = 0;
+  let scheduledDays = 0;
+  for (const item of dayStatuses) {
+    if (item.status === "completed") {
+      completedDays++;
+      scheduledDays++;
+    } else if (item.status === "skipped") {
+      skippedDays++;
+      scheduledDays++;
+    }
+  }
+  const totalRelevantDays = scheduledDays > 0 ? scheduledDays : totalTrackedDays;
+  const completionRate = totalRelevantDays > 0 ? Math.round(completedDays / totalRelevantDays * 100) : 0;
+  let currentStreak = 0;
+  let streakStartDate = null;
+  for (let i = dayStatuses.length - 1; i >= 0; i--) {
+    const { dateStr, status } = dayStatuses[i];
+    if (status === "completed") {
+      currentStreak++;
+      streakStartDate = dateStr;
+    } else if (status === "not_applicable") {
+      continue;
+    } else {
+      break;
+    }
+  }
+  let longestStreak = 0;
+  let tempStreak = 0;
+  for (const item of dayStatuses) {
+    if (item.status === "completed") {
+      tempStreak++;
+      if (tempStreak > longestStreak) {
+        longestStreak = tempStreak;
+      }
+    } else if (item.status === "not_applicable") {
+      continue;
+    } else {
+      tempStreak = 0;
+    }
+  }
+  let streakAnchorTimestamp = null;
+  if (currentStreak > 0 && streakStartDate) {
+    if (habit.streakStartedAt && typeof habit.streakStartedAt === "string") {
+      const anchorDate = habit.streakStartedAt.split("T")[0];
+      if (anchorDate === streakStartDate) {
+        const parsed = new Date(habit.streakStartedAt).getTime();
+        if (!isNaN(parsed)) {
+          streakAnchorTimestamp = parsed;
+        }
+      }
+    } else if (habit.streakAnchor && typeof habit.streakAnchor === "string") {
+      const anchorDate = habit.streakAnchor.split("T")[0];
+      if (anchorDate === streakStartDate) {
+        const parsed = new Date(habit.streakAnchor).getTime();
+        if (!isNaN(parsed)) {
+          streakAnchorTimestamp = parsed;
+        }
+      }
+    }
+    if (!streakAnchorTimestamp) {
+      streakAnchorTimestamp = (/* @__PURE__ */ new Date(`${streakStartDate}T00:00:00`)).getTime();
+    }
+  }
+  const statusToday = getHabitDayStatus(habit, todayStr, todayStr, cachedSets, habitStart);
+  return {
+    currentStreak,
+    longestStreak,
+    totalTrackedDays,
+    totalScheduledDays: scheduledDays,
+    completedDays,
+    skippedDays,
+    completionRate,
+    streakStartDate,
+    streakAnchorTimestamp,
+    statusToday
+  };
+}
+function calculateTierProgress(currentStreak) {
+  let nextGoalIdentified = false;
+  return QUITLY_TIERS.map((tier) => {
+    const isUnlocked = currentStreak >= tier.days;
+    let isCurrentGoal = false;
+    if (!isUnlocked && !nextGoalIdentified) {
+      isCurrentGoal = true;
+      nextGoalIdentified = true;
+    }
+    const progressPercent = isUnlocked ? 100 : Math.min(99, Math.round(currentStreak / tier.days * 100));
+    const daysRemaining = Math.max(0, tier.days - currentStreak);
+    return {
+      ...tier,
+      isUnlocked,
+      isCurrentGoal,
+      progressPercent,
+      daysRemaining
+    };
+  });
+}
+function calculateAllHabitsSummary(habits = [], todayStr = getTodayString()) {
+  if (!habits || habits.length === 0) {
+    return {
+      totalHabits: 0,
+      bestOverallStreak: 0,
+      totalCompletedDaysAll: 0,
+      averageCompletionRate: 0,
+      habitCards: []
+    };
+  }
+  let bestOverallStreak = 0;
+  let totalCompletedDaysAll = 0;
+  let sumCompletionRate = 0;
+  const habitCards = habits.map((habit) => {
+    const stats = calculateHabitStats(habit, todayStr);
+    const tiers = calculateTierProgress(stats.currentStreak);
+    const currentGoal = tiers.find((t) => t.isCurrentGoal) || tiers[tiers.length - 1];
+    if (stats.longestStreak > bestOverallStreak) {
+      bestOverallStreak = stats.longestStreak;
+    }
+    totalCompletedDaysAll += stats.completedDays;
+    sumCompletionRate += stats.completionRate;
+    return {
+      ...habit,
+      stats,
+      currentGoal
+    };
+  });
+  const averageCompletionRate = habits.length > 0 ? Math.round(sumCompletionRate / habits.length) : 0;
+  return {
+    totalHabits: habits.length,
+    bestOverallStreak,
+    totalCompletedDaysAll,
+    averageCompletionRate,
+    habitCards
+  };
+}
+function generateMonthCalendar(habit, year, month, todayStr = getTodayString()) {
+  const monthStart = new Date(year, month - 1, 1);
+  const firstDayWeekday = monthStart.getDay();
+  const totalDaysInMonth = new Date(year, month, 0).getDate();
+  const monthName = monthStart.toLocaleString("default", { month: "long" });
+  const days = [];
+  const cachedSets = {
+    skips: new Set(habit?.skips || []),
+    completions: new Set(habit?.completions || [])
+  };
+  for (let d = 1; d <= totalDaysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const status = getHabitDayStatus(habit, dateStr, todayStr, cachedSets);
+    const isToday = dateStr === todayStr;
+    days.push({
+      dayNumber: d,
+      dateStr,
+      status,
+      isToday,
+      weekday: (firstDayWeekday + d - 1) % 7
+    });
+  }
+  return {
+    year,
+    month,
+    monthName,
+    firstDayWeekday,
+    totalDaysInMonth,
+    days
+  };
+}
+
 // anp-22-habit-streak/lib/data/store.js
 var SETTING_DATA_NOTE_UUID = "Habit_Streak_Data_UUID [Do not Edit!]";
 var mutationQueue = Promise.resolve();
@@ -114,7 +422,7 @@ function normalizeHabit(habit) {
   const id = habit.id && typeof habit.id === "string" ? habit.id : generateUniqueId("habit");
   const name = habit.name && typeof habit.name === "string" ? habit.name.trim() : "Untitled Habit";
   const icon = habit.icon && typeof habit.icon === "string" ? habit.icon.trim() : "\u{1F525}";
-  const colorTheme = habit.colorTheme && typeof habit.colorTheme === "string" ? habit.colorTheme : "blue";
+  const colorTheme = habit.colorTheme && COLOR_THEMES[habit.colorTheme] ? habit.colorTheme : "blue";
   const type = habit.type === TRACK_TYPES.COMPLETE || habit.type === TRACK_TYPES.SKIP ? habit.type : TRACK_TYPES.SKIP;
   let intervalN = 1;
   let intervalPeriod = INTERVAL_PERIODS.DAY;
@@ -130,13 +438,28 @@ function normalizeHabit(habit) {
   const nowISO = (/* @__PURE__ */ new Date()).toISOString();
   const createdAt = habit.createdAt && typeof habit.createdAt === "string" ? habit.createdAt : nowISO;
   const createdDateStr = createdAt.split("T")[0];
-  const trackingStartDate = habit.trackingStartDate && typeof habit.trackingStartDate === "string" ? habit.trackingStartDate : createdDateStr || nowISO.split("T")[0];
+  const trackingStartDate = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : isValidDateString(createdDateStr) ? createdDateStr : nowISO.split("T")[0];
   const streakAnchor = habit.streakAnchor && typeof habit.streakAnchor === "string" ? habit.streakAnchor : nowISO;
   const streakStartedAt = habit.streakStartedAt && typeof habit.streakStartedAt === "string" ? habit.streakStartedAt : streakAnchor;
-  const skips = Array.isArray(habit.skips) ? Array.from(new Set(habit.skips.filter((d) => typeof d === "string" && d.length === 10))).sort() : [];
-  const completions = Array.isArray(habit.completions) ? Array.from(new Set(habit.completions.filter((d) => typeof d === "string" && d.length === 10))).sort() : [];
-  const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object") : [];
-  const resetLogs = Array.isArray(habit.resetLogs) ? habit.resetLogs.filter((r) => r && typeof r === "object") : [];
+  const skips = Array.isArray(habit.skips) ? Array.from(new Set(habit.skips.filter(isValidDateString))).sort() : [];
+  const skipSet = new Set(skips);
+  const rawCompletions = Array.isArray(habit.completions) ? Array.from(new Set(habit.completions.filter(isValidDateString))).sort() : [];
+  const completions = rawCompletions.filter((d) => !skipSet.has(d));
+  const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object" && typeof e.type === "string").map((e) => ({
+    id: e.id && typeof e.id === "string" ? e.id : generateUniqueId("event"),
+    type: e.type,
+    date: e.date && isValidDateString(e.date) ? e.date : e.timestamp ? e.timestamp.split("T")[0] : nowISO.split("T")[0],
+    timestamp: e.timestamp && typeof e.timestamp === "string" ? e.timestamp : nowISO,
+    note: e.note && typeof e.note === "string" ? e.note : "",
+    ...Number.isInteger(e.streakLength) ? { streakLength: e.streakLength } : {}
+  })) : [];
+  const resetLogs = Array.isArray(habit.resetLogs) ? habit.resetLogs.filter((r) => r && typeof r === "object").map((r) => ({
+    id: r.id && typeof r.id === "string" ? r.id : generateUniqueId("reset"),
+    date: r.date && isValidDateString(r.date) ? r.date : r.timestamp ? r.timestamp.split("T")[0] : nowISO.split("T")[0],
+    timestamp: r.timestamp && typeof r.timestamp === "string" ? r.timestamp : nowISO,
+    note: r.note && typeof r.note === "string" ? r.note : "",
+    ...Number.isInteger(r.streakLength) ? { streakLength: r.streakLength } : {}
+  })) : [];
   return {
     id,
     name,
@@ -172,7 +495,7 @@ function normalizeState(parsed) {
   }
   const revision = Number.isInteger(parsed.revision) ? parsed.revision : 0;
   const version = Number.isInteger(parsed.version) ? parsed.version : 2;
-  const theme = parsed.theme && typeof parsed.theme === "string" ? parsed.theme : "midnight";
+  const theme = parsed.theme && VALID_THEMES.includes(parsed.theme) ? parsed.theme : "midnight";
   return {
     version,
     revision,
@@ -340,295 +663,6 @@ function mutateState(app, mutator) {
     return result !== void 0 ? result : state;
   });
   return mutationQueue;
-}
-
-// anp-22-habit-streak/lib/engine/streakEngine.js
-function formatDate(date) {
-  const d = new Date(date);
-  if (isNaN(d.getTime())) {
-    return "";
-  }
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-function getTodayString() {
-  return formatDate(/* @__PURE__ */ new Date());
-}
-function getDateRange(startStr, endStr) {
-  const dates = [];
-  const start = /* @__PURE__ */ new Date(startStr + "T00:00:00");
-  const end = /* @__PURE__ */ new Date(endStr + "T00:00:00");
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
-    return dates;
-  }
-  const current = new Date(start);
-  while (current <= end) {
-    dates.push(formatDate(current));
-    current.setDate(current.getDate() + 1);
-  }
-  return dates;
-}
-function isScheduledDate(habit, dateStr, refStartStr) {
-  const habitStart = refStartStr || habit?.trackingStartDate || (habit?.createdAt ? habit.createdAt.split("T")[0] : getTodayString());
-  if (dateStr < habitStart) {
-    return false;
-  }
-  const interval = habit?.interval || { n: 1, period: INTERVAL_PERIODS.DAY };
-  const n = interval.n && Number.isInteger(interval.n) && interval.n >= 1 ? interval.n : 1;
-  const period = interval.period || INTERVAL_PERIODS.DAY;
-  if (period === INTERVAL_PERIODS.DAY && n === 1) {
-    return true;
-  }
-  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00");
-  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
-  if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
-    return true;
-  }
-  const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
-  if (diffInDays < 0) {
-    return false;
-  }
-  if (period === INTERVAL_PERIODS.DAY) {
-    return diffInDays % n === 0;
-  }
-  if (period === INTERVAL_PERIODS.WEEK) {
-    const isSameWeekday = targetDate.getDay() === startDate.getDay();
-    const diffInWeeks = Math.floor(diffInDays / 7);
-    return isSameWeekday && diffInWeeks % n === 0;
-  }
-  if (period === INTERVAL_PERIODS.MONTH) {
-    const sYear = startDate.getFullYear();
-    const sMonth = startDate.getMonth();
-    const sDay = startDate.getDate();
-    const tYear = targetDate.getFullYear();
-    const tMonth = targetDate.getMonth();
-    const tDay = targetDate.getDate();
-    const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
-    if (monthDiff < 0 || monthDiff % n !== 0) {
-      return false;
-    }
-    const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
-    const expectedDay = Math.min(sDay, lastDayInTargetMonth);
-    return tDay === expectedDay;
-  }
-  return true;
-}
-function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSets = null) {
-  if (dateStr > todayStr) {
-    return "future";
-  }
-  const skips = cachedSets?.skips ?? new Set(habit?.skips || []);
-  const completions = cachedSets?.completions ?? new Set(habit?.completions || []);
-  if (skips.has(dateStr)) {
-    return "skipped";
-  }
-  if (completions.has(dateStr)) {
-    return "completed";
-  }
-  const habitStart = habit?.trackingStartDate || (habit?.createdAt ? habit.createdAt.split("T")[0] : todayStr);
-  if (dateStr < habitStart) {
-    return "before_start";
-  }
-  const scheduled = isScheduledDate(habit, dateStr, habitStart);
-  if (!scheduled) {
-    return "not_applicable";
-  }
-  if (habit?.type === TRACK_TYPES.COMPLETE) {
-    return "skipped";
-  }
-  return "completed";
-}
-function calculateHabitStats(habit, todayStr = getTodayString()) {
-  let habitStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : todayStr);
-  const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
-  if (allRecordedDates.length > 0 && allRecordedDates[0] < habitStart) {
-    habitStart = allRecordedDates[0];
-  }
-  const allDates = getDateRange(habitStart, todayStr);
-  if (allDates.length === 0) {
-    return {
-      currentStreak: 0,
-      longestStreak: 0,
-      totalTrackedDays: 0,
-      totalScheduledDays: 0,
-      completedDays: 0,
-      skippedDays: 0,
-      completionRate: 0,
-      streakStartDate: null,
-      streakAnchorTimestamp: null,
-      statusToday: "completed"
-    };
-  }
-  const cachedSets = {
-    skips: new Set(habit.skips || []),
-    completions: new Set(habit.completions || [])
-  };
-  const dayStatuses = allDates.map((dateStr) => ({
-    dateStr,
-    status: getHabitDayStatus(habit, dateStr, todayStr, cachedSets)
-  }));
-  const totalTrackedDays = dayStatuses.length;
-  let completedDays = 0;
-  let skippedDays = 0;
-  let scheduledDays = 0;
-  for (const item of dayStatuses) {
-    if (item.status === "completed") {
-      completedDays++;
-      scheduledDays++;
-    } else if (item.status === "skipped") {
-      skippedDays++;
-      scheduledDays++;
-    }
-  }
-  const totalRelevantDays = scheduledDays > 0 ? scheduledDays : totalTrackedDays;
-  const completionRate = totalRelevantDays > 0 ? Math.round(completedDays / totalRelevantDays * 100) : 0;
-  let currentStreak = 0;
-  let streakStartDate = null;
-  for (let i = dayStatuses.length - 1; i >= 0; i--) {
-    const { dateStr, status } = dayStatuses[i];
-    if (status === "completed") {
-      currentStreak++;
-      streakStartDate = dateStr;
-    } else if (status === "not_applicable") {
-      continue;
-    } else {
-      break;
-    }
-  }
-  let longestStreak = 0;
-  let tempStreak = 0;
-  for (const item of dayStatuses) {
-    if (item.status === "completed") {
-      tempStreak++;
-      if (tempStreak > longestStreak) {
-        longestStreak = tempStreak;
-      }
-    } else if (item.status === "not_applicable") {
-      continue;
-    } else {
-      tempStreak = 0;
-    }
-  }
-  let streakAnchorTimestamp = null;
-  if (currentStreak > 0 && streakStartDate) {
-    if (habit.streakStartedAt && typeof habit.streakStartedAt === "string") {
-      const parsed = new Date(habit.streakStartedAt).getTime();
-      if (!isNaN(parsed)) {
-        streakAnchorTimestamp = parsed;
-      }
-    } else if (habit.streakAnchor && typeof habit.streakAnchor === "string") {
-      const parsed = new Date(habit.streakAnchor).getTime();
-      if (!isNaN(parsed)) {
-        streakAnchorTimestamp = parsed;
-      }
-    }
-    if (!streakAnchorTimestamp) {
-      streakAnchorTimestamp = (/* @__PURE__ */ new Date(`${streakStartDate}T00:00:00`)).getTime();
-    }
-  }
-  const statusToday = getHabitDayStatus(habit, todayStr, todayStr, cachedSets);
-  return {
-    currentStreak,
-    longestStreak,
-    totalTrackedDays,
-    totalScheduledDays: scheduledDays,
-    completedDays,
-    skippedDays,
-    completionRate,
-    streakStartDate,
-    streakAnchorTimestamp,
-    statusToday
-  };
-}
-function calculateTierProgress(currentStreak) {
-  let nextGoalIdentified = false;
-  return QUITLY_TIERS.map((tier) => {
-    const isUnlocked = currentStreak >= tier.days;
-    let isCurrentGoal = false;
-    if (!isUnlocked && !nextGoalIdentified) {
-      isCurrentGoal = true;
-      nextGoalIdentified = true;
-    }
-    const progressPercent = isUnlocked ? 100 : Math.min(99, Math.round(currentStreak / tier.days * 100));
-    const daysRemaining = Math.max(0, tier.days - currentStreak);
-    return {
-      ...tier,
-      isUnlocked,
-      isCurrentGoal,
-      progressPercent,
-      daysRemaining
-    };
-  });
-}
-function calculateAllHabitsSummary(habits = [], todayStr = getTodayString()) {
-  if (!habits || habits.length === 0) {
-    return {
-      totalHabits: 0,
-      bestOverallStreak: 0,
-      totalCompletedDaysAll: 0,
-      averageCompletionRate: 0,
-      habitCards: []
-    };
-  }
-  let bestOverallStreak = 0;
-  let totalCompletedDaysAll = 0;
-  let sumCompletionRate = 0;
-  const habitCards = habits.map((habit) => {
-    const stats = calculateHabitStats(habit, todayStr);
-    const tiers = calculateTierProgress(stats.currentStreak);
-    const currentGoal = tiers.find((t) => t.isCurrentGoal) || tiers[tiers.length - 1];
-    if (stats.longestStreak > bestOverallStreak) {
-      bestOverallStreak = stats.longestStreak;
-    }
-    totalCompletedDaysAll += stats.completedDays;
-    sumCompletionRate += stats.completionRate;
-    return {
-      ...habit,
-      stats,
-      currentGoal
-    };
-  });
-  const averageCompletionRate = habits.length > 0 ? Math.round(sumCompletionRate / habits.length) : 0;
-  return {
-    totalHabits: habits.length,
-    bestOverallStreak,
-    totalCompletedDaysAll,
-    averageCompletionRate,
-    habitCards
-  };
-}
-function generateMonthCalendar(habit, year, month, todayStr = getTodayString()) {
-  const monthStart = new Date(year, month - 1, 1);
-  const firstDayWeekday = monthStart.getDay();
-  const totalDaysInMonth = new Date(year, month, 0).getDate();
-  const monthName = monthStart.toLocaleString("default", { month: "long" });
-  const days = [];
-  const cachedSets = {
-    skips: new Set(habit?.skips || []),
-    completions: new Set(habit?.completions || [])
-  };
-  for (let d = 1; d <= totalDaysInMonth; d++) {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const status = getHabitDayStatus(habit, dateStr, todayStr, cachedSets);
-    const isToday = dateStr === todayStr;
-    days.push({
-      dayNumber: d,
-      dateStr,
-      status,
-      isToday,
-      weekday: (firstDayWeekday + d - 1) % 7
-    });
-  }
-  return {
-    year,
-    month,
-    monthName,
-    firstDayWeekday,
-    totalDaysInMonth,
-    days
-  };
 }
 
 // anp-22-habit-streak/lib/ui/dashboardTemplate.js
@@ -2650,11 +2684,13 @@ function buildDashboardTemplate(dashboardData) {
       // Build unified timeline of events and reset logs
       const timelineEntries = [];
       (activeHabit.events || []).forEach(ev => {
+        let evType = ev.type || "done";
+        if (evType === "skip") evType = "slip";
         timelineEntries.push({
-          type: ev.type === "done" ? "done" : "slip",
+          type: evType,
           date: ev.date || (ev.timestamp ? ev.timestamp.split("T")[0] : ""),
           timestamp: ev.timestamp || null,
-          note: ev.note || (ev.type === "done" ? "Daily check-in completed" : "Slip logged"),
+          note: ev.note || (evType === "done" ? "Daily check-in completed" : (evType === "calendar_edit" ? "Calendar history edited" : "Slip logged")),
           streakLength: ev.streakLength
         });
       });
@@ -2851,15 +2887,30 @@ function buildDashboardTemplate(dashboardData) {
             \${(timelineEntries && timelineEntries.length > 0) ? \`
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 \${timelineEntries.map((log, idx) => {
-                  const isDone = log.type === 'done';
+                  let badgeIcon = '\u{1F6A8}';
+                  let badgeColor = '#be123c';
+                  let badgeBg = '#ffe4e6';
+                  let headline = log.streakLength ? \`\${log.streakLength} days streak before reset\` : 'Slip / Reset';
+
+                  if (log.type === 'done') {
+                    badgeIcon = '\u2705';
+                    badgeColor = '#15803d';
+                    badgeBg = '#dcfce7';
+                    headline = \`Check-in #\${timelineEntries.length - idx}\`;
+                  } else if (log.type === 'calendar_edit') {
+                    badgeIcon = '\u270F\uFE0F';
+                    badgeColor = '#1d4ed8';
+                    badgeBg = '#dbeafe';
+                    headline = 'Calendar History Edited';
+                  } else if (log.type === 'reset') {
+                    badgeIcon = '\u{1F504}';
+                    badgeColor = '#b45309';
+                    badgeBg = '#fef3c7';
+                    headline = log.streakLength ? \`Reset (\${log.streakLength}d streak)\` : 'Streak Reset';
+                  }
+
                   const timeLabel = formatTimeOnly(log.timestamp);
                   const dateLabel = formatDateOnly(log.date || log.timestamp);
-                  const badgeIcon = isDone ? '\u2705' : '\u{1F6A8}';
-                  const badgeColor = isDone ? '#15803d' : '#be123c';
-                  const badgeBg = isDone ? '#dcfce7' : '#ffe4e6';
-                  const headline = isDone 
-                    ? \`Check-in #\${timelineEntries.length - idx}\` 
-                    : (log.streakLength ? \`\${log.streakLength} days streak before reset\` : 'Slip / Reset');
                   return \`
                     <div style="background: var(--card-container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 12px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--text-main); margin-bottom: 3px;">
@@ -3137,7 +3188,7 @@ async function handleCreateHabit(app) {
       streakAnchor: nowISO,
       streakStartedAt: nowISO,
       skips: [],
-      completions: habitType === TRACK_TYPES.COMPLETE ? [todayStr] : [],
+      completions: [],
       events: [],
       resetLogs: []
     };
@@ -3175,7 +3226,7 @@ async function handleCreateFromTemplate(app, templateIndex) {
       streakAnchor: nowISO,
       streakStartedAt: nowISO,
       skips: [],
-      completions: template.type === TRACK_TYPES.COMPLETE ? [todayStr] : [],
+      completions: [],
       events: [],
       resetLogs: []
     };
@@ -3297,7 +3348,7 @@ async function handleEditHabit(app, habitId) {
 
 // anp-22-habit-streak/lib/features/toggleDay.js
 async function handleToggleDay(app, habitId, dateStr, currentStatus) {
-  if (!habitId || !dateStr) return;
+  if (!habitId || !dateStr || !isValidDateString(dateStr)) return;
   try {
     let linkedTaskUUID = null;
     let toggledToDone = false;
@@ -3350,24 +3401,35 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
-      if (Array.isArray(skips)) habit.skips = Array.from(new Set(skips)).sort();
-      if (Array.isArray(completions)) habit.completions = Array.from(new Set(completions)).sort();
+      const oldSkipsStr = (habit.skips || []).slice().sort().join(",");
+      const oldCompsStr = (habit.completions || []).slice().sort().join(",");
+      const validSkips = Array.isArray(skips) ? Array.from(new Set(skips.filter(isValidDateString))).sort() : [];
+      const skipSet = new Set(validSkips);
+      const rawCompletions = Array.isArray(completions) ? Array.from(new Set(completions.filter(isValidDateString))).sort() : [];
+      const validCompletions = rawCompletions.filter((d) => !skipSet.has(d));
+      habit.skips = validSkips;
+      habit.completions = validCompletions;
       habit.events = habit.events || [];
-      const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
+      const allRecordedDates = [...habit.completions, ...habit.skips].sort();
       if (allRecordedDates.length > 0) {
         const earliest = allRecordedDates[0];
-        const currentTrackingStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : earliest);
+        const currentTrackingStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : earliest;
         if (earliest < currentTrackingStart) {
           habit.trackingStartDate = earliest;
         }
       }
-      habit.events.push({
-        id: generateUniqueId("event"),
-        type: "calendar_edit",
-        date: getTodayString(),
-        note: `Calendar history edited (${habit.completions.length} done, ${habit.skips.length} skips)`,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      });
+      const newSkipsStr = habit.skips.join(",");
+      const newCompsStr = habit.completions.join(",");
+      const hasChanged = oldSkipsStr !== newSkipsStr || oldCompsStr !== newCompsStr;
+      if (hasChanged) {
+        habit.events.push({
+          id: generateUniqueId("event"),
+          type: "calendar_edit",
+          date: getTodayString(),
+          note: `Calendar history edited (${habit.completions.length} done, ${habit.skips.length} skips)`,
+          timestamp: (/* @__PURE__ */ new Date()).toISOString()
+        });
+      }
     });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
@@ -3583,9 +3645,13 @@ async function handleResetToDate(app, habitId) {
       return;
     }
     const startDateStr = String(startDateVal).trim();
+    if (!isValidDateString(startDateStr)) {
+      await app.alert("Invalid start date provided (must be valid YYYY-MM-DD).");
+      return;
+    }
     const rangeDates = getDateRange(startDateStr, todayStr);
     if (rangeDates.length === 0) {
-      await app.alert("Invalid start date provided.");
+      await app.alert("Invalid date range provided.");
       return;
     }
     const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged";
@@ -3599,8 +3665,10 @@ async function handleResetToDate(app, habitId) {
       habit.resetLogs = habit.resetLogs || [];
       habit.events = habit.events || [];
       for (const d of rangeDates) {
-        if (!habit.skips.includes(d)) {
-          habit.skips.push(d);
+        if (isScheduledDate(habit, d, habit.trackingStartDate)) {
+          if (!habit.skips.includes(d)) {
+            habit.skips.push(d);
+          }
         }
         habit.completions = habit.completions.filter((c) => c !== d);
       }
@@ -3929,7 +3997,7 @@ var plugin = {
           await handleResetToDate(app, args[1]);
           break;
         case "setTheme":
-          if (args[1]) {
+          if (args[1] && VALID_THEMES.includes(args[1])) {
             await mutateState(app, async (state) => {
               state.theme = args[1];
             });

@@ -13,6 +13,7 @@ import { handleToggleDay, handleSaveCalendarEdits } from "./lib/features/toggleD
 import { handleSkipToday, handleCompleteToday, handleUndoToday, handleResetToDate } from "./lib/features/resetStreak.js";
 import { handleDeleteHabit, handleSelectHabit } from "./lib/features/habitManagement.js";
 import { handleImportFromNote } from "./lib/features/importFromNote.js";
+import { VALID_THEMES } from "./lib/constants.js";
 
 const plugin = {
   // App-level action: launches the Habit Streaks Dashboard (Fullscreen or Sidebar)
@@ -81,7 +82,7 @@ const plugin = {
           break;
 
         case "setTheme":
-          if (args[1]) {
+          if (args[1] && VALID_THEMES.includes(args[1])) {
             await mutateState(app, async state => {
               state.theme = args[1];
             });
