@@ -30,7 +30,7 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
                     │   lib/ui/dashboardTemplate.js   │
                     │   - Main Screen (Segmented)     │
                     │   - Detail View (Ticker/Bars)   │
-                    │   - Templates Catalog           │
+                    │   - Templates & Import Guide    │
                     │   - Settings & Sync Drawer      │
                     └─────────────────────────────────┘
 ```
@@ -43,8 +43,10 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
 - `DATA_NOTE_NAME = "habit_streak_data"`
 - `DATA_NOTE_TAGS = ["-reports/-habit-streak"]`
 - `TRACK_TYPES = { SKIP: "skip", COMPLETE: "complete" }`
+  - `SKIP`: Quitly auto-tracked model (Clean/done unless skipped).
+  - `COMPLETE`: Amplenote intentional practice model (Done only when explicitly completed).
 - `QUITLY_TIERS`: Array of 11 progressive milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
-- `QUITLY_TEMPLATES` & `AMPLENOTE_TEMPLATES`: Preset templates.
+- `QUITLY_TEMPLATES` & `AMPLENOTE_TEMPLATES`: Categorized preset templates.
 - `COLOR_THEMES`: 8 gradient palette tokens.
 
 ### `lib/data/store.js`
@@ -61,15 +63,23 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
 - `calculateAllHabitsSummary(habits, todayStr)`: Aggregates metrics across all counters for the main dashboard view.
 
 ### `lib/features/`
-- `createHabit.js`: Handles creation modal (name, emoji, theme, philosophy, recurrence) and 1-click template instantiation.
+- `createHabit.js`: Handles custom creation modal and 1-click template instantiation.
+- `importFromNote.js`: 
+  - Resolves note handle from `app.prompt({ type: "note" })` supporting single values, arrays, and markdown links.
+  - Queries `app.getNoteTasks({ uuid }, { includeDone: true })` with fallback regex parser for checklist items (`- [ ]`, `- [x]`, `* [ ]`).
+  - Normalizes single-input vs multi-input checkbox confirmations from `app.prompt`.
+  - Runs an interactive per-task setup wizard allowing users to customize title, emoji, color theme, cadence, and choose between **Positive Habit** vs **Bad Habit / Abstinence**.
+  - Activates newly imported habits immediately on the dashboard.
 - `editHabit.js`: Edits existing counter properties.
 - `resetStreak.js`: Handles `handleSkipToday`, `handleCompleteToday`, and `handleResetToDate` (logging reflection notes and timestamped multi-events).
 - `toggleDay.js`: Click-to-toggle any calendar day status.
-- `importFromNote.js`: Scans note task lists for recurring items.
+- `habitManagement.js`: Deletes counters and handles tab switching.
+- `launcher.js`: Opens the habit embed in full or sidebar mode.
 
 ### `lib/ui/dashboardTemplate.js`
 - Single-page client-side embedded application.
-- Renders **Main View**, **Single Counter View**, **Templates Catalog**, and **Settings & Theming View** with zero host roundtrips.
+- Renders **Main View**, **Single Counter View**, **Templates & Import Catalog**, and **Settings & Theming View** with zero host roundtrips.
+- **Embedded User Guide**: Includes an informational banner in the templates view explaining the 3-step creation flow, dual philosophy, and calendar mechanics.
 - **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with resilient storage fallback.
 - Runs the 1-second interval live digital sub-clock ticker (`[Days] [Hours] [Mins] [Secs]`).
 
@@ -82,16 +92,19 @@ The persistent JSON stored in `habit_streak_data` has the following schema:
 ```json
 {
   "version": 1,
-  "activeHabitId": "habit-1724000000000-1234",
+  "theme": "midnight",
+  "activeHabitId": "habit_1724000000000_abc12",
   "habits": [
     {
-      "id": "habit-1724000000000-1234",
+      "id": "habit_1724000000000_abc12",
       "name": "I am Sober",
       "icon": "🍷",
       "type": "skip",
       "colorTheme": "blue",
-      "interval": 1,
-      "intervalPeriod": "day",
+      "interval": {
+        "n": 1,
+        "period": "day"
+      },
       "createdAt": "2026-08-01T00:00:00.000Z",
       "streakAnchor": "2026-08-01T00:00:00.000Z",
       "skips": ["2026-08-05"],
@@ -111,3 +124,4 @@ The persistent JSON stored in `habit_streak_data` has the following schema:
   ]
 }
 ```
+

@@ -1,5 +1,25 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.5 (2026-08-19)
+
+### 🚀 New Features & Enhancements
+- **Interactive Per-Habit Import Wizard**: Importing tasks from notes now walks through each selected item with a pre-filled dialog allowing users to customize title, emoji icon, color theme gradient, and choose between **✨ Positive Habit** vs **🛡️ Bad Habit / Abstinence**.
+- **Collapsible In-App Guide Accordion**: Replaced static guide banners with a sleek, one-tap expandable accordion (**`💡 How to Add & Track Habits ▼`**) below the Import Tasks button with adaptive styling across all 5 themes.
+- **Cross-Device Appearance Theme Sync**: Selected visual themes now save directly to the authoritative `habit_streak_data` note (`state.theme`) via `setTheme` in addition to 0ms `localStorage` instant caching.
+- **Enhanced Empty State**: Main dashboard empty state provides direct 1-click access to both template catalog and note task import.
+
+### 🐛 Bug Fixes & Code Audit
+- **`app.prompt` Single-Input Normalization**: Fixed an issue where `app.prompt` with single inputs (e.g. single note selection or single task checkbox) returned direct primitive values/objects instead of arrays, which previously caused imports to exit prematurely.
+- **Robust Task Parsing**: Expanded task extraction to support `includeDone: true` and added markdown regex fallback for all checklist patterns (`- [ ]`, `- [x]`, `* [ ]`, `[ ]`).
+- **Client-Side Scope Fix**: Fixed `ReferenceError: dashboardData is not defined` in client-side script by scoping theme initialization to `INITIAL_DATA.theme`.
+- **Schema Conformity in Creation**: Initialized `events: []` and `resetLogs: []` across custom and template habit creation in `createHabit.js`.
+- **Local Timezone Consistency**: Replaced UTC date slicing with `getTodayString()` in `toggleDay.js` to prevent midnight timezone boundary discrepancies.
+
+### 📚 Documentation
+- Systematically refreshed `README.md`, `CODE_DOCUMENTATION.md`, and `DESIGN_PHILOSOPHY.md` to document user workflows, import wizard details, and data model persistence.
+
+---
+
 ## v0.0.3 (2026-08-19)
 
 ### 🚀 New Features
@@ -25,3 +45,4 @@
 ### 📚 Documentation
 - Added comprehensive `README.md`, `CODE_DOCUMENTATION.md`, and `DESIGN_PHILOSOPHY.md`.
 - Added GPL-3.0 `LICENSE`.
+

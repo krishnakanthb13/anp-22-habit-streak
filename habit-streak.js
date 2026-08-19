@@ -84,6 +84,14 @@ const plugin = {
           await handleResetToDate(app, args[1]);
           break;
 
+        case "setTheme":
+          if (args[1]) {
+            const state = await loadState(app);
+            state.theme = args[1];
+            await saveState(app, state);
+          }
+          break;
+
         case "refreshData":
           if (app.context && typeof app.context.renderEmbed === "function") {
             await app.context.renderEmbed();
@@ -137,7 +145,8 @@ const plugin = {
       activeHabit,
       stats,
       tiers,
-      calendar
+      calendar,
+      theme: state.theme || "midnight"
     });
   }
 };

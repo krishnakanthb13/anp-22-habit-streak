@@ -1,6 +1,6 @@
 # Habit Streaks Plugin (Beautiful Streaks & Days-Since Counter)
 
-> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Break Bad Habits vs Build Positive Habits), real-time live digital tickers, 7-day repeatingness bar charts, interactive monthly dot calendars, tiered milestone badges, and reflection history logging.
+> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Break Bad Habits vs Build Positive Habits), real-time live digital tickers, 7-day repeatingness bar charts, interactive monthly dot calendars, tiered milestone badges, per-task import wizard, and reflection history logging.
 
 Icon: `local_fire_department`  
 Author: [Krishna Kanth B](https://github.com/krishnakanthb13)  
@@ -22,74 +22,65 @@ Repository: [amplenote_stg_plugins/anp-22-habit-streak](https://github.com/krish
 
 3. **Insert Code Block**: Below the table, insert a Javascript code block (```` ```javascript ````).
 4. **Paste Compiled Code**: Copy the bundle from [`habit-streak.compiled.js`](https://github.com/krishnakanthb13/amplenote_stg_plugins/blob/main/anp-22-habit-streak/build/habit-streak.compiled.js) and paste it inside the code block.
-5. **Open Dashboard**: Run the app option or open the embedded habit dashboard.
+5. **Open Dashboard**: Run the app option (`Habit Streaks Dashboard`) or insert the widget into any note.
 
 ---
 
-## 🚀 Key Features
+## 📖 User Guide: How to Use
 
-### 1. Dual Habit Philosophy
-- **🛡️ Break Bad Habits / Sobriety (Quitly Style)**:
-  - Default: Passive auto-tracking. Days count up automatically as long as you stay clean.
-  - Interaction: Only check in to log a slip/relapse with an optional reflection note.
-  - Phrasing: *"Clean & sober for"*, *"🛡️ Clean Today (Auto-Tracked)"*.
-- **🎯 Build Positive Daily Habits (Amplenote Style)**:
-  - Default: Action-based practice requiring daily intentional completion.
-  - Interaction: Tap *"Mark Done Today"* to build your streak. Supports multiple session check-ins per day.
-  - Phrasing: *"Continuous unbroken streak"*, *"⏳ Pending Check-In"* / *"✅ Completed for Today!"*.
+### 1. Adding a New Habit Counter
+Tap the **`+`** button in the top header or navigate to **Templates**. You have 3 intuitive options:
+* **Option A: 1-Click Templates**: Browse curated presets (*I am Sober*, *No Smoking*, *Daily Workout*, *Meditation*, etc.) and tap `+` to add immediately.
+* **Option B: Custom Counter**: Tap **`+ Create a Custom Counter`** to define your own habit name, emoji icon, gradient color theme, tracking philosophy, and cadence.
+* **Option C: Import Tasks from Any Note**: Tap **`📥 Import Tasks from Note`**.
 
-### 2. Main Screen Segmentation
-- **Segmented Filter Bar**: Filter between `[ All ]`, `[ 🛡️ Quitting ]`, and `[ 🎯 Positive Habits ]`.
-- **Vibrant Gradient Pill Cards**: 8 curated gradient themes (Amber, Rose, Sky Blue, Emerald, Purple, Bronze, Teal, Indigo) displaying formatted duration (`2 mths, 3 days`), custom emoji icon, and status badge.
+### 2. Step-by-Step Note Import Wizard
+When importing tasks from your existing Amplenote notes:
+1. **Select Source Note**: A dialog appears to select the note containing your tasks or checklist items.
+2. **Select Tasks**: Check the tasks you want to track from the discovered list (supports both native tasks and `- [ ]` markdown checkboxes).
+3. **Configure Each Habit**: For each selected task, an interactive setup wizard opens pre-filled with the task's title:
+   * **Tracking Philosophy**: Choose whether this is a **`✨ Positive Habit`** (done when checked in) or a **`🛡️ Bad Habit / Abstinence`** (auto-done unless skipped).
+   * **Emoji Icon**: Assign any emoji (🏃, 📚, 🧘, 🔥, 🍷, etc.).
+   * **Color Theme**: Choose from 8 vibrant gradients (Emerald, Sky Blue, Indigo, Teal, Purple, Amber, Rose, Bronze).
+   * **Recurrence**: Set cadence (Every 1 Day, 1 Week, etc.).
+4. **Immediate Activation**: The newly imported habit opens directly on your dashboard.
 
-### 3. Live Digital Ticker Hero Banner
-- 4-Column real-time ticking sub-clock: **`[Days]` `[Hours]` `[Minutes]` `[Seconds]`** live ticking sub-clock.
-- Unit toggles `[Y] [M] [D]`.
+### 3. Understanding the Dual Tracking Philosophies
+* **🛡️ Bad Habits & Sobriety (Quitly Style)**:
+  * **Concept**: You are succeeding every single second simply by staying clean (e.g. *No Alcohol*, *No Smoking*, *No Junk Food*).
+  * **Interaction**: Auto-tracked! Days count up continuously without requiring daily check-ins.
+  * **When a slip occurs**: Tap **`🚨 Log Slip / Reset Today`** or **`🔄 Backdate Relapse Date with Note`** to record your reflection note.
+* **🎯 Positive Daily Habits (Amplenote Style)**:
+  * **Concept**: Intentional daily practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
+  * **Interaction**: Tap **`✅ Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
 
-### 4. Goals & Tier Milestones
-- **Quitly Laurel Tier Card**: `🌿 Tier X / 30 days`, animated blue progress fill bar, `% completed`, and `X days left`.
-- **3-Column All Goals Checklist**: Grid displaying unlocked (`☑`) vs locked (`🔒`) tiers from 1 Day to 5 Years.
+### 4. Interactive Monthly Calendar
+* View any month using the horizontal navigation arrows (`‹ Month Year ›`).
+* Completed days appear **Green**; skipped/relapsed days appear **Red**.
+* **Click-to-Toggle**: Click any past or current day cell directly to toggle its status between completed and skipped.
 
-### 5. Multi-Event Tracking & 7-Day Frequency Chart
-- Log multiple completions or slips for the same day.
-- **7-Day Repeatingness Bar Chart**: Visualizes daily action frequency over the past week with total weekly count.
+### 5. Goals & Milestone Badges
+* Track progress toward 11 milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
+* View your current goal card with real-time percentage progress bars and unlocked trophy checklist.
 
-### 6. Interactive Monthly Activity Calendar
-- Clean dot calendar with month navigation (`‹ Month Year ›`).
-- Color-coded: Green for completed, Red for skipped/relapsed.
-- Tap any past or current day to toggle completion state.
-
-### 7. Reset Counters with Reflection Notes
-- When logging a relapse or backdating skips, add an optional reflection reason note.
-- **`📝 Reset & Reflection History`**: Chronological log of past streaks, reset dates, and reflection notes.
-
-### 8. Recommended Counter Templates
-- Categorized template catalog for 1-click creation:
-  - **🛡️ Quitting**: *I am Sober (Alcohol)*, *No Smoking*, *No Junk Food*, *No Refined Sugar*, *Without Caffeine*, *No Social Media*, *No Impulse Shopping*.
-  - **🎯 Positive Habits**: *Daily Workout*, *Daily Reading*, *Morning Meditation*, *Drink 2L Water*, *Daily Journaling*, *Deep Work Session*.
-
-### 9. Import Tasks Directly from Any Note
-- Select any note in your Amplenote workspace to automatically discover recurring tasks.
-- Interactive multi-select dialog allows importing chosen tasks into your streak dashboard in one click.
-
-### 10. 5 Visual Themes & Appearance Customization
-- Choose between **🌌 Midnight**, **🔮 Frosted Glass (Glassmorphism)**, **🌙 Pure Dark**, **☀️ Light Clean**, and **⚡ Cyberpunk Neon**.
-- Themes apply instantly in 0ms with safe persistent storage.
-
-### 11. Zero-Lag Note Syncing
-- Synchronization with the authoritative `habit_streak_data` note is strictly scoped to:
-  1. Opening the dashboard.
-  2. Mutating state (create/edit/delete/toggle/skip/reset).
-  3. Manual refresh (`🔄 Force Refresh from Note`).
-- Tab navigation and month switching run 100% in-memory with 0ms delay.
+### 6. Themes & Appearance Customization
+Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
+* **🌌 Midnight**: Deep Obsidian with crisp white card sheets.
+* **🔮 Frosted Glass**: Modern glassmorphism with dynamic backdrop blur.
+* **🌙 Pure Dark**: OLED true dark mode.
+* **☀️ Light Clean**: Minimal daylight appearance.
+* **⚡ Cyberpunk Neon**: High-contrast dark theme with neon cyan & purple accents.
 
 ---
 
-## 🛠️ Configuration & Settings
+## 🛠️ Configuration & Data Storage
 
 | Setting Key | Description | Default |
 | :--- | :--- | :--- |
-| `Habit_Streak_Data_UUID [Do not Edit!]` | Holds the UUID of the authoritative `habit_streak_data` note. | Auto-populated on initial load |
+| `Habit_Streak_Data_UUID [Do not Edit!]` | UUID of the authoritative `habit_streak_data` note tagged `-reports/-habit-streak`. | Auto-populated on initial load |
+
+* **Zero Data Loss**: All streak history, reflection notes, and custom settings are stored in JSON format inside the authoritative data note.
+* **Device Portability**: Synchronizes automatically across all your devices using standard Amplenote note syncing.
 
 ---
 
@@ -97,10 +88,17 @@ Repository: [amplenote_stg_plugins/anp-22-habit-streak](https://github.com/krish
 
 - [`habit-streak.js`](./habit-streak.js): Plugin entry point and action router.
 - [`lib/constants.js`](./lib/constants.js): Core constants, 11 milestone tiers, and categorized templates.
-- [`lib/data/store.js`](./lib/data/store.js): Read/write parser for the `habit_streak_data` note.
+- [`lib/data/store.js`](./lib/data/store.js): Authoritative JSON data note persistence.
 - [`lib/engine/streakEngine.js`](./lib/engine/streakEngine.js): Mathematical calculations for continuous streaks, milestone tiers, and 7-day frequencies.
-- [`lib/features/`](./lib/features/): Modular action handlers (`createHabit.js`, `editHabit.js`, `resetStreak.js`, `toggleDay.js`, `importFromNote.js`).
-- [`lib/ui/dashboardTemplate.js`](./lib/ui/dashboardTemplate.js): Quitly-styled single-sheet responsive UI template.
+- [`lib/features/`](./lib/features/):
+  - `createHabit.js`: Custom habit creation and 1-click template instantiation.
+  - `importFromNote.js`: Note scanner with task normalization and interactive setup wizard.
+  - `editHabit.js`: Edit existing counter settings.
+  - `resetStreak.js`: Reset handlers with reflection note logging.
+  - `toggleDay.js`: Direct calendar day toggle engine.
+  - `habitManagement.js`: Counter deletion and active tab selection.
+  - `launcher.js`: Embed opener and sidebar dispatcher.
+- [`lib/ui/dashboardTemplate.js`](./lib/ui/dashboardTemplate.js): Responsive single-page client-side embedded application.
 
 ---
 

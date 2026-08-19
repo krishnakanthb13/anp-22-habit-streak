@@ -208,7 +208,7 @@ async function loadState(app) {
     return { ...DEFAULT_STATE };
   }
 }
-async function saveState(app, state) {
+async function saveState2(app, state) {
   try {
     const dataNoteUUID = await getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID);
     const markdown = formatStateAsMarkdown(state);
@@ -608,6 +608,71 @@ function buildDashboardTemplate(dashboardData) {
     body.theme-neon .tier-laurel-card .laurel-title {
       color: #38bdf8 !important;
       text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+    }
+
+    /* Guide Collapsible Accordion */
+    .guide-accordion {
+      background: rgba(37, 99, 235, 0.06);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      border-radius: var(--radius-md);
+      margin-top: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+    .guide-accordion summary {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2563eb;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      list-style: none;
+    }
+    .guide-accordion summary::-webkit-details-marker {
+      display: none;
+    }
+    .guide-accordion[open] summary {
+      border-bottom: 1px solid rgba(37, 99, 235, 0.15);
+      background: rgba(37, 99, 235, 0.08);
+    }
+    .guide-accordion-body {
+      padding: 12px 14px;
+      font-size: 11.5px;
+      line-height: 1.55;
+      color: var(--text-sub);
+    }
+
+    html.theme-glass .guide-accordion,
+    body.theme-glass .guide-accordion {
+      background: rgba(255, 255, 255, 0.05) !important;
+      border-color: rgba(255, 255, 255, 0.14) !important;
+    }
+    html.theme-glass .guide-accordion summary,
+    body.theme-glass .guide-accordion summary {
+      color: #93c5fd !important;
+    }
+    html.theme-dark .guide-accordion,
+    body.theme-dark .guide-accordion {
+      background: #1f2937 !important;
+      border-color: #374151 !important;
+    }
+    html.theme-dark .guide-accordion summary,
+    body.theme-dark .guide-accordion summary {
+      color: #60a5fa !important;
+    }
+    html.theme-neon .guide-accordion,
+    body.theme-neon .guide-accordion {
+      background: #111827 !important;
+      border-color: rgba(56, 189, 248, 0.3) !important;
+    }
+    html.theme-neon .guide-accordion summary,
+    body.theme-neon .guide-accordion summary {
+      color: #38bdf8 !important;
     }
 
     * {
@@ -1316,7 +1381,7 @@ function buildDashboardTemplate(dashboardData) {
     let viewingYear = new Date().getFullYear();
     let viewingMonth = new Date().getMonth() + 1;
 
-    let activeTheme = "midnight";
+    let activeTheme = (INITIAL_DATA && INITIAL_DATA.theme) ? INITIAL_DATA.theme : "midnight";
     try {
       if (typeof window !== "undefined" && window.localStorage) {
         const saved = window.localStorage.getItem("habit_streak_theme");
@@ -1325,6 +1390,9 @@ function buildDashboardTemplate(dashboardData) {
     } catch (e) {
       console.warn("[HabitStreak] Storage unavailable:", e);
     }
+
+    document.documentElement.className = "theme-" + activeTheme;
+    document.body.className = "theme-" + activeTheme;
 
     function applyTheme(themeName) {
       activeTheme = themeName;
@@ -1338,6 +1406,7 @@ function buildDashboardTemplate(dashboardData) {
       
       document.documentElement.className = "theme-" + themeName;
       document.body.className = "theme-" + themeName;
+      callHost("setTheme", themeName);
       render();
     }
 
@@ -1580,9 +1649,25 @@ function buildDashboardTemplate(dashboardData) {
 
           <div class="templates-shelf-card">
             <button class="btn-create-custom" onclick="callHost('createHabit')">+ Create a Custom Counter</button>
-            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="callHost('importFromNote')">
+            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 6px; margin-bottom: 4px;" onclick="callHost('importFromNote')">
               \u{1F4E5} Import Tasks from Note
             </button>
+
+            <details class="guide-accordion">
+              <summary>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span>\u{1F4A1}</span> <span>How to Add & Track Habits</span>
+                </span>
+                <span style="font-size: 10px; opacity: 0.75;">\u25BC</span>
+              </summary>
+              <div class="guide-accordion-body">
+                <strong>1. Choose Source:</strong> Pick a preset template below, create a custom counter, or import tasks from any note.<br>
+                <strong>2. Dual Tracking Philosophy:</strong><br>
+                &nbsp;&nbsp;\u2022 <strong>\u{1F6E1}\uFE0F Quitting / Abstinence:</strong> Auto-tracked! Days count up continuously unless you log a slip.<br>
+                &nbsp;&nbsp;\u2022 <strong>\u2728 Positive Practice:</strong> Requires daily intentional check-in to build your streak.<br>
+                <strong>3. Interactive Tracking:</strong> Tap any calendar day to toggle status or log reflections on resets.
+              </div>
+            </details>
 
             \${(templateFilter === 'all' || templateFilter === 'quit') ? \`
               <div class="templates-category-title">
@@ -1689,11 +1774,16 @@ function buildDashboardTemplate(dashboardData) {
 
           <div class="quitly-white-sheet">
             \${habits.length > 0 ? displayCardsHtml : \`
-              <div style="text-align: center; padding: 40px 20px;">
+              <div style="text-align: center; padding: 36px 18px;">
                 <div style="font-size: 44px; margin-bottom: 12px;">\u{1F331}</div>
                 <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">No counters yet</h3>
-                <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 18px;">Choose a template or create your custom habit streak counter.</p>
-                <button class="btn-create-custom" onclick="switchView('templates')">+ Choose a Template</button>
+                <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.45; max-width: 320px; margin-left: auto; margin-right: auto;">
+                  Track sobriety/quitting goals automatically or build daily positive practices with real-time sub-second tickers & interactive calendars.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 8px; max-width: 280px; margin: 0 auto;">
+                  <button class="btn-create-custom" onclick="switchView('templates')">+ Choose a Template</button>
+                  <button class="btn-quitly-action" style="justify-content: center;" onclick="callHost('importFromNote')">\u{1F4E5} Import Tasks from Note</button>
+                </div>
               </div>
             \`}
           </div>
@@ -2177,12 +2267,14 @@ async function handleCreateHabit(app) {
     createdAt: `${getTodayString()}T00:00:00Z`,
     streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
     skips: [],
-    completions: habitType === TRACK_TYPES.COMPLETE ? [getTodayString()] : []
+    completions: habitType === TRACK_TYPES.COMPLETE ? [getTodayString()] : [],
+    events: [],
+    resetLogs: []
   };
   const state = await loadState(app);
   state.habits.push(newHabit);
   state.activeHabitId = newHabit.id;
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2203,12 +2295,14 @@ async function handleCreateFromTemplate(app, templateIndex) {
     createdAt: `${getTodayString()}T00:00:00Z`,
     streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
     skips: [],
-    completions: template.type === TRACK_TYPES.COMPLETE ? [getTodayString()] : []
+    completions: template.type === TRACK_TYPES.COMPLETE ? [getTodayString()] : [],
+    events: [],
+    resetLogs: []
   };
   const state = await loadState(app);
   state.habits.push(newHabit);
   state.activeHabitId = newHabit.id;
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2297,7 +2391,7 @@ async function handleEditHabit(app, habitId) {
     n: parseInt(periodNVal, 10) || 1,
     period: periodUnitVal || INTERVAL_PERIODS.DAY
   };
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2328,7 +2422,7 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
       if (!habit.completions.includes(dateStr)) habit.completions.push(dateStr);
     }
   }
-  const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const todayStr = getTodayString();
   if (dateStr === todayStr && habit.taskUUID) {
     try {
       if (currentStatus === "completed") {
@@ -2340,7 +2434,7 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
       console.warn("[HabitStreak] Task update sync:", err);
     }
   }
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2373,7 +2467,7 @@ async function handleSkipToday(app, habitId) {
     });
   }
   habit.completions = habit.completions.filter((d) => d !== todayStr);
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2396,7 +2490,7 @@ async function handleCompleteToday(app, habitId) {
   if (!habit.completions.includes(todayStr)) {
     habit.completions.push(todayStr);
   }
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2462,7 +2556,7 @@ async function handleResetToDate(app, habitId) {
     note: noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged",
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2490,7 +2584,7 @@ async function handleDeleteHabit(app, habitId) {
   if (state.activeHabitId === habitId) {
     state.activeHabitId = state.habits.length > 0 ? state.habits[0].id : null;
   }
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2501,7 +2595,7 @@ async function handleSelectHabit(app, habitId) {
   const habit = state.habits.find((h) => h.id === habitId);
   if (!habit) return;
   state.activeHabitId = habitId;
-  await saveState(app, state);
+  await saveState2(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2518,15 +2612,28 @@ async function handleImportFromNote(app) {
       }
     ]
   });
-  if (!notePrompt || !Array.isArray(notePrompt) || !notePrompt[0]) {
+  if (!notePrompt) {
     return;
   }
-  const selectedNote = notePrompt[0];
-  const noteUUID = selectedNote.uuid || selectedNote;
+  const selectedNote = Array.isArray(notePrompt) ? notePrompt[0] : notePrompt;
+  if (!selectedNote) {
+    return;
+  }
+  let noteUUID = null;
+  if (typeof selectedNote === "object" && selectedNote !== null) {
+    noteUUID = selectedNote.uuid || selectedNote.id;
+  } else if (typeof selectedNote === "string") {
+    const match = selectedNote.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+    noteUUID = match ? match[1] : selectedNote;
+  }
+  if (!noteUUID) {
+    await app.alert("Could not identify the selected note.");
+    return;
+  }
   let tasks = [];
   try {
     if (typeof app.getNoteTasks === "function") {
-      tasks = await app.getNoteTasks({ uuid: noteUUID });
+      tasks = await app.getNoteTasks({ uuid: noteUUID }, { includeDone: true });
     }
   } catch (err) {
     console.warn("[HabitStreak] app.getNoteTasks error, falling back to note content parsing:", err);
@@ -2537,9 +2644,9 @@ async function handleImportFromNote(app) {
       if (content) {
         const lines = content.split("\n");
         for (const line of lines) {
-          const match = line.match(/^(\s*[-*]\s*\[[ xX]\]\s*)(.+)/);
+          const match = line.match(/^\s*[-*]?\s*\[\s*[xX]?\s*\]\s*(.+)/);
           if (match) {
-            tasks.push({ content: match[2].trim() });
+            tasks.push({ content: match[1].trim() });
           }
         }
       }
@@ -2551,49 +2658,125 @@ async function handleImportFromNote(app) {
     await app.alert("No tasks found in the selected note.");
     return;
   }
-  const taskInputs = tasks.slice(0, 15).map((t, idx) => ({
+  const taskInputs = tasks.slice(0, 25).map((t, idx) => ({
     type: "checkbox",
-    label: `${idx + 1}. ${t.content || t.name || "Task"}`,
+    label: `${idx + 1}. ${(t.content || t.name || t.text || "Task").trim()}`,
     value: true
   }));
   const confirmResult = await app.prompt("Select Tasks to Track as Habits", {
     inputs: taskInputs
   });
-  if (!confirmResult || !Array.isArray(confirmResult)) {
+  if (confirmResult === null || confirmResult === void 0) {
+    return;
+  }
+  const isCheckedArray = Array.isArray(confirmResult) ? confirmResult : [confirmResult];
+  const selectedTasks = tasks.filter((_, idx) => isCheckedArray[idx]);
+  if (selectedTasks.length === 0) {
     return;
   }
   const todayStr = getTodayString();
   const state = await loadState(app);
   state.habits = state.habits || [];
-  const colorThemes = ["emerald", "blue", "indigo", "teal", "purple", "amber", "rose"];
+  const colorThemes = ["emerald", "blue", "indigo", "teal", "purple", "amber", "rose", "bronze"];
   let importedCount = 0;
-  confirmResult.forEach((isChecked, idx) => {
-    if (isChecked && tasks[idx]) {
-      const taskObj = tasks[idx];
-      const taskText = taskObj.content || taskObj.name || `Task ${idx + 1}`;
-      const newHabit = {
-        id: `habit-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
-        name: taskText,
-        icon: "\u{1F4DD}",
-        type: TRACK_TYPES.SKIP,
-        // Default to Quitly style (done unless skipped)
-        colorTheme: colorThemes[(state.habits.length + importedCount) % colorThemes.length],
-        interval: 1,
-        intervalPeriod: INTERVAL_PERIODS.DAY,
-        createdAt: `${todayStr}T00:00:00.000Z`,
-        streakAnchor: `${todayStr}T00:00:00.000Z`,
-        skips: [],
-        completions: [],
-        events: [],
-        resetLogs: []
-      };
-      state.habits.push(newHabit);
-      importedCount++;
+  let lastImportedHabitId = null;
+  for (let i = 0; i < selectedTasks.length; i++) {
+    const taskObj = selectedTasks[i];
+    const taskText = (taskObj.content || taskObj.name || taskObj.text || `Task ${i + 1}`).trim();
+    const defaultTheme = colorThemes[(state.habits.length + importedCount) % colorThemes.length];
+    const titlePrefix = selectedTasks.length > 1 ? `(${i + 1}/${selectedTasks.length}) ` : "";
+    const configResult = await app.prompt(`Configure Habit: ${titlePrefix}${taskText.slice(0, 28)}`, {
+      inputs: [
+        {
+          type: "string",
+          label: "Emoji Icon (\u{1F525}, \u{1F3C3}, \u{1F4DA}, \u{1F9D8}, \u{1F377}...)",
+          value: "\u{1F4DD}"
+        },
+        {
+          type: "string",
+          label: "Habit / Counter Name",
+          value: taskText
+        },
+        {
+          type: "select",
+          label: "Tracking Philosophy",
+          options: [
+            { label: "\u2728 Positive Habit (Considered done when marked)", value: TRACK_TYPES.COMPLETE },
+            { label: "\u{1F6E1}\uFE0F Bad Habit / Abstinence (Considered done unless skipped)", value: TRACK_TYPES.SKIP }
+          ],
+          value: TRACK_TYPES.COMPLETE
+        },
+        {
+          type: "select",
+          label: "Color Theme",
+          options: [
+            { label: "Emerald (Green)", value: "emerald" },
+            { label: "Sky Blue", value: "blue" },
+            { label: "Indigo (Navy)", value: "indigo" },
+            { label: "Teal (Cyan)", value: "teal" },
+            { label: "Purple (Violet)", value: "purple" },
+            { label: "Amber (Orange/Gold)", value: "amber" },
+            { label: "Rose (Pink/Red)", value: "rose" },
+            { label: "Bronze (Warm Brown)", value: "bronze" }
+          ],
+          value: defaultTheme
+        },
+        {
+          type: "string",
+          label: "Every (Number)",
+          value: "1"
+        },
+        {
+          type: "select",
+          label: "Period",
+          options: [
+            { label: "Day(s)", value: INTERVAL_PERIODS.DAY },
+            { label: "Week(s)", value: INTERVAL_PERIODS.WEEK },
+            { label: "Month(s)", value: INTERVAL_PERIODS.MONTH }
+          ],
+          value: INTERVAL_PERIODS.DAY
+        }
+      ]
+    });
+    if (!configResult) {
+      continue;
     }
-  });
+    const configArray = Array.isArray(configResult) ? configResult : [configResult];
+    const [iconVal, nameVal, typeVal, themeVal, periodNVal, periodUnitVal] = configArray;
+    const finalName = nameVal && String(nameVal).trim() ? String(nameVal).trim() : taskText;
+    const finalIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F4DD}";
+    const finalType = typeVal || TRACK_TYPES.COMPLETE;
+    const finalTheme = themeVal || defaultTheme;
+    const periodN = parseInt(periodNVal, 10) || 1;
+    const periodUnit = periodUnitVal || INTERVAL_PERIODS.DAY;
+    const habitId = `habit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newHabit = {
+      id: habitId,
+      name: finalName,
+      icon: finalIcon,
+      type: finalType,
+      colorTheme: finalTheme,
+      interval: {
+        n: periodN,
+        period: periodUnit
+      },
+      createdAt: `${todayStr}T00:00:00.000Z`,
+      streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
+      skips: [],
+      completions: finalType === TRACK_TYPES.COMPLETE ? [todayStr] : [],
+      events: [],
+      resetLogs: []
+    };
+    state.habits.push(newHabit);
+    lastImportedHabitId = habitId;
+    importedCount++;
+  }
   if (importedCount > 0) {
-    await saveState(app, state);
-    await app.alert(`Successfully imported ${importedCount} task(s) to Habit Streaks!`);
+    if (lastImportedHabitId) {
+      state.activeHabitId = lastImportedHabitId;
+    }
+    await saveState2(app, state);
+    await app.alert(`Successfully imported ${importedCount} habit(s)!`);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -2658,6 +2841,13 @@ var plugin = {
         case "resetToDate":
           await handleResetToDate(app, args[1]);
           break;
+        case "setTheme":
+          if (args[1]) {
+            const state = await loadState(app);
+            state.theme = args[1];
+            await saveState(app, state);
+          }
+          break;
         case "refreshData":
           if (app.context && typeof app.context.renderEmbed === "function") {
             await app.context.renderEmbed();
@@ -2703,7 +2893,8 @@ var plugin = {
       activeHabit,
       stats,
       tiers,
-      calendar
+      calendar,
+      theme: state.theme || "midnight"
     });
   }
 };

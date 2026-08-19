@@ -15,7 +15,16 @@ Traditional habit trackers enforce a single rigid model: every habit starts as "
 
 ---
 
-## 2. Zero-Lag Responsive Embed UI
+## 2. User Empowerment During Note Imports
+
+When users import existing checklists from their Amplenote notes, the plugin should never make unguided assumptions about whether a task represents a positive daily practice or a bad habit to quit.
+
+- **Intentional Categorization**: The import workflow guides the user through a dedicated per-task wizard, prompting for custom emoji icon, theme gradient, and tracking philosophy.
+- **Transparent Guidance**: In-app guide cards and informative prompts keep the user fully aware of the steps they are taking and how their data will be tracked.
+
+---
+
+## 3. Zero-Lag Responsive Embed UI
 
 Amplenote plugins run within sandboxed iframes. Frequent asynchronous host roundtrips degrade the tactile satisfaction of habit tracking.
 
@@ -24,9 +33,10 @@ Amplenote plugins run within sandboxed iframes. Frequent asynchronous host round
 
 ---
 
-## 3. Visual Delight & Emotional Momentum
+## 4. Visual Delight & Emotional Momentum
 
 - **Laurel Milestones & Progressive Tiers**: Unlocking tiers (from 1 Day to 5 Years) provides long-term intrinsic reward.
 - **Vibrant Gradient Identity**: Distinct gradient palettes (Emerald, Rose, Sky Blue, Purple, Amber, Teal, Bronze, Indigo) make each counter immediately recognizable.
 - **Atmospheric Appearance Modes**: 5 curated visual themes (Midnight, Frosted Glass, Pure Dark, Light Clean, Cyberpunk Neon) empower users to personalize their focus environment.
 - **Tactile Reflection**: Instead of treating resets as simple zeroing of numbers, streak resets preserve past streak achievements and record reflection notes in a dedicated history log.
+
