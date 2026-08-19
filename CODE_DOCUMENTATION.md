@@ -69,7 +69,8 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
 
 ### `lib/ui/dashboardTemplate.js`
 - Single-page client-side embedded application.
-- Renders **Main View**, **Single Counter View**, **Templates Catalog**, and **Settings View** with zero host roundtrips.
+- Renders **Main View**, **Single Counter View**, **Templates Catalog**, and **Settings & Theming View** with zero host roundtrips.
+- **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with resilient storage fallback.
 - Runs the 1-second interval live digital sub-clock ticker (`[Days] [Hours] [Mins] [Secs]`).
 
 ---

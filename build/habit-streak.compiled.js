@@ -438,7 +438,7 @@ function buildDashboardTemplate(dashboardData) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Quitly Habit Streaks</title>
+  <title>Habit Streaks</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -446,11 +446,11 @@ function buildDashboardTemplate(dashboardData) {
     :root {
       --shell-bg: #0b0f19;
       --card-container-bg: #ffffff;
-      --card-container-dark: #121826;
+      --card-subtle-bg: #f8fafc;
       --text-main: #0f172a;
       --text-sub: #64748b;
-      --text-light: #f8fafc;
-      --quitly-blue-gradient: linear-gradient(180deg, #1d84e8 0%, #1e40af 100%);
+      --border-color: #e2e8f0;
+      --header-title-color: #ffffff;
       --blue-accent: #2563eb;
       --blue-light: #dbeafe;
       --emerald-accent: #10b981;
@@ -462,6 +462,152 @@ function buildDashboardTemplate(dashboardData) {
       --radius-xl: 32px;
       --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.08);
       --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 1. Midnight Theme (Default) */
+    html.theme-midnight, body.theme-midnight {
+      --shell-bg: #0b0f19;
+      --card-container-bg: #ffffff;
+      --card-subtle-bg: #f8fafc;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --header-title-color: #ffffff;
+    }
+
+    /* 2. Glassmorphism Frosted Theme */
+    html.theme-glass, body.theme-glass {
+      --shell-bg: linear-gradient(135deg, #090d16 0%, #1e1b4b 50%, #0b1329 100%);
+      --card-container-bg: rgba(255, 255, 255, 0.08);
+      --card-subtle-bg: rgba(255, 255, 255, 0.05);
+      --text-main: #ffffff;
+      --text-sub: #cbd5e1;
+      --border-color: rgba(255, 255, 255, 0.16);
+      --header-title-color: #ffffff;
+      color: #ffffff;
+    }
+    html.theme-glass .quitly-white-sheet,
+    html.theme-glass .templates-shelf-card,
+    body.theme-glass .quitly-white-sheet,
+    body.theme-glass .templates-shelf-card {
+      background: rgba(255, 255, 255, 0.08) !important;
+      backdrop-filter: blur(24px) !important;
+      -webkit-backdrop-filter: blur(24px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.16) !important;
+      color: #ffffff !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+    }
+    html.theme-glass .activity-section-card,
+    html.theme-glass .goal-check-box,
+    body.theme-glass .activity-section-card,
+    body.theme-glass .goal-check-box {
+      background: rgba(255, 255, 255, 0.06) !important;
+      border-color: rgba(255, 255, 255, 0.14) !important;
+      color: #f8fafc !important;
+    }
+    html.theme-glass .tier-laurel-card .laurel-title,
+    body.theme-glass .tier-laurel-card .laurel-title {
+      color: #93c5fd !important;
+    }
+
+    /* 3. Pure Dark Mode */
+    html.theme-dark, body.theme-dark {
+      --shell-bg: #07090e;
+      --card-container-bg: #111827;
+      --card-subtle-bg: #1f2937;
+      --text-main: #f9fafb;
+      --text-sub: #9ca3af;
+      --border-color: #374151;
+      --header-title-color: #f9fafb;
+      color: #f9fafb;
+    }
+    html.theme-dark .quitly-white-sheet,
+    html.theme-dark .templates-shelf-card,
+    body.theme-dark .quitly-white-sheet,
+    body.theme-dark .templates-shelf-card {
+      background: #111827 !important;
+      color: #f9fafb !important;
+      border: 1px solid #374151 !important;
+    }
+    html.theme-dark .activity-section-card,
+    html.theme-dark .goal-check-box,
+    body.theme-dark .activity-section-card,
+    body.theme-dark .goal-check-box {
+      background: #1f2937 !important;
+      border-color: #374151 !important;
+      color: #f9fafb !important;
+    }
+    html.theme-dark .tier-laurel-card .laurel-title,
+    body.theme-dark .tier-laurel-card .laurel-title {
+      color: #60a5fa !important;
+    }
+
+    /* 4. Light Minimalist Theme */
+    html.theme-light, body.theme-light {
+      --shell-bg: #f1f5f9;
+      --card-container-bg: #ffffff;
+      --card-subtle-bg: #f8fafc;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --header-title-color: #0f172a;
+      color: #0f172a;
+    }
+    html.theme-light .btn-header-round,
+    body.theme-light .btn-header-round {
+      background: rgba(0, 0, 0, 0.06) !important;
+      color: #0f172a !important;
+    }
+    html.theme-light .btn-header-round:hover,
+    body.theme-light .btn-header-round:hover {
+      background: rgba(0, 0, 0, 0.12) !important;
+    }
+    html.theme-light .filter-segment-bar,
+    body.theme-light .filter-segment-bar {
+      background: rgba(0, 0, 0, 0.06) !important;
+    }
+    html.theme-light .filter-tab-btn,
+    body.theme-light .filter-tab-btn {
+      color: #64748b !important;
+    }
+    html.theme-light .filter-tab-btn.active,
+    body.theme-light .filter-tab-btn.active {
+      background: #ffffff !important;
+      color: #0f172a !important;
+    }
+
+    /* 5. Cyber Neon Theme */
+    html.theme-neon, body.theme-neon {
+      --shell-bg: #030712;
+      --card-container-bg: #0b0f19;
+      --card-subtle-bg: #111827;
+      --text-main: #38bdf8;
+      --text-sub: #94a3b8;
+      --border-color: rgba(56, 189, 248, 0.35);
+      --header-title-color: #38bdf8;
+      color: #f8fafc;
+    }
+    html.theme-neon .quitly-white-sheet,
+    html.theme-neon .templates-shelf-card,
+    body.theme-neon .quitly-white-sheet,
+    body.theme-neon .templates-shelf-card {
+      background: #0b0f19 !important;
+      border: 1px solid rgba(56, 189, 248, 0.4) !important;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25) !important;
+      color: #f8fafc !important;
+    }
+    html.theme-neon .activity-section-card,
+    html.theme-neon .goal-check-box,
+    body.theme-neon .activity-section-card,
+    body.theme-neon .goal-check-box {
+      background: #111827 !important;
+      border-color: rgba(56, 189, 248, 0.25) !important;
+      color: #f8fafc !important;
+    }
+    html.theme-neon .tier-laurel-card .laurel-title,
+    body.theme-neon .tier-laurel-card .laurel-title {
+      color: #38bdf8 !important;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
     }
 
     * {
@@ -479,7 +625,7 @@ function buildDashboardTemplate(dashboardData) {
       overflow-x: hidden !important;
       overflow-y: auto !important;
       background: var(--shell-bg);
-      color: #ffffff;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
     body {
@@ -495,7 +641,7 @@ function buildDashboardTemplate(dashboardData) {
       height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: var(--shell-bg);
+      background: transparent;
     }
     ::-webkit-scrollbar-thumb {
       background: #334155;
@@ -523,13 +669,14 @@ function buildDashboardTemplate(dashboardData) {
       font-size: 20px;
       font-weight: 800;
       letter-spacing: -0.5px;
-      color: #ffffff;
+      color: var(--header-title-color);
+      transition: color 0.2s ease;
     }
 
     .btn-header-round {
       background: rgba(255, 255, 255, 0.1);
       border: none;
-      color: #ffffff;
+      color: var(--header-title-color);
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -578,16 +725,17 @@ function buildDashboardTemplate(dashboardData) {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
-    /* Main Container (White Rounded Sheet like Quitly) */
+    /* Main Container (Rounded Sheet) */
     .quitly-white-sheet {
-      background: #ffffff;
-      color: #0f172a;
+      background: var(--card-container-bg);
+      color: var(--text-main);
       border-radius: var(--radius-xl);
       padding: 20px 16px;
       box-shadow: var(--shadow-card);
       display: flex;
       flex-direction: column;
       gap: 16px;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
     /* Section Category Headings */
@@ -597,13 +745,13 @@ function buildDashboardTemplate(dashboardData) {
       justify-content: space-between;
       font-size: 13px;
       font-weight: 800;
-      color: #475569;
+      color: var(--text-sub);
       text-transform: uppercase;
       letter-spacing: 0.6px;
       padding: 4px 0;
     }
 
-    /* Quitly Colorful Counter Pill Cards (Image 2) */
+    /* Colorful Counter Pill Cards */
     .counter-pill-card {
       border-radius: var(--radius-lg);
       padding: 16px 18px;
@@ -675,7 +823,7 @@ function buildDashboardTemplate(dashboardData) {
     .grad-teal { background: linear-gradient(135deg, #2dd4bf, #0f766e); }
     .grad-indigo { background: linear-gradient(135deg, #818cf8, #4338ca); }
 
-    /* Single Counter Hero View (Image 1) */
+    /* Single Counter Hero View */
     .single-counter-hero {
       border-radius: var(--radius-xl);
       padding: 24px 18px 30px 18px;
@@ -773,7 +921,7 @@ function buildDashboardTemplate(dashboardData) {
       color: #1e40af;
     }
 
-    /* Laurel Tier Card (Image 1) */
+    /* Laurel Tier Card */
     .tier-laurel-card {
       text-align: center;
       display: flex;
@@ -794,7 +942,7 @@ function buildDashboardTemplate(dashboardData) {
     .laurel-subtitle {
       font-size: 13px;
       font-weight: 600;
-      color: #64748b;
+      color: var(--text-sub);
       margin-top: 2px;
       margin-bottom: 14px;
     }
@@ -812,7 +960,7 @@ function buildDashboardTemplate(dashboardData) {
     .progress-bar-track {
       width: 100%;
       height: 10px;
-      background: #f1f5f9;
+      background: rgba(0,0,0,0.06);
       border-radius: 6px;
       overflow: hidden;
       margin-bottom: 8px;
@@ -834,11 +982,11 @@ function buildDashboardTemplate(dashboardData) {
       margin-bottom: 18px;
     }
 
-    /* 3-Column Goals Checklist Grid (Image 1) */
+    /* 3-Column Goals Checklist Grid */
     .goals-section-title {
       font-size: 13px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--text-sub);
       text-align: center;
       margin-bottom: 12px;
     }
@@ -858,15 +1006,15 @@ function buildDashboardTemplate(dashboardData) {
       gap: 8px;
       font-size: 12px;
       font-weight: 700;
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      color: #334155;
+      border: 1px solid var(--border-color);
+      background: var(--card-subtle-bg);
+      color: var(--text-main);
     }
 
     .goal-check-box.unlocked {
-      background: #eff6ff;
-      border-color: #bfdbfe;
-      color: #1d4ed8;
+      background: rgba(59, 130, 246, 0.15) !important;
+      border-color: #3b82f6 !important;
+      color: #3b82f6 !important;
     }
 
     .goal-check-icon {
@@ -904,9 +1052,9 @@ function buildDashboardTemplate(dashboardData) {
     }
 
     .btn-quitly-action {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      color: #1e293b;
+      background: var(--card-subtle-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
       padding: 10px 14px;
       border-radius: var(--radius-sm);
       font-size: 12px;
@@ -918,7 +1066,7 @@ function buildDashboardTemplate(dashboardData) {
       transition: background 0.15s ease;
     }
     .btn-quitly-action:hover {
-      background: #e2e8f0;
+      opacity: 0.85;
     }
 
     .btn-quitly-action.btn-skip-danger {
@@ -941,12 +1089,13 @@ function buildDashboardTemplate(dashboardData) {
       color: #ffffff;
     }
 
-    /* Yearly / Monthly Activity Grid (Image 4) */
+    /* Yearly / Monthly Activity Grid */
     .activity-section-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--card-subtle-bg);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
       padding: 16px;
+      color: var(--text-main);
     }
 
     .activity-header {
@@ -972,8 +1121,8 @@ function buildDashboardTemplate(dashboardData) {
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
-      background: #e2e8f0;
-      color: #64748b;
+      background: rgba(0,0,0,0.08);
+      color: var(--text-sub);
     }
 
     .day-mini-dot.done {
@@ -997,9 +1146,9 @@ function buildDashboardTemplate(dashboardData) {
       justify-content: space-between;
       font-size: 13px;
       font-weight: 700;
-      color: #334155;
+      color: var(--text-main);
       padding-top: 10px;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid var(--border-color);
     }
 
     /* Weekly Frequency Chart */
@@ -1038,21 +1187,21 @@ function buildDashboardTemplate(dashboardData) {
     .weekly-day-lbl {
       font-size: 10px;
       font-weight: 700;
-      color: #64748b;
+      color: var(--text-sub);
     }
 
     .weekly-count-lbl {
       font-size: 10px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--text-main);
     }
 
-    /* Templates Modal / Section (Image 3) */
+    /* Templates Modal / Section */
     .templates-shelf-card {
-      background: #ffffff;
+      background: var(--card-container-bg);
       border-radius: var(--radius-xl);
       padding: 20px 16px;
-      color: #0f172a;
+      color: var(--text-main);
       box-shadow: var(--shadow-card);
       display: flex;
       flex-direction: column;
@@ -1062,7 +1211,7 @@ function buildDashboardTemplate(dashboardData) {
     .templates-category-title {
       font-size: 13px;
       font-weight: 800;
-      color: #334155;
+      color: var(--text-sub);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-top: 8px;
@@ -1117,9 +1266,37 @@ function buildDashboardTemplate(dashboardData) {
     .btn-create-custom:hover {
       background: #334155;
     }
+
+    /* Theme Picker Buttons */
+    .theme-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .theme-option-btn {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 2px solid var(--border-color);
+      background: var(--card-subtle-bg);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .theme-option-btn.active {
+      border-color: #3b82f6 !important;
+      background: rgba(59, 130, 246, 0.15) !important;
+      color: #3b82f6 !important;
+    }
   </style>
 </head>
-<body>
+<body class="theme-midnight" id="appBody">
   <div class="quitly-app-frame" id="appRoot">
     <!-- Rendered dynamically -->
   </div>
@@ -1139,11 +1316,36 @@ function buildDashboardTemplate(dashboardData) {
     let viewingYear = new Date().getFullYear();
     let viewingMonth = new Date().getMonth() + 1;
 
+    let activeTheme = "midnight";
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        const saved = window.localStorage.getItem("habit_streak_theme");
+        if (saved) activeTheme = saved;
+      }
+    } catch (e) {
+      console.warn("[HabitStreak] Storage unavailable:", e);
+    }
+
+    function applyTheme(themeName) {
+      activeTheme = themeName;
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          window.localStorage.setItem("habit_streak_theme", themeName);
+        }
+      } catch (e) {
+        console.warn("[HabitStreak] Error saving theme:", e);
+      }
+      
+      document.documentElement.className = "theme-" + themeName;
+      document.body.className = "theme-" + themeName;
+      render();
+    }
+
     function callHost(action, ...args) {
       if (window.callAmplenotePlugin) {
         window.callAmplenotePlugin(action, ...args);
       } else {
-        console.log("[Quitly Host Call]", action, args);
+        console.log("[HabitStreak Host Call]", action, args);
       }
     }
 
@@ -1266,6 +1468,9 @@ function buildDashboardTemplate(dashboardData) {
     }
 
     function render() {
+      document.documentElement.className = "theme-" + activeTheme;
+      document.body.className = "theme-" + activeTheme;
+
       const root = document.getElementById("appRoot");
       const habits = currentData.habits || [];
       const summary = currentData.summary || {};
@@ -1276,18 +1481,39 @@ function buildDashboardTemplate(dashboardData) {
         root.innerHTML = \`
           <div class="app-top-header">
             <button class="btn-header-round" onclick="switchView('main')">\u2715</button>
-            <span class="header-title-text">Settings & Data</span>
+            <span class="header-title-text">Settings & Theming</span>
             <div style="width: 40px;"></div>
           </div>
 
           <div class="quitly-white-sheet">
-            <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">
-              \u2699\uFE0F Plugin Configuration
+            <div style="font-size: 16px; font-weight: 800; margin-bottom: 2px;">
+              \u{1F3A8} Appearance & Themes
+            </div>
+            <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 10px;">
+              Choose your visual theme. Changes update in real-time.
+            </p>
+
+            <div class="theme-picker-grid">
+              <button class="theme-option-btn \${activeTheme === 'midnight' ? 'active' : ''}" onclick="applyTheme('midnight')">
+                \u{1F30C} Midnight (Default)
+              </button>
+              <button class="theme-option-btn \${activeTheme === 'glass' ? 'active' : ''}" onclick="applyTheme('glass')">
+                \u{1F52E} Frosted Glass
+              </button>
+              <button class="theme-option-btn \${activeTheme === 'dark' ? 'active' : ''}" onclick="applyTheme('dark')">
+                \u{1F319} Pure Dark
+              </button>
+              <button class="theme-option-btn \${activeTheme === 'light' ? 'active' : ''}" onclick="applyTheme('light')">
+                \u2600\uFE0F Light Clean
+              </button>
+              <button class="theme-option-btn \${activeTheme === 'neon' ? 'active' : ''}" onclick="applyTheme('neon')" style="grid-column: span 2;">
+                \u26A1 Cyberpunk Neon
+              </button>
             </div>
             
-            <div class="activity-section-card">
+            <div class="activity-section-card" style="margin-top: 12px;">
               <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F504} Sync Status</div>
-              <p style="font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 12px;">
+              <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4; margin-bottom: 12px;">
                 Your streak logs are stored in the data note with tag <code>-reports/-habit-streak</code>.
               </p>
               <button class="btn-create-custom" style="padding: 10px; font-size: 13px;" onclick="callHost('refreshData')">
@@ -1298,13 +1524,13 @@ function buildDashboardTemplate(dashboardData) {
             <div class="activity-section-card">
               <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F4CA} Total Overview</div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
-                <div style="background: #ffffff; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="background: var(--card-container-bg); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
                   <div style="font-size: 18px; font-weight: 800; color: #2563eb;">\${habits.length}</div>
-                  <div style="color: #64748b;">Total Counters</div>
+                  <div style="color: var(--text-sub);">Total Counters</div>
                 </div>
-                <div style="background: #ffffff; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div style="background: var(--card-container-bg); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
                   <div style="font-size: 18px; font-weight: 800; color: #10b981;">\${summary.bestOverallStreak || 0}d</div>
-                  <div style="color: #64748b;">Best Record</div>
+                  <div style="color: var(--text-sub);">Best Record</div>
                 </div>
               </div>
             </div>
@@ -1354,6 +1580,9 @@ function buildDashboardTemplate(dashboardData) {
 
           <div class="templates-shelf-card">
             <button class="btn-create-custom" onclick="callHost('createHabit')">+ Create a Custom Counter</button>
+            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="callHost('importFromNote')">
+              \u{1F4E5} Import Tasks from Note
+            </button>
 
             \${(templateFilter === 'all' || templateFilter === 'quit') ? \`
               <div class="templates-category-title">
@@ -1377,7 +1606,7 @@ function buildDashboardTemplate(dashboardData) {
         return;
       }
 
-      // 3. MAIN COUNTERS LIST VIEW (Image 2) - Segmented into Quitting vs Positive
+      // 3. MAIN COUNTERS LIST VIEW - Segmented into Quitting vs Positive
       if (currentView === "main" || !activeHabit) {
         const renderHabitCard = (h, idx) => {
           const grad = getHabitGradientClass(h, idx);
@@ -1422,7 +1651,7 @@ function buildDashboardTemplate(dashboardData) {
             displayCardsHtml += \`
               <div class="section-category-header">
                 <span>\u{1F6E1}\uFE0F Bad Habits to Break (Abstinence)</span>
-                <span style="font-size: 11px; color: #64748b;">\${quittingHabits.length}</span>
+                <span style="font-size: 11px; color: var(--text-sub);">\${quittingHabits.length}</span>
               </div>
               \${quittingHabits.map((h, i) => renderHabitCard(h, i)).join("")}
             \`;
@@ -1432,7 +1661,7 @@ function buildDashboardTemplate(dashboardData) {
             displayCardsHtml += \`
               <div class="section-category-header" style="margin-top: 10px;">
                 <span>\u{1F3AF} Positive Habits to Build (Daily Practice)</span>
-                <span style="font-size: 11px; color: #64748b;">\${positiveHabits.length}</span>
+                <span style="font-size: 11px; color: var(--text-sub);">\${positiveHabits.length}</span>
               </div>
               \${positiveHabits.map((h, i) => renderHabitCard(h, i + quittingHabits.length)).join("")}
             \`;
@@ -1441,8 +1670,8 @@ function buildDashboardTemplate(dashboardData) {
 
         root.innerHTML = \`
           <div class="app-top-header">
-            <button class="btn-header-round" title="Settings & Data" onclick="switchView('settings')">\u2699\uFE0F</button>
-            <span class="header-title-text">Quitly Streaks</span>
+            <button class="btn-header-round" title="Settings & Themes" onclick="switchView('settings')">\u2699\uFE0F</button>
+            <span class="header-title-text">Habit Streaks</span>
             <button class="btn-header-round" title="Add Counter" onclick="switchView('templates')">+</button>
           </div>
 
@@ -1463,7 +1692,7 @@ function buildDashboardTemplate(dashboardData) {
               <div style="text-align: center; padding: 40px 20px;">
                 <div style="font-size: 44px; margin-bottom: 12px;">\u{1F331}</div>
                 <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">No counters yet</h3>
-                <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Choose a template or create your custom habit streak counter.</p>
+                <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 18px;">Choose a template or create your custom habit streak counter.</p>
                 <button class="btn-create-custom" onclick="switchView('templates')">+ Choose a Template</button>
               </div>
             \`}
@@ -1472,7 +1701,7 @@ function buildDashboardTemplate(dashboardData) {
         return;
       }
 
-      // 4. SINGLE COUNTER DETAILED VIEW (Image 1, 4, 5)
+      // 4. SINGLE COUNTER DETAILED VIEW
       const hcObj = summary.habitCards ? summary.habitCards.find(c => c.id === activeHabit.id) : null;
       const stats = hcObj ? hcObj.stats : (currentData.stats || {});
       const tiers = currentData.tiers || [];
@@ -1512,11 +1741,11 @@ function buildDashboardTemplate(dashboardData) {
         \`;
 
         philosophyFooterHtml = \`
-          <div class="activity-section-card" style="margin-top: 12px; background: #f0fdf4; border-color: #bbf7d0;">
-            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #166534; margin-bottom: 4px;">
+          <div class="activity-section-card" style="margin-top: 12px; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25);">
+            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #10b981; margin-bottom: 4px;">
               <span>\u{1F6E1}\uFE0F Quitly Abstinence Philosophy (Quitting a Bad Habit)</span>
             </div>
-            <p style="font-size: 12px; color: #15803d; line-height: 1.4;">
+            <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
               This is a quitting counter. Days count up automatically as long as you stay clean. You only need to interact when you experience a slip or relapse to reset the counter with an optional reflection note.
             </p>
           </div>
@@ -1560,18 +1789,18 @@ function buildDashboardTemplate(dashboardData) {
         \`;
 
         philosophyFooterHtml = \`
-          <div class="activity-section-card" style="margin-top: 12px; background: #eef2ff; border-color: #c7d2fe;">
-            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #3730a3; margin-bottom: 4px;">
+          <div class="activity-section-card" style="margin-top: 12px; background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25);">
+            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #6366f1; margin-bottom: 4px;">
               <span>\u{1F3AF} Amplenote Intentional Action Philosophy (Positive Habit)</span>
             </div>
-            <p style="font-size: 12px; color: #4338ca; line-height: 1.4;">
+            <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
               This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> whenever you finish your practice. You can also log multiple sessions per day.
             </p>
           </div>
         \`;
       }
 
-      // 3-Column Goals Checklist Grid (Image 1)
+      // 3-Column Goals Checklist Grid
       let goalsHtml = tiers.map(t => {
         const isUnlocked = t.isUnlocked;
         return \`
@@ -1585,7 +1814,7 @@ function buildDashboardTemplate(dashboardData) {
         \`;
       }).join("");
 
-      // Calendar mini-dots (Image 4)
+      // Calendar mini-dots
       let emptyDots = Array(calendar.firstDayWeekday).fill('<div class="day-mini-dot empty"></div>').join("");
       let dayDots = calendar.days.map(d => {
         let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : '');
@@ -1596,7 +1825,7 @@ function buildDashboardTemplate(dashboardData) {
         return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${d.dateStr}: \${d.status}">\${d.dayNumber}</div>\`;
       }).join("");
 
-      // Weekly frequency bars (Quitly Image 4)
+      // Weekly frequency bars
       let weeklyBarsHtml = weeklyFreq.weekCounts.map(w => {
         const heightPct = Math.max(10, Math.round((w.count / weeklyFreq.maxCount) * 100));
         return \`
@@ -1609,7 +1838,7 @@ function buildDashboardTemplate(dashboardData) {
       }).join("");
 
       root.innerHTML = \`
-        <!-- Hero Header (Image 1) -->
+        <!-- Hero Header -->
         <div class="single-counter-hero \${grad}">
           <div class="single-hero-nav">
             <button class="btn-header-round" onclick="switchView('main')">\u2039</button>
@@ -1654,7 +1883,7 @@ function buildDashboardTemplate(dashboardData) {
           </div>
         </div>
 
-        <!-- White Sheet Below with Tier Laurel, Goals Grid, Actions, Calendar (Image 1 & 4) -->
+        <!-- Sheet Below with Tier Laurel, Goals Grid, Actions, Calendar -->
         <div class="quitly-white-sheet">
           <div style="text-align: center;">
             \${statusBadgeHtml}
@@ -1691,10 +1920,10 @@ function buildDashboardTemplate(dashboardData) {
             </div>
           </div>
 
-          <!-- Weekly Repeatingness Frequency Bar Chart (Image 4) -->
+          <!-- Weekly Repeatingness Frequency Bar Chart -->
           <div class="activity-section-card">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800; color: #1e293b;">\u{1F4CA} 7-Day Frequency</span>
+              <span style="font-size: 14px; font-weight: 800;">\u{1F4CA} 7-Day Frequency</span>
               <span style="font-size: 12px; font-weight: 700; color: #2563eb;">\${weeklyFreq.totalWeekLogs} total this week</span>
             </div>
             <div class="weekly-bars-container">
@@ -1702,13 +1931,13 @@ function buildDashboardTemplate(dashboardData) {
             </div>
           </div>
 
-          <!-- Yearly / Monthly Activity Log (Image 4) -->
+          <!-- Yearly / Monthly Activity Log -->
           <div class="activity-section-card">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800; color: #1e293b;">\u{1F4C5} \${calendar.monthName} \${calendar.year}</span>
+              <span style="font-size: 14px; font-weight: 800;">\u{1F4C5} \${calendar.monthName} \${calendar.year}</span>
               <div style="display: flex; gap: 4px;">
-                <button class="btn-header-round" style="width: 28px; height: 28px; background: #e2e8f0; color: #1e293b;" onclick="changeMonth(-1)">\u2039</button>
-                <button class="btn-header-round" style="width: 28px; height: 28px; background: #e2e8f0; color: #1e293b;" onclick="changeMonth(1)">\u203A</button>
+                <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\u2039</button>
+                <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\u203A</button>
               </div>
             </div>
 
@@ -1718,31 +1947,31 @@ function buildDashboardTemplate(dashboardData) {
             </div>
 
             <div class="resets-counter-bar">
-              <span style="color: #64748b;">Count of Resets / Skips</span>
-              <span style="color: #0f172a; font-weight: 800;">\${stats.skippedDays || 0} times</span>
+              <span style="color: var(--text-sub);">Count of Resets / Skips</span>
+              <span style="font-weight: 800;">\${stats.skippedDays || 0} times</span>
             </div>
           </div>
 
-          <!-- Reset History Log with Notes (Quitly Image 5) -->
+          <!-- Reset History Log with Notes -->
           <div class="activity-section-card" style="margin-top: 12px;">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800; color: #1e293b;">\u{1F4DD} Reset & Reflection History</span>
-              <span style="font-size: 12px; font-weight: 700; color: #64748b;">\${(activeHabit.resetLogs || []).length} logs</span>
+              <span style="font-size: 14px; font-weight: 800;">\u{1F4DD} Reset & Reflection History</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-sub);">\${(activeHabit.resetLogs || []).length} logs</span>
             </div>
             \${(activeHabit.resetLogs && activeHabit.resetLogs.length > 0) ? \`
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 \${activeHabit.resetLogs.slice().reverse().map(log => \`
-                  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; font-size: 12px;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: #1e293b; margin-bottom: 2px;">
+                  <div style="background: var(--card-container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--text-main); margin-bottom: 2px;">
                       <span>\${log.streakLength || 0} days streak before reset</span>
-                      <span style="color: #64748b;">\${log.date}</span>
+                      <span style="color: var(--text-sub);">\${log.date}</span>
                     </div>
-                    <div style="color: #475569; font-style: italic;">"\${escapeHtml(log.note || 'Reset logged')}"</div>
+                    <div style="color: var(--text-sub); font-style: italic;">"\${escapeHtml(log.note || 'Reset logged')}"</div>
                   </div>
                 \`).join("")}
               </div>
             \` : \`
-              <div style="font-size: 12px; color: #64748b; text-align: center; padding: 8px 0;">
+              <div style="font-size: 12px; color: var(--text-sub); text-align: center; padding: 8px 0;">
                 No resets recorded yet. Keep your unbroken streak going!
               </div>
             \`}
@@ -2278,6 +2507,99 @@ async function handleSelectHabit(app, habitId) {
   }
 }
 
+// anp-22-habit-streak/lib/features/importFromNote.js
+async function handleImportFromNote(app) {
+  const notePrompt = await app.prompt("Select a Note to Import Tasks", {
+    inputs: [
+      {
+        type: "note",
+        label: "Source Note",
+        placeholder: "Choose note containing recurring tasks..."
+      }
+    ]
+  });
+  if (!notePrompt || !Array.isArray(notePrompt) || !notePrompt[0]) {
+    return;
+  }
+  const selectedNote = notePrompt[0];
+  const noteUUID = selectedNote.uuid || selectedNote;
+  let tasks = [];
+  try {
+    if (typeof app.getNoteTasks === "function") {
+      tasks = await app.getNoteTasks({ uuid: noteUUID });
+    }
+  } catch (err) {
+    console.warn("[HabitStreak] app.getNoteTasks error, falling back to note content parsing:", err);
+  }
+  if (!tasks || tasks.length === 0) {
+    try {
+      const content = await app.getNoteContent({ uuid: noteUUID });
+      if (content) {
+        const lines = content.split("\n");
+        for (const line of lines) {
+          const match = line.match(/^(\s*[-*]\s*\[[ xX]\]\s*)(.+)/);
+          if (match) {
+            tasks.push({ content: match[2].trim() });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[HabitStreak] Error getting note content:", err);
+    }
+  }
+  if (!tasks || tasks.length === 0) {
+    await app.alert("No tasks found in the selected note.");
+    return;
+  }
+  const taskInputs = tasks.slice(0, 15).map((t, idx) => ({
+    type: "checkbox",
+    label: `${idx + 1}. ${t.content || t.name || "Task"}`,
+    value: true
+  }));
+  const confirmResult = await app.prompt("Select Tasks to Track as Habits", {
+    inputs: taskInputs
+  });
+  if (!confirmResult || !Array.isArray(confirmResult)) {
+    return;
+  }
+  const todayStr = getTodayString();
+  const state = await loadState(app);
+  state.habits = state.habits || [];
+  const colorThemes = ["emerald", "blue", "indigo", "teal", "purple", "amber", "rose"];
+  let importedCount = 0;
+  confirmResult.forEach((isChecked, idx) => {
+    if (isChecked && tasks[idx]) {
+      const taskObj = tasks[idx];
+      const taskText = taskObj.content || taskObj.name || `Task ${idx + 1}`;
+      const newHabit = {
+        id: `habit-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
+        name: taskText,
+        icon: "\u{1F4DD}",
+        type: TRACK_TYPES.SKIP,
+        // Default to Quitly style (done unless skipped)
+        colorTheme: colorThemes[(state.habits.length + importedCount) % colorThemes.length],
+        interval: 1,
+        intervalPeriod: INTERVAL_PERIODS.DAY,
+        createdAt: `${todayStr}T00:00:00.000Z`,
+        streakAnchor: `${todayStr}T00:00:00.000Z`,
+        skips: [],
+        completions: [],
+        events: [],
+        resetLogs: []
+      };
+      state.habits.push(newHabit);
+      importedCount++;
+    }
+  });
+  if (importedCount > 0) {
+    await saveState(app, state);
+    await app.alert(`Successfully imported ${importedCount} task(s) to Habit Streaks!`);
+    if (app.context && typeof app.context.renderEmbed === "function") {
+      await app.context.renderEmbed();
+    }
+  }
+}
+
 // anp-22-habit-streak/habit-streak.js
 var plugin = {
   // App-level action: launches the Habit Streaks Dashboard (Fullscreen or Sidebar)
@@ -2311,6 +2633,9 @@ var plugin = {
           break;
         case "createFromTemplate":
           await handleCreateFromTemplate(app, args[1]);
+          break;
+        case "importFromNote":
+          await handleImportFromNote(app);
           break;
         case "editHabit":
           await handleEditHabit(app, args[1]);

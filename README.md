@@ -68,7 +68,15 @@ Repository: [amplenote_stg_plugins/anp-22-habit-streak](https://github.com/krish
   - **🛡️ Quitting**: *I am Sober (Alcohol)*, *No Smoking*, *No Junk Food*, *No Refined Sugar*, *Without Caffeine*, *No Social Media*, *No Impulse Shopping*.
   - **🎯 Positive Habits**: *Daily Workout*, *Daily Reading*, *Morning Meditation*, *Drink 2L Water*, *Daily Journaling*, *Deep Work Session*.
 
-### 9. Zero-Lag Note Syncing
+### 9. Import Tasks Directly from Any Note
+- Select any note in your Amplenote workspace to automatically discover recurring tasks.
+- Interactive multi-select dialog allows importing chosen tasks into your streak dashboard in one click.
+
+### 10. 5 Visual Themes & Appearance Customization
+- Choose between **🌌 Midnight**, **🔮 Frosted Glass (Glassmorphism)**, **🌙 Pure Dark**, **☀️ Light Clean**, and **⚡ Cyberpunk Neon**.
+- Themes apply instantly in 0ms with safe persistent storage.
+
+### 11. Zero-Lag Note Syncing
 - Synchronization with the authoritative `habit_streak_data` note is strictly scoped to:
   1. Opening the dashboard.
   2. Mutating state (create/edit/delete/toggle/skip/reset).

@@ -12,6 +12,7 @@ import { handleEditHabit } from "./lib/features/editHabit.js";
 import { handleToggleDay } from "./lib/features/toggleDay.js";
 import { handleSkipToday, handleCompleteToday, handleResetToDate } from "./lib/features/resetStreak.js";
 import { handleDeleteHabit, handleSelectHabit } from "./lib/features/habitManagement.js";
+import { handleImportFromNote } from "./lib/features/importFromNote.js";
 
 const plugin = {
   // App-level action: launches the Habit Streaks Dashboard (Fullscreen or Sidebar)
@@ -49,6 +50,10 @@ const plugin = {
 
         case "createFromTemplate":
           await handleCreateFromTemplate(app, args[1]);
+          break;
+
+        case "importFromNote":
+          await handleImportFromNote(app);
           break;
 
         case "editHabit":

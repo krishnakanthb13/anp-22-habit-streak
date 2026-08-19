@@ -10,6 +10,8 @@ Most habit tracking tools enforce a one-size-fits-all model: start every day at 
 Habit Streaks introduces a Quitly-inspired dual philosophy to Amplenote:
 • 🛡️ Abstinence / Quitting Mode: Passive count-up with live ticking clocks (Days, Hours, Minutes, Seconds). You only check in if a setback occurs, with reflection notes.
 • 🎯 Positive Action Mode: Intentional daily check-in with support for multiple sessions per day and 7-day repeatingness bar charts.
+• 🎨 5 Visual Themes: Instant 0ms switching between Midnight, Frosted Glass (Glassmorphism), Pure Dark, Light Minimalist, and Cyberpunk Neon.
+• 📥 Task Importer: Discovers recurring tasks from any note and converts them into streaks in 1 click.
 • 🌿 Laurel Milestone Tiers: Progressive goals from 1 Day to 5 Years with dynamic progress bars.
 • 📅 Interactive Monthly Dot Calendar: Instant 0ms client-side month navigation and click-to-toggle days.
 • ⚡ Zero-Lag Architecture: In-memory client rendering with isolated JSON note persistence.
@@ -25,6 +27,8 @@ https://github.com/krishnakanthb13/amplenote_stg_plugins
 🔥 Excited to release Habit Streaks v0.0.3 for @Amplenote!
 
 ✨ Dual tracking: Quitting bad habits (auto count-up) vs Building positive habits
+🎨 5 Visual Themes: Midnight, Frosted Glass, Pure Dark, Light & Neon
+📥 Task Importer: Scan notes & import recurring tasks in 1 click
 ⏱️ Live ticking ticker: Days : Hours : Mins : Secs
 🌿 Laurel milestone tiers & 7-day frequency bars
 📅 Dot calendar widget

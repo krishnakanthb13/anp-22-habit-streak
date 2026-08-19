@@ -11,7 +11,9 @@
 - **Interactive Monthly Dot Calendar**: Horizontal month navigation with instant click-to-toggle completion states.
 - **Reset Counters with Reflection Notes**: Log resets with reasons and view chronological past streak history.
 - **Categorized Templates Catalog**: 1-click counter templates organized by Sobriety, Health, Fitness, and Mindfulness.
-- **Settings & Data Drawer**: Dedicated settings modal with on-demand force note resync and aggregate overview metrics.
+- **5 Visual Appearance Themes**: Instant 0ms switching between *Midnight*, *Frosted Glass (Glassmorphism)*, *Pure Dark*, *Light Clean*, and *Cyberpunk Neon*.
+- **Task Import from Any Note**: Scan workspace notes to discover recurring tasks and import them directly into your streak board in one click.
+- **Settings & Data Drawer**: Dedicated settings modal with visual theme picker, on-demand force note resync, and aggregate overview metrics.
 
 ### ⚡ Improvements
 - **Zero-Lag In-Memory Navigation**: All view transitions, tab switches, and calendar navigations run 100% in-memory with 0ms latency.
