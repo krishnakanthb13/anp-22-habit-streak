@@ -2,6 +2,28 @@
 
 ## v0.0.5 (2026-08-19)
 
+### 🚀 New Features & Calendar UI/UX Overhaul
+- **Auto-Navigation to Main Page on Creation**: Adding a habit from templates, creating a custom counter, or importing tasks now automatically navigates to the **Main Dashboard Homescreen (`"main"`)**, showing your updated list of counters immediately.
+- **Symmetric Action Flow & Reflection Notes for Both Types**:
+  - **Amplenote Positive Habits**: Tapping **`✅ Mark Done Today`** or **`+ Log Additional Done (+1)`** now prompts with an interactive dialog to record an optional session reflection note (*"Morning meditation completed"*, *"Read Chapter 4"*) and displays the count of daily sessions (*"2 Sessions Completed Today!"*).
+  - **Quitly Abstinence Counters**: Users can now log multiple slips in a single day with individual timestamped notes via **`🚨 Log Additional Slip (+1)`**, in addition to having **`↩️ Undo Slip / Mark Clean Today`**.
+- **Interactive Ticker Unit Toggles (`[Y] [M] [D]`)**: The Hero digital sub-clock ticker now features 1-tap unit switching between **Days (`D`)**, **Months (`M`)**, and **Years (`Y`)** with instant sub-clock calculation.
+- **Fixed `setTheme` Import Reference**: Added missing `saveState` import in [`habit-streak.js`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/habit-streak.js), preventing `ReferenceError: saveState is not defined` when syncing theme settings.
+- **Seamless Scroll Position Retention**: Editing, toggling days, saving the calendar, or logging check-ins now preserves your exact vertical scroll position in real-time (`sessionStorage` + `requestAnimationFrame`), preventing page jumps back to the top.
+- **Return to Homescreen on Deletion**: Deleting a counter from the detail view now automatically cleans up session tracking and returns the dashboard cleanly to the main homescreen list.
+- **↩️ Undo for Bad Habits (Abstinence)**: When a slip is logged for a Quitly habit, the dashboard now shows a dedicated **`↩️ Undo Slip / Mark Clean Today`** button, allowing instant reversal of accidental slips.
+- **Confirmation & Reflection Prompt on Slip/Reset**: Clicking **`🚨 Log Slip / Reset Today`** now presents an interactive confirmation dialog with the current streak length and an optional reflection note input so users don't accidentally reset streaks.
+- **In-Place View Session Persistence**: The embed now persists the active view and selected habit in `sessionStorage`. Marking completions, logging additional sessions (`+1`), or undoing slips will keep you seamlessly on the same habit screen instead of pushing back to the main list.
+- **Full Calendar UI/UX Redesign**:
+  - **Weekday Headers Row**: Added clean standard weekday column headers (`Su Mo Tu We Th Fr Sa`) aligning all dates with real calendars.
+  - **Dynamic State Visuals**: Clear color-coded distinction between `Done / Clean` (Emerald Green), `Missed / Slip` (Rose Red), `Today` (Active Blue Ring), and `Before Start` (subtle gray).
+  - **Quick Action Batch Controls**: Added 1-tap buttons in Edit Mode to **`✅ Mark Month Clean`**, **`🚫 Mark Month Missed`**, and **`✕ Discard`**.
+  - **Live Month Metrics Footer**: Real-time breakdown of **`🟢 X Done`**, **`🔴 Y Missed`**, and total resets.
+- **In-Calendar Direct Edit & Save Engine**: Fixed an issue where edits on dates earlier than habit creation date were filtered out by `before_start`. Both the client renderer and host engine now dynamically expand `habit.createdAt` and calculate streaks backdating seamlessly.
+- **Timestamped Activity & History Logs**: All check-in sessions and reset slips now display exact formatted local timestamps (e.g. `• 09:30 AM`, `• 02:15 PM`) supporting multiple check-in entries per day for both Quitly and Amplenote tracking styles.
+
+## v0.0.5 (2026-08-19)
+
 ### 🚀 New Features & Enhancements
 - **Interactive Per-Habit Import Wizard**: Importing tasks from notes now walks through each selected item with a pre-filled dialog allowing users to customize title, emoji icon, color theme gradient, and choose between **✨ Positive Habit** vs **🛡️ Bad Habit / Abstinence**.
 - **Collapsible In-App Guide Accordion**: Replaced static guide banners with a sleek, one-tap expandable accordion (**`💡 How to Add & Track Habits ▼`**) below the Import Tasks button with adaptive styling across all 5 themes.

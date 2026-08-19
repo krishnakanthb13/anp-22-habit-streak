@@ -208,7 +208,7 @@ async function loadState(app) {
     return { ...DEFAULT_STATE };
   }
 }
-async function saveState2(app, state) {
+async function saveState(app, state) {
   try {
     const dataNoteUUID = await getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID);
     const markdown = formatStateAsMarkdown(state);
@@ -246,28 +246,32 @@ function getDateRange(startStr, endStr) {
   return dates;
 }
 function getHabitDayStatus(habit, dateStr, todayStr = getTodayString()) {
-  const habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
-  if (dateStr < habitStart) {
-    return "before_start";
-  }
   if (dateStr > todayStr) {
     return "future";
   }
   const skips = new Set(habit.skips || []);
   const completions = new Set(habit.completions || []);
-  if (habit.type === TRACK_TYPES.COMPLETE) {
-    if (completions.has(dateStr) && !skips.has(dateStr)) {
-      return "completed";
-    }
+  if (skips.has(dateStr)) {
     return "skipped";
   }
-  if (skips.has(dateStr)) {
+  if (completions.has(dateStr)) {
+    return "completed";
+  }
+  const habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  if (dateStr < habitStart) {
+    return "before_start";
+  }
+  if (habit.type === TRACK_TYPES.COMPLETE) {
     return "skipped";
   }
   return "completed";
 }
 function calculateHabitStats(habit, todayStr = getTodayString()) {
-  const habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  let habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
+  if (allRecordedDates.length > 0 && allRecordedDates[0] < habitStart) {
+    habitStart = allRecordedDates[0];
+  }
   const allDates = getDateRange(habitStart, todayStr);
   if (allDates.length === 0) {
     return {
@@ -1170,6 +1174,90 @@ function buildDashboardTemplate(dashboardData) {
       margin-bottom: 12px;
     }
 
+    .btn-cal-action {
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+      background: var(--card-container-bg);
+      color: var(--text-main);
+    }
+    .btn-cal-action:hover {
+      opacity: 0.85;
+    }
+    .btn-cal-action.btn-cal-save {
+      background: #22c55e !important;
+      border-color: #16a34a !important;
+      color: #ffffff !important;
+      font-weight: 800;
+      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+    }
+    .btn-cal-action.btn-cal-save:hover {
+      background: #16a34a !important;
+    }
+    .btn-cal-action.btn-cal-cancel {
+      background: #f43f5e !important;
+      border-color: #e11d48 !important;
+      color: #ffffff !important;
+    }
+
+    .cal-edit-active-banner {
+      background: rgba(37, 99, 235, 0.1);
+      border: 1px dashed #3b82f6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #2563eb;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cal-quick-actions-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-cal-quick {
+      background: var(--card-container-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-sub);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+    .btn-cal-quick:hover {
+      color: var(--text-main);
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    .cal-weekdays-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin-bottom: 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
     .cal-grid-mini {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -1179,37 +1267,69 @@ function buildDashboardTemplate(dashboardData) {
 
     .day-mini-dot {
       aspect-ratio: 1;
-      border-radius: 4px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 700;
       cursor: pointer;
-      background: rgba(0,0,0,0.08);
+      background: rgba(0,0,0,0.06);
       color: var(--text-sub);
+      transition: transform 0.1s ease, outline 0.1s ease, background 0.15s ease;
+      position: relative;
+    }
+
+    .day-mini-dot:hover:not(.future):not(.empty) {
+      transform: scale(1.1);
+      z-index: 2;
     }
 
     .day-mini-dot.done {
-      background: #22c55e;
-      color: #ffffff;
+      background: #22c55e !important;
+      color: #ffffff !important;
     }
 
     .day-mini-dot.skip {
-      background: #f43f5e;
-      color: #ffffff;
+      background: #f43f5e !important;
+      color: #ffffff !important;
+    }
+
+    .day-mini-dot.before-start {
+      background: rgba(0,0,0,0.03);
+      color: var(--text-sub);
+      opacity: 0.55;
+    }
+
+    .day-mini-dot.future {
+      background: transparent;
+      opacity: 0.25;
+      cursor: not-allowed;
+    }
+
+    .day-mini-dot.is-today {
+      box-shadow: 0 0 0 2px #3b82f6 !important;
+      font-weight: 900;
+    }
+
+    .day-mini-dot.editing {
+      outline: 2px dashed #3b82f6;
+      outline-offset: 1px;
+      cursor: pointer;
     }
 
     .day-mini-dot.empty {
-      background: transparent;
-      cursor: default;
+      background: transparent !important;
+      cursor: default !important;
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     .resets-counter-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: var(--text-main);
       padding-top: 10px;
@@ -1381,6 +1501,36 @@ function buildDashboardTemplate(dashboardData) {
     let viewingYear = new Date().getFullYear();
     let viewingMonth = new Date().getMonth() + 1;
 
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        const savedView = window.sessionStorage.getItem("anp_hs_view");
+        const savedHabitId = window.sessionStorage.getItem("anp_hs_habit_id");
+        if (savedView) currentView = savedView;
+        if (savedHabitId) selectedHabitId = savedHabitId;
+      }
+    } catch (e) {}
+
+    // Verify selectedHabitId still exists if restoring view; otherwise return to main homescreen
+    if (selectedHabitId && currentData && currentData.habits) {
+      const exists = currentData.habits.some(h => h.id === selectedHabitId);
+      if (!exists) {
+        selectedHabitId = null;
+        currentView = "main";
+        try {
+          if (typeof window !== "undefined" && window.sessionStorage) {
+            window.sessionStorage.setItem("anp_hs_view", "main");
+            window.sessionStorage.removeItem("anp_hs_habit_id");
+          }
+        } catch (e) {}
+      }
+    }
+
+    let isCalendarEditMode = false;
+    let editSkips = null;
+    let editCompletions = null;
+    let editModifiedCount = 0;
+    let tickerUnit = "D"; // "D" | "M" | "Y"
+
     let activeTheme = (INITIAL_DATA && INITIAL_DATA.theme) ? INITIAL_DATA.theme : "midnight";
     try {
       if (typeof window !== "undefined" && window.localStorage) {
@@ -1418,12 +1568,228 @@ function buildDashboardTemplate(dashboardData) {
       }
     }
 
+    function deleteHabitFromDetail(habitId) {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_view", "main");
+          window.sessionStorage.removeItem("anp_hs_habit_id");
+        }
+      } catch (e) {}
+      currentView = "main";
+      selectedHabitId = null;
+      callHost("deleteHabit", habitId);
+    }
+
+    function createHabitFromTemplate(templateIndex) {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_view", "main");
+          window.sessionStorage.removeItem("anp_hs_habit_id");
+          window.sessionStorage.setItem("anp_hs_scroll", "0");
+        }
+      } catch (e) {}
+      currentView = "main";
+      selectedHabitId = null;
+      callHost("createFromTemplate", templateIndex);
+    }
+
+    function createCustomHabit() {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_view", "main");
+          window.sessionStorage.removeItem("anp_hs_habit_id");
+          window.sessionStorage.setItem("anp_hs_scroll", "0");
+        }
+      } catch (e) {}
+      currentView = "main";
+      selectedHabitId = null;
+      callHost("createHabit");
+    }
+
+    function importTasksFromNote() {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_view", "main");
+          window.sessionStorage.removeItem("anp_hs_habit_id");
+          window.sessionStorage.setItem("anp_hs_scroll", "0");
+        }
+      } catch (e) {}
+      currentView = "main";
+      selectedHabitId = null;
+      callHost("importFromNote");
+    }
+
     function switchView(view, habitId = null) {
       currentView = view;
       selectedHabitId = habitId;
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_view", view);
+          window.sessionStorage.setItem("anp_hs_habit_id", habitId || "");
+          window.sessionStorage.setItem("anp_hs_scroll", "0");
+        }
+      } catch (e) {}
+      isCalendarEditMode = false;
+      editSkips = null;
+      editCompletions = null;
+      editModifiedCount = 0;
       viewingYear = new Date().getFullYear();
       viewingMonth = new Date().getMonth() + 1;
+      try {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } catch (e) {}
       render();
+    }
+
+    function startCalendarEditMode() {
+      const habits = currentData.habits || [];
+      const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
+      if (!activeHabit) return;
+      isCalendarEditMode = true;
+      editSkips = [...(activeHabit.skips || [])];
+      editCompletions = [...(activeHabit.completions || [])];
+      editModifiedCount = 0;
+      render();
+    }
+
+    function cancelCalendarEditMode() {
+      isCalendarEditMode = false;
+      editSkips = null;
+      editCompletions = null;
+      editModifiedCount = 0;
+      render();
+    }
+
+    function saveCalendarEdits() {
+      const habits = currentData.habits || [];
+      const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
+      if (!activeHabit) return;
+
+      // Preserve exact scroll position in storage before triggering host save
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_scroll", String(window.scrollY || document.documentElement.scrollTop || 0));
+        }
+      } catch (e) {}
+
+      if (editSkips && editCompletions) {
+        activeHabit.skips = [...editSkips];
+        activeHabit.completions = [...editCompletions];
+
+        // Optimistically update habitStart if earlier dates were recorded
+        const allRecorded = [...editCompletions, ...editSkips].filter(Boolean).sort();
+        if (allRecorded.length > 0) {
+          const earliest = allRecorded[0];
+          const currentStart = activeHabit.createdAt ? activeHabit.createdAt.split("T")[0] : earliest;
+          if (earliest < currentStart) {
+            activeHabit.createdAt = earliest + "T00:00:00Z";
+            activeHabit.streakAnchor = earliest + "T00:00:00Z";
+          }
+        }
+
+        callHost("saveCalendarEdits", activeHabit.id, editSkips, editCompletions);
+      }
+      isCalendarEditMode = false;
+      editSkips = null;
+      editCompletions = null;
+      editModifiedCount = 0;
+      render();
+    }
+
+    function onDayDotClick(dateStr, currentStatus) {
+      const habits = currentData.habits || [];
+      const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
+      if (!activeHabit) return;
+
+      const today = new Date();
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      if (dateStr > todayStr) return; // Future days cannot be marked
+
+      if (isCalendarEditMode) {
+        if (!editSkips) editSkips = [...(activeHabit.skips || [])];
+        if (!editCompletions) editCompletions = [...(activeHabit.completions || [])];
+
+        if (currentStatus === "completed") {
+          // Toggle to skipped
+          editCompletions = editCompletions.filter(d => d !== dateStr);
+          if (!editSkips.includes(dateStr)) editSkips.push(dateStr);
+        } else {
+          // Toggle to completed
+          editSkips = editSkips.filter(d => d !== dateStr);
+          if (!editCompletions.includes(dateStr)) editCompletions.push(dateStr);
+        }
+        editModifiedCount++;
+        render();
+      } else {
+        const toggleTarget = (currentStatus === "completed") ? "completed" : "skipped";
+        callHost('toggleDay', activeHabit.id, dateStr, toggleTarget);
+      }
+    }
+
+    function markMonthAllDone() {
+      const habits = currentData.habits || [];
+      const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
+      if (!activeHabit || !isCalendarEditMode) return;
+      if (!editSkips) editSkips = [...(activeHabit.skips || [])];
+      if (!editCompletions) editCompletions = [...(activeHabit.completions || [])];
+
+      const today = new Date();
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      const totalDaysInMonth = new Date(viewingYear, viewingMonth, 0).getDate();
+
+      for (let d = 1; d <= totalDaysInMonth; d++) {
+        const dateStr = viewingYear + "-" + String(viewingMonth).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+        if (dateStr <= todayStr) {
+          editSkips = editSkips.filter(x => x !== dateStr);
+          if (!editCompletions.includes(dateStr)) editCompletions.push(dateStr);
+        }
+      }
+      editModifiedCount++;
+      render();
+    }
+
+    function markMonthAllSkipped() {
+      const habits = currentData.habits || [];
+      const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
+      if (!activeHabit || !isCalendarEditMode) return;
+      if (!editSkips) editSkips = [...(activeHabit.skips || [])];
+      if (!editCompletions) editCompletions = [...(activeHabit.completions || [])];
+
+      const today = new Date();
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      const totalDaysInMonth = new Date(viewingYear, viewingMonth, 0).getDate();
+
+      for (let d = 1; d <= totalDaysInMonth; d++) {
+        const dateStr = viewingYear + "-" + String(viewingMonth).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+        if (dateStr <= todayStr) {
+          editCompletions = editCompletions.filter(x => x !== dateStr);
+          if (!editSkips.includes(dateStr)) editSkips.push(dateStr);
+        }
+      }
+      editModifiedCount++;
+      render();
+    }
+
+    function formatTimeOnly(timestampStr) {
+      if (!timestampStr) return "";
+      try {
+        const d = new Date(timestampStr);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+      } catch (e) {
+        return "";
+      }
+    }
+
+    function formatDateOnly(dateOrTimestampStr) {
+      if (!dateOrTimestampStr) return "";
+      try {
+        const d = new Date(dateOrTimestampStr);
+        if (isNaN(d.getTime())) return dateOrTimestampStr;
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (e) {
+        return dateOrTimestampStr;
+      }
     }
 
     function setMainFilter(filter) {
@@ -1433,6 +1799,11 @@ function buildDashboardTemplate(dashboardData) {
 
     function setTemplateFilter(filter) {
       templateFilter = filter;
+      render();
+    }
+
+    function setTickerUnit(unit) {
+      tickerUnit = unit;
       render();
     }
 
@@ -1473,16 +1844,18 @@ function buildDashboardTemplate(dashboardData) {
     }
 
     function getClientDayStatus(habit, dateStr, todayStr) {
+      if (dateStr > todayStr) return "future";
+      const skipsList = (isCalendarEditMode && editSkips) ? editSkips : (habit.skips || []);
+      const completionsList = (isCalendarEditMode && editCompletions) ? editCompletions : (habit.completions || []);
+      const skips = new Set(skipsList);
+      const completions = new Set(completionsList);
+
+      if (skips.has(dateStr)) return "skipped";
+      if (completions.has(dateStr)) return "completed";
+
       const habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
       if (dateStr < habitStart) return "before_start";
-      if (dateStr > todayStr) return "future";
-      const skips = new Set(habit.skips || []);
-      const completions = new Set(habit.completions || []);
-      if (habit.type === 'complete') {
-        if (completions.has(dateStr) && !skips.has(dateStr)) return "completed";
-        return "skipped";
-      }
-      if (skips.has(dateStr)) return "skipped";
+      if (habit.type === 'complete') return "skipped";
       return "completed";
     }
 
@@ -1537,6 +1910,11 @@ function buildDashboardTemplate(dashboardData) {
     }
 
     function render() {
+      let prevScroll = 0;
+      try {
+        prevScroll = window.scrollY || document.documentElement.scrollTop || 0;
+      } catch (e) {}
+
       document.documentElement.className = "theme-" + activeTheme;
       document.body.className = "theme-" + activeTheme;
 
@@ -1618,7 +1996,7 @@ function buildDashboardTemplate(dashboardData) {
           const globalIdx = PRESETS.findIndex(item => item.name === p.name);
           const grad = "grad-" + (p.colorTheme || "blue");
           return \`
-            <div class="template-item-row \${grad}" onclick="callHost('createFromTemplate', \${globalIdx >= 0 ? globalIdx : 0})">
+            <div class="template-item-row \${grad}" onclick="createHabitFromTemplate(\${globalIdx >= 0 ? globalIdx : 0})">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 24px;">\${p.icon}</span>
                 <div>
@@ -1648,8 +2026,8 @@ function buildDashboardTemplate(dashboardData) {
           </div>
 
           <div class="templates-shelf-card">
-            <button class="btn-create-custom" onclick="callHost('createHabit')">+ Create a Custom Counter</button>
-            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 6px; margin-bottom: 4px;" onclick="callHost('importFromNote')">
+            <button class="btn-create-custom" onclick="createCustomHabit()">+ Create a Custom Counter</button>
+            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 6px; margin-bottom: 4px;" onclick="importTasksFromNote()">
               \u{1F4E5} Import Tasks from Note
             </button>
 
@@ -1803,8 +2181,14 @@ function buildDashboardTemplate(dashboardData) {
       const icon = getHabitEmoji(activeHabit);
       const cleanName = getHabitCleanName(activeHabit);
 
+      const today = new Date();
+      const todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
       const isQuitly = activeHabit.type === 'skip';
       const isCompletedToday = stats.statusToday === "completed";
+      const isSlipToday = (activeHabit.skips || []).includes(todayStr);
+
+      const todaySlipsCount = (activeHabit.events || []).filter(e => e.type === 'skip' && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length;
+      const todayDoneCount = (activeHabit.events || []).filter(e => e.type === 'done' && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length;
 
       // Contextual Action Buttons & Phrasing
       let actionsClusterHtml = "";
@@ -1813,22 +2197,44 @@ function buildDashboardTemplate(dashboardData) {
 
       if (isQuitly) {
         // Quitly / Bad Habit / Abstinence
-        statusBadgeHtml = \`
-          <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            \u{1F6E1}\uFE0F Clean Today (Auto-Tracked)
-          </div>
-        \`;
+        if (isSlipToday) {
+          statusBadgeHtml = \`
+            <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
+              \u{1F6A8} \${todaySlipsCount > 1 ? todaySlipsCount + ' Slips Logged Today' : 'Slip / Reset Logged Today'}
+            </div>
+          \`;
 
-        actionsClusterHtml = \`
-          <div class="action-pills-cluster">
-            <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')">
-              \u{1F6A8} Log Slip / Reset Today
-            </button>
-            <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-              \u{1F504} Backdate Relapse Date with Note
-            </button>
-          </div>
-        \`;
+          actionsClusterHtml = \`
+            <div class="action-pills-cluster">
+              <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')" title="Log additional slip for today">
+                \u{1F6A8} Log Additional Slip (+1)
+              </button>
+              <button class="btn-quitly-action btn-done-success" onclick="callHost('undoToday', '\${activeHabit.id}')">
+                \u21A9\uFE0F Undo Slip / Mark Clean Today
+              </button>
+              <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
+                \u{1F504} Backdate Relapse Date with Note
+              </button>
+            </div>
+          \`;
+        } else {
+          statusBadgeHtml = \`
+            <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
+              \u{1F6E1}\uFE0F Clean Today (Auto-Tracked)
+            </div>
+          \`;
+
+          actionsClusterHtml = \`
+            <div class="action-pills-cluster">
+              <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')">
+                \u{1F6A8} Log Slip / Reset Today
+              </button>
+              <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
+                \u{1F504} Backdate Relapse Date with Note
+              </button>
+            </div>
+          \`;
+        }
 
         philosophyFooterHtml = \`
           <div class="activity-section-card" style="margin-top: 12px; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25);">
@@ -1836,7 +2242,7 @@ function buildDashboardTemplate(dashboardData) {
               <span>\u{1F6E1}\uFE0F Quitly Abstinence Philosophy (Quitting a Bad Habit)</span>
             </div>
             <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
-              This is a quitting counter. Days count up automatically as long as you stay clean. You only need to interact when you experience a slip or relapse to reset the counter with an optional reflection note.
+              This is a quitting counter. Days count up automatically as long as you stay clean. You can log single or multiple slips with reflection notes, backdate past relapses, or undo accidental slips.
             </p>
           </div>
         \`;
@@ -1844,7 +2250,7 @@ function buildDashboardTemplate(dashboardData) {
         // Amplenote / Positive Action Habit
         statusBadgeHtml = isCompletedToday ? \`
           <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            \u2705 Completed for Today!
+            \u2705 \${todayDoneCount > 1 ? todayDoneCount + ' Sessions Completed Today!' : 'Completed for Today!'}
           </div>
         \` : \`
           <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); color: #6366f1; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
@@ -1854,11 +2260,11 @@ function buildDashboardTemplate(dashboardData) {
 
         actionsClusterHtml = isCompletedToday ? \`
           <div class="action-pills-cluster">
-            <button class="btn-quitly-action btn-done-success" onclick="callHost('completeToday', '\${activeHabit.id}')" title="Log additional completion">
+            <button class="btn-quitly-action btn-done-success" onclick="callHost('completeToday', '\${activeHabit.id}')" title="Log additional session with note">
               + Log Additional Done (+1)
             </button>
-            <button class="btn-quitly-action" onclick="callHost('skipToday', '\${activeHabit.id}')">
-              \u21A9\uFE0F Undo / Mark Skipped
+            <button class="btn-quitly-action" onclick="callHost('undoToday', '\${activeHabit.id}')">
+              \u21A9\uFE0F Undo / Mark Not Done
             </button>
             <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
               \u{1F504} Backfill Dates with Note
@@ -1884,7 +2290,7 @@ function buildDashboardTemplate(dashboardData) {
               <span>\u{1F3AF} Amplenote Intentional Action Philosophy (Positive Habit)</span>
             </div>
             <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
-              This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> whenever you finish your practice. You can also log multiple sessions per day.
+              This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> or <strong>"+ Log Additional Done (+1)"</strong> to log sessions with reflection notes.
             </p>
           </div>
         \`;
@@ -1906,14 +2312,51 @@ function buildDashboardTemplate(dashboardData) {
 
       // Calendar mini-dots
       let emptyDots = Array(calendar.firstDayWeekday).fill('<div class="day-mini-dot empty"></div>').join("");
+      let monthDoneCount = 0;
+      let monthSkipCount = 0;
+
       let dayDots = calendar.days.map(d => {
-        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : '');
-        let isClickable = d.status === "completed" || d.status === "skipped";
+        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : (d.status === 'before_start' ? 'before-start' : (d.status === 'future' ? 'future' : '')));
+        if (d.status === 'completed') monthDoneCount++;
+        if (d.status === 'skipped') monthSkipCount++;
+        if (d.isToday) cls += ' is-today';
+        if (isCalendarEditMode && d.status !== 'future') cls += ' editing';
+
+        let isClickable = (d.status !== 'future');
         let clickAttr = isClickable 
-          ? \`onclick="callHost('toggleDay', '\${activeHabit.id}', '\${d.dateStr}', '\${d.status}')"\` 
+          ? \`onclick="onDayDotClick('\${d.dateStr}', '\${d.status}')"\` 
           : "";
-        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${d.dateStr}: \${d.status}">\${d.dayNumber}</div>\`;
+        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'before_start' ? 'Before Start' : 'Future'))}\`;
+        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${titleTip}">\${d.dayNumber}</div>\`;
       }).join("");
+
+      // Build unified timeline of events and reset logs
+      const timelineEntries = [];
+      (activeHabit.events || []).forEach(ev => {
+        timelineEntries.push({
+          type: ev.type === "done" ? "done" : "slip",
+          date: ev.date || (ev.timestamp ? ev.timestamp.split("T")[0] : ""),
+          timestamp: ev.timestamp || null,
+          note: ev.note || (ev.type === "done" ? "Daily check-in completed" : "Slip logged"),
+          streakLength: ev.streakLength
+        });
+      });
+      (activeHabit.resetLogs || []).forEach(rl => {
+        if (!timelineEntries.some(item => item.timestamp && item.timestamp === rl.timestamp)) {
+          timelineEntries.push({
+            type: "reset",
+            date: rl.date || (rl.timestamp ? rl.timestamp.split("T")[0] : ""),
+            timestamp: rl.timestamp || null,
+            note: rl.note || "Reset logged",
+            streakLength: rl.streakLength
+          });
+        }
+      });
+      timelineEntries.sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : new Date(a.date).getTime();
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : new Date(b.date).getTime();
+        return timeB - timeA;
+      });
 
       // Weekly frequency bars
       let weeklyBarsHtml = weeklyFreq.weekCounts.map(w => {
@@ -1934,7 +2377,7 @@ function buildDashboardTemplate(dashboardData) {
             <button class="btn-header-round" onclick="switchView('main')">\u2039</button>
             <div style="display: flex; gap: 8px;">
               <button class="btn-header-round" title="Edit Settings" onclick="callHost('editHabit', '\${activeHabit.id}')">\u270F\uFE0F</button>
-              <button class="btn-header-round" title="Delete Counter" onclick="callHost('deleteHabit', '\${activeHabit.id}')">\u{1F5D1}\uFE0F</button>
+              <button class="btn-header-round" title="Delete Counter" onclick="deleteHabitFromDetail('\${activeHabit.id}')">\u{1F5D1}\uFE0F</button>
             </div>
           </div>
 
@@ -1948,8 +2391,14 @@ function buildDashboardTemplate(dashboardData) {
           <!-- 4-Column Digital Ticker -->
           <div class="digital-ticker-row">
             <div class="ticker-col">
-              <div class="ticker-num">\${stats.currentStreak || 0}</div>
-              <div class="ticker-lbl">days</div>
+              <div class="ticker-num">\${
+                tickerUnit === "Y" 
+                  ? (stats.currentStreak ? (stats.currentStreak / 365.25).toFixed(2) : "0.00") 
+                  : (tickerUnit === "M" 
+                      ? (stats.currentStreak ? (stats.currentStreak / 30.4375).toFixed(1) : "0.0") 
+                      : (stats.currentStreak || 0))
+              }</div>
+              <div class="ticker-lbl">\${tickerUnit === "Y" ? "years" : (tickerUnit === "M" ? "months" : "days")}</div>
             </div>
             <div class="ticker-col">
               <div class="ticker-num" id="tickHours">00</div>
@@ -1967,9 +2416,9 @@ function buildDashboardTemplate(dashboardData) {
 
           <!-- Unit Toggles -->
           <div class="unit-pills-row">
-            <button class="unit-pill">Y</button>
-            <button class="unit-pill">M</button>
-            <button class="unit-pill active">D</button>
+            <button class="unit-pill \${tickerUnit === 'Y' ? 'active' : ''}" onclick="setTickerUnit('Y')">Y</button>
+            <button class="unit-pill \${tickerUnit === 'M' ? 'active' : ''}" onclick="setTickerUnit('M')">M</button>
+            <button class="unit-pill \${tickerUnit === 'D' ? 'active' : ''}" onclick="setTickerUnit('D')">D</button>
           </div>
         </div>
 
@@ -2025,10 +2474,35 @@ function buildDashboardTemplate(dashboardData) {
           <div class="activity-section-card">
             <div class="activity-header">
               <span style="font-size: 14px; font-weight: 800;">\u{1F4C5} \${calendar.monthName} \${calendar.year}</span>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\u2039</button>
-                <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\u203A</button>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                \${!isCalendarEditMode ? \`
+                  <button class="btn-cal-action" onclick="startCalendarEditMode()">\u270F\uFE0F Edit Calendar</button>
+                \` : \`
+                  <button class="btn-cal-action btn-cal-save" onclick="saveCalendarEdits()">\u{1F4BE} Save (\${editModifiedCount})</button>
+                  <button class="btn-cal-action btn-cal-cancel" onclick="cancelCalendarEditMode()">\u2715 Cancel</button>
+                \`}
+                <div style="display: flex; gap: 2px; margin-left: 2px;">
+                  <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\u2039</button>
+                  <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\u203A</button>
+                </div>
               </div>
+            </div>
+
+            \${isCalendarEditMode ? \`
+              <div class="cal-edit-active-banner">
+                <span>\u270F\uFE0F <strong>Edit Mode:</strong> Tap any day to toggle (Green \u2194 Red)</span>
+                <span style="background: rgba(37,99,235,0.15); padding: 2px 8px; border-radius: 12px; font-weight: 800;">\${editModifiedCount} change(s) staged</span>
+              </div>
+              <div class="cal-quick-actions-row">
+                <button class="btn-cal-quick" onclick="markMonthAllDone()">\u2705 Mark Month Clean</button>
+                <button class="btn-cal-quick" onclick="markMonthAllSkipped()">\u{1F6AB} Mark Month Missed</button>
+                <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\u2715 Discard</button>
+              </div>
+            \` : ''}
+
+            <!-- Weekday Column Headers -->
+            <div class="cal-weekdays-row">
+              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
             </div>
 
             <div class="cal-grid-mini">
@@ -2037,32 +2511,55 @@ function buildDashboardTemplate(dashboardData) {
             </div>
 
             <div class="resets-counter-bar">
-              <span style="color: var(--text-sub);">Count of Resets / Skips</span>
-              <span style="font-weight: 800;">\${stats.skippedDays || 0} times</span>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <span>\u{1F7E2} <strong>\${monthDoneCount}</strong> Done</span>
+                <span>\u{1F534} <strong>\${monthSkipCount}</strong> Missed</span>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-sub);">
+                \${stats.skippedDays || 0} total resets
+              </div>
             </div>
           </div>
 
-          <!-- Reset History Log with Notes -->
+          <!-- Reset & Activity History Log with Timestamps -->
           <div class="activity-section-card" style="margin-top: 12px;">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800;">\u{1F4DD} Reset & Reflection History</span>
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-sub);">\${(activeHabit.resetLogs || []).length} logs</span>
+              <span style="font-size: 14px; font-weight: 800;">\u{1F4DD} Activity & Timestamped History</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-sub);">\${timelineEntries.length} entries</span>
             </div>
-            \${(activeHabit.resetLogs && activeHabit.resetLogs.length > 0) ? \`
+            \${(timelineEntries && timelineEntries.length > 0) ? \`
               <div style="display: flex; flex-direction: column; gap: 8px;">
-                \${activeHabit.resetLogs.slice().reverse().map(log => \`
-                  <div style="background: var(--card-container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 12px;">
-                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--text-main); margin-bottom: 2px;">
-                      <span>\${log.streakLength || 0} days streak before reset</span>
-                      <span style="color: var(--text-sub);">\${log.date}</span>
+                \${timelineEntries.map((log, idx) => {
+                  const isDone = log.type === 'done';
+                  const timeLabel = formatTimeOnly(log.timestamp);
+                  const dateLabel = formatDateOnly(log.date || log.timestamp);
+                  const badgeIcon = isDone ? '\u2705' : '\u{1F6A8}';
+                  const badgeColor = isDone ? '#15803d' : '#be123c';
+                  const badgeBg = isDone ? '#dcfce7' : '#ffe4e6';
+                  const headline = isDone 
+                    ? \`Check-in #\${timelineEntries.length - idx}\` 
+                    : (log.streakLength ? \`\${log.streakLength} days streak before reset\` : 'Slip / Reset');
+                  return \`
+                    <div style="background: var(--card-container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--text-main); margin-bottom: 3px;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                          <span style="background: \${badgeBg}; color: \${badgeColor}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                            \${badgeIcon} \${headline}
+                          </span>
+                        </span>
+                        <div style="font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 4px;">
+                          <span>\${dateLabel}</span>
+                          \${timeLabel ? \`<span style="font-weight: 800; color: #2563eb;">\u2022 \${timeLabel}</span>\` : ''}
+                        </div>
+                      </div>
+                      <div style="color: var(--text-sub); font-style: italic; margin-top: 2px;">"\${escapeHtml(log.note)}"</div>
                     </div>
-                    <div style="color: var(--text-sub); font-style: italic;">"\${escapeHtml(log.note || 'Reset logged')}"</div>
-                  </div>
-                \`).join("")}
+                  \`;
+                }).join("")}
               </div>
             \` : \`
               <div style="font-size: 12px; color: var(--text-sub); text-align: center; padding: 8px 0;">
-                No resets recorded yet. Keep your unbroken streak going!
+                No check-in or reset logs recorded yet. Tap check-in or log your first entry!
               </div>
             \`}
           </div>
@@ -2073,7 +2570,26 @@ function buildDashboardTemplate(dashboardData) {
       \`;
 
       startLiveTicker();
+
+      // Restore scroll position smoothly after DOM update
+      try {
+        const savedScroll = (typeof window !== "undefined" && window.sessionStorage) ? window.sessionStorage.getItem("anp_hs_scroll") : null;
+        const targetScroll = prevScroll || (savedScroll ? parseInt(savedScroll, 10) : 0);
+        if (targetScroll > 0) {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: targetScroll, behavior: "instant" });
+          });
+        }
+      } catch (e) {}
     }
+
+    window.addEventListener("scroll", () => {
+      try {
+        if (typeof window !== "undefined" && window.sessionStorage) {
+          window.sessionStorage.setItem("anp_hs_scroll", String(window.scrollY || document.documentElement.scrollTop || 0));
+        }
+      } catch (e) {}
+    }, { passive: true });
 
     function escapeHtml(str) {
       if (!str) return "";
@@ -2274,7 +2790,7 @@ async function handleCreateHabit(app) {
   const state = await loadState(app);
   state.habits.push(newHabit);
   state.activeHabitId = newHabit.id;
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2302,7 +2818,7 @@ async function handleCreateFromTemplate(app, templateIndex) {
   const state = await loadState(app);
   state.habits.push(newHabit);
   state.activeHabitId = newHabit.id;
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2391,7 +2907,7 @@ async function handleEditHabit(app, habitId) {
     n: parseInt(periodNVal, 10) || 1,
     period: periodUnitVal || INTERVAL_PERIODS.DAY
   };
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2434,7 +2950,28 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
       console.warn("[HabitStreak] Task update sync:", err);
     }
   }
-  await saveState2(app, state);
+  await saveState(app, state);
+  if (app.context && typeof app.context.renderEmbed === "function") {
+    await app.context.renderEmbed();
+  }
+}
+async function handleSaveCalendarEdits(app, habitId, skips, completions) {
+  if (!habitId) return;
+  const state = await loadState(app);
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return;
+  if (Array.isArray(skips)) habit.skips = skips;
+  if (Array.isArray(completions)) habit.completions = completions;
+  const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
+  if (allRecordedDates.length > 0) {
+    const earliest = allRecordedDates[0];
+    const currentStart = habit.createdAt ? habit.createdAt.split("T")[0] : earliest;
+    if (earliest < currentStart) {
+      habit.createdAt = earliest + "T00:00:00Z";
+      habit.streakAnchor = earliest + "T00:00:00Z";
+    }
+  }
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2447,27 +2984,70 @@ async function handleSkipToday(app, habitId) {
   const habit = state.habits.find((h) => h.id === habitId);
   if (!habit) return;
   const todayStr = getTodayString();
+  const stats = calculateHabitStats(habit, todayStr);
+  const isQuitly = habit.type === "skip";
+  const alreadySkippedToday = (habit.skips || []).includes(todayStr);
+  const promptTitle = isQuitly ? alreadySkippedToday ? "Log Additional Slip (+1)" : "Log Slip / Reset Today" : "Mark Missed / Skip Today";
+  const result = await app.prompt(promptTitle, {
+    inputs: [
+      {
+        type: "string",
+        label: "Reflection / Reason Note (Optional)",
+        placeholder: "e.g., Felt tempted or overwhelmed, resetting with renewed focus"
+      },
+      {
+        type: "checkbox",
+        label: `Confirm logging a ${isQuitly ? "slip/reset" : "missed day"} for ${habit.name}? (Current streak: ${stats.currentStreak} days)`,
+        value: true
+      }
+    ]
+  });
+  if (!result) return;
+  const noteVal = Array.isArray(result) ? result[0] : typeof result === "object" ? result.note : "";
+  const confirmVal = Array.isArray(result) ? result[1] : typeof result === "object" ? result.confirm : true;
+  if (confirmVal === false) return;
   habit.skips = habit.skips || [];
   habit.completions = habit.completions || [];
   habit.resetLogs = habit.resetLogs || [];
   habit.events = habit.events || [];
-  const stats = calculateHabitStats(habit, todayStr);
+  const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : isQuitly ? "Daily slip logged" : "Marked missed today";
   habit.events.push({
     type: "skip",
     date: todayStr,
+    note: noteText,
+    streakLength: stats.currentStreak,
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
   if (!habit.skips.includes(todayStr)) {
     habit.skips.push(todayStr);
-    habit.resetLogs.push({
-      date: todayStr,
-      streakLength: stats.currentStreak,
-      note: "Daily slip logged",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
   }
+  habit.resetLogs.push({
+    date: todayStr,
+    streakLength: stats.currentStreak,
+    note: noteText,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
   habit.completions = habit.completions.filter((d) => d !== todayStr);
-  await saveState2(app, state);
+  await saveState(app, state);
+  if (app.context && typeof app.context.renderEmbed === "function") {
+    await app.context.renderEmbed();
+  }
+}
+async function handleUndoToday(app, habitId) {
+  if (!habitId) return;
+  const state = await loadState(app);
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return;
+  const todayStr = getTodayString();
+  habit.skips = (habit.skips || []).filter((d) => d !== todayStr);
+  habit.completions = (habit.completions || []).filter((d) => d !== todayStr);
+  if (Array.isArray(habit.events)) {
+    habit.events = habit.events.filter((e) => !(e.date === todayStr && e.timestamp && new Date(e.timestamp).toISOString().split("T")[0] === todayStr));
+  }
+  if (Array.isArray(habit.resetLogs)) {
+    habit.resetLogs = habit.resetLogs.filter((rl) => rl.date !== todayStr);
+  }
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2478,19 +3058,40 @@ async function handleCompleteToday(app, habitId) {
   const habit = state.habits.find((h) => h.id === habitId);
   if (!habit) return;
   const todayStr = getTodayString();
+  const alreadyDoneToday = (habit.completions || []).includes(todayStr);
+  const result = await app.prompt(alreadyDoneToday ? "Log Additional Completion (+1)" : "Mark Done Today", {
+    inputs: [
+      {
+        type: "string",
+        label: "Session Note / Reflection (Optional)",
+        placeholder: "e.g., Completed morning workout, read chapter 3"
+      },
+      {
+        type: "checkbox",
+        label: `Confirm logging completion for ${habit.name}?`,
+        value: true
+      }
+    ]
+  });
+  if (!result) return;
+  const noteVal = Array.isArray(result) ? result[0] : typeof result === "object" ? result.note : "";
+  const confirmVal = Array.isArray(result) ? result[1] : typeof result === "object" ? result.confirm : true;
+  if (confirmVal === false) return;
   habit.skips = habit.skips || [];
   habit.completions = habit.completions || [];
   habit.events = habit.events || [];
+  const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Completed session";
   habit.events.push({
     type: "done",
     date: todayStr,
+    note: noteText,
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
   habit.skips = habit.skips.filter((d) => d !== todayStr);
   if (!habit.completions.includes(todayStr)) {
     habit.completions.push(todayStr);
   }
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2556,7 +3157,7 @@ async function handleResetToDate(app, habitId) {
     note: noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged",
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2584,7 +3185,7 @@ async function handleDeleteHabit(app, habitId) {
   if (state.activeHabitId === habitId) {
     state.activeHabitId = state.habits.length > 0 ? state.habits[0].id : null;
   }
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2595,7 +3196,7 @@ async function handleSelectHabit(app, habitId) {
   const habit = state.habits.find((h) => h.id === habitId);
   if (!habit) return;
   state.activeHabitId = habitId;
-  await saveState2(app, state);
+  await saveState(app, state);
   if (app.context && typeof app.context.renderEmbed === "function") {
     await app.context.renderEmbed();
   }
@@ -2775,7 +3376,7 @@ async function handleImportFromNote(app) {
     if (lastImportedHabitId) {
       state.activeHabitId = lastImportedHabitId;
     }
-    await saveState2(app, state);
+    await saveState(app, state);
     await app.alert(`Successfully imported ${importedCount} habit(s)!`);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
@@ -2832,11 +3433,17 @@ var plugin = {
         case "toggleDay":
           await handleToggleDay(app, args[1], args[2], args[3]);
           break;
+        case "saveCalendarEdits":
+          await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
+          break;
         case "skipToday":
           await handleSkipToday(app, args[1]);
           break;
         case "completeToday":
           await handleCompleteToday(app, args[1]);
+          break;
+        case "undoToday":
+          await handleUndoToday(app, args[1]);
           break;
         case "resetToDate":
           await handleResetToDate(app, args[1]);

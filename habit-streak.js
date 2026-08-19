@@ -1,4 +1,4 @@
-import { loadState } from "./lib/data/store.js";
+import { loadState, saveState } from "./lib/data/store.js";
 import { 
   calculateHabitStats, 
   calculateTierProgress, 
@@ -9,8 +9,8 @@ import { buildDashboardTemplate } from "./lib/ui/dashboardTemplate.js";
 import { launchHabitDashboard } from "./lib/features/launcher.js";
 import { handleCreateHabit, handleCreateFromTemplate } from "./lib/features/createHabit.js";
 import { handleEditHabit } from "./lib/features/editHabit.js";
-import { handleToggleDay } from "./lib/features/toggleDay.js";
-import { handleSkipToday, handleCompleteToday, handleResetToDate } from "./lib/features/resetStreak.js";
+import { handleToggleDay, handleSaveCalendarEdits } from "./lib/features/toggleDay.js";
+import { handleSkipToday, handleCompleteToday, handleUndoToday, handleResetToDate } from "./lib/features/resetStreak.js";
 import { handleDeleteHabit, handleSelectHabit } from "./lib/features/habitManagement.js";
 import { handleImportFromNote } from "./lib/features/importFromNote.js";
 
@@ -72,12 +72,20 @@ const plugin = {
           await handleToggleDay(app, args[1], args[2], args[3]);
           break;
 
+        case "saveCalendarEdits":
+          await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
+          break;
+
         case "skipToday":
           await handleSkipToday(app, args[1]);
           break;
 
         case "completeToday":
           await handleCompleteToday(app, args[1]);
+          break;
+
+        case "undoToday":
+          await handleUndoToday(app, args[1]);
           break;
 
         case "resetToDate":

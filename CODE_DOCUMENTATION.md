@@ -72,15 +72,17 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
   - Activates newly imported habits immediately on the dashboard.
 - `editHabit.js`: Edits existing counter properties.
 - `resetStreak.js`: Handles `handleSkipToday`, `handleCompleteToday`, and `handleResetToDate` (logging reflection notes and timestamped multi-events).
-- `toggleDay.js`: Click-to-toggle any calendar day status.
+- `toggleDay.js`: Handles single-day clicks and batch `handleSaveCalendarEdits` for in-calendar editing mode.
 - `habitManagement.js`: Deletes counters and handles tab switching.
 - `launcher.js`: Opens the habit embed in full or sidebar mode.
 
 ### `lib/ui/dashboardTemplate.js`
 - Single-page client-side embedded application.
 - Renders **Main View**, **Single Counter View**, **Templates & Import Catalog**, and **Settings & Theming View** with zero host roundtrips.
-- **Embedded User Guide**: Includes an informational banner in the templates view explaining the 3-step creation flow, dual philosophy, and calendar mechanics.
-- **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with resilient storage fallback.
+- **In-Calendar Direct Edit Mode**: Enables click-to-stage toggle buffer with `✏️ Edit` / `💾 Save` controls in the calendar header.
+- **Timestamped Activity History**: Displays exact formatted local timestamps for multiple check-ins and reset logs.
+- **Collapsible In-App Guide**: Interactive accordion providing 3-step creation flow, dual tracking philosophy, and calendar mechanics.
+- **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with cross-device sync.
 - Runs the 1-second interval live digital sub-clock ticker (`[Days] [Hours] [Mins] [Secs]`).
 
 ---
