@@ -54,14 +54,16 @@ When importing tasks from your existing Amplenote notes:
   * **Concept**: Intentional daily practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
   * **Interaction**: Tap **`✅ Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
 
-### 4. Interactive Monthly Calendar
-* View any month using the horizontal navigation arrows (`‹ Month Year ›`).
+### 4. Interactive Monthly Calendar & Keyboard Navigation
+* View any month using the smooth navigation buttons with modern vector icons (`←` / `→`).
+* **Keyboard Shortcuts**: Navigate months instantly with <kbd>←</kbd> / <kbd>→</kbd> or <kbd>&lt;</kbd> / <kbd>&gt;</kbd>; press <kbd>Esc</kbd> or <kbd>Backspace</kbd> to return to the counters overview.
 * Completed days appear **Green**; skipped/relapsed days appear **Red**.
 * **Click-to-Toggle**: Click any past or current day cell directly to toggle its status between completed and skipped.
+* **Edit Calendar Mode**: Use **`✏️ Edit Calendar`** to stage multi-day changes with one-click batch actions (*Mark Month Clean*, *Mark Month Missed*, or *Discard*).
 
 ### 5. Goals & Milestone Badges
 * Track progress toward 11 milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
-* View your current goal card with real-time percentage progress bars and unlocked trophy checklist.
+* View your current goal card with real-time percentage progress bars and an interactive goals checklist with vector trophy and checkmark badges.
 
 ### 6. Themes & Appearance Customization
 Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
@@ -70,6 +72,9 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 * **🌙 Pure Dark**: OLED true dark mode.
 * **☀️ Light Clean**: Minimal daylight appearance.
 * **⚡ Cyberpunk Neon**: High-contrast dark theme with neon cyan & purple accents.
+
+### 7. Support the Developer
+* If Habit Streak empowers your daily routines, visit the **Support the Developer** section at the bottom of the Settings sheet or support future development directly at [krishnakanthb13.github.io/S](https://krishnakanthb13.github.io/S/).
 
 ---
 

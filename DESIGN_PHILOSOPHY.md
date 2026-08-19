@@ -40,3 +40,18 @@ Amplenote plugins run within sandboxed iframes. Frequent asynchronous host round
 - **Atmospheric Appearance Modes**: 5 curated visual themes (Midnight, Frosted Glass, Pure Dark, Light Clean, Cyberpunk Neon) empower users to personalize their focus environment.
 - **Tactile Reflection**: Instead of treating resets as simple zeroing of numbers, streak resets preserve past streak achievements and record reflection notes in a dedicated history log.
 
+---
+
+## 5. Vector-First UI & Keyboard Accessibility
+
+Text glyphs and basic emojis often render inconsistently across operating systems and screen resolutions.
+- **Precision SVGs**: Core navigation (`chevronLeft`, `chevronRight`, `arrowLeft`, `close`), checklist state indicators (`checkCircle`, `lock`), and action icons are authored as clean, high-resolution SVG vectors.
+- **Keyboard Ergonomics**: Power users can navigate months (<kbd>←</kbd> / <kbd>→</kbd>), dismiss modal views (<kbd>Esc</kbd>), and return to home (<kbd>Backspace</kbd>) without lifting their fingers from the keyboard.
+
+---
+
+## 6. Transparent Developer Support & Sustainability
+
+To maintain high software quality, ongoing maintenance, and responsive community feature requests, transparent and non-intrusive developer patronage options are provided in the settings layer.
+
+

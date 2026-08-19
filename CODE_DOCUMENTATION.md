@@ -79,10 +79,13 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
 ### `lib/ui/dashboardTemplate.js`
 - Single-page client-side embedded application.
 - Renders **Main View**, **Single Counter View**, **Templates & Import Catalog**, and **Settings & Theming View** with zero host roundtrips.
+- **Vector Iconography (`ICONS`)**: Embedded SVG map (`chevronLeft`, `chevronRight`, `chevronDown`, `arrowLeft`, `close`, `checkCircle`, `lock`, `plus`, `externalLink`) replacing legacy text glyphs for crisp rendering across high-DPI displays.
+- **Keyboard Navigation**: Global key listener supporting <kbd>←</kbd> / <kbd>→</kbd> / <kbd>&lt;</kbd> / <kbd>&gt;</kbd> for month navigation, and <kbd>Esc</kbd> / <kbd>Backspace</kbd> for rapid view dismissal.
 - **In-Calendar Direct Edit Mode**: Enables click-to-stage toggle buffer with `✏️ Edit` / `💾 Save` controls in the calendar header.
 - **Timestamped Activity History**: Displays exact formatted local timestamps for multiple check-ins and reset logs.
 - **Collapsible In-App Guide**: Interactive accordion providing 3-step creation flow, dual tracking philosophy, and calendar mechanics.
 - **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with cross-device sync.
+- **Support Developer Integration**: Direct developer patronage callout linking to `https://krishnakanthb13.github.io/S/`.
 - Runs the 1-second interval live digital sub-clock ticker (`[Days] [Hours] [Mins] [Secs]`).
 
 ---

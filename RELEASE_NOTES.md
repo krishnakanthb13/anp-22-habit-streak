@@ -1,6 +1,25 @@
 # Release Notes: Habit Streaks Plugin
 
-## v0.0.5 (2026-08-19)
+## v0.0.7 (2026-08-19)
+
+### 🎨 Vector Iconography & Keyboard Ergonomics
+- **Precision SVG Vector Icons (`ICONS`)**: Replaced all text glyphs and basic ascii characters with custom high-DPI inline SVGs:
+  - Month Navigation: Vector `chevronLeft` / `chevronRight` icons.
+  - View Navigation: Vector `arrowLeft` back button with keytooltips.
+  - Modals & Close Actions: Vector `close` cross icon.
+  - Habit Cards: Animated vector `chevronRight` indicators.
+  - Templates & Catalogs: Vector `plus` and `chevronDown` accordion indicators.
+- **Enhanced Goal Milestone Checklist**:
+  - Unlocked goals render a custom glowing `checkCircle` SVG vector.
+  - Locked goals render a crisp `lock` vector icon.
+- **Global Keyboard Navigation**:
+  - Paging: <kbd>←</kbd> / <kbd>→</kbd> or <kbd>&lt;</kbd> / <kbd>&gt;</kbd> to switch months instantly.
+  - Back & Dismissal: <kbd>Esc</kbd> or <kbd>Backspace</kbd> to return to the counters overview or exit calendar edit mode.
+- **💖 Support the Developer Section**: Added a dedicated card in the Settings & Theming drawer with encouraging copy and a direct link to [krishnakanthb13.github.io/S](https://krishnakanthb13.github.io/S/).
+
+---
+
+## v0.0.6 (2026-08-19)
 
 ### 🚀 New Features & Calendar UI/UX Overhaul
 - **Auto-Navigation to Main Page on Creation**: Adding a habit from templates, creating a custom counter, or importing tasks now automatically navigates to the **Main Dashboard Homescreen (`"main"`)**, showing your updated list of counters immediately.

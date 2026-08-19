@@ -1474,6 +1474,46 @@ function buildDashboardTemplate(dashboardData) {
       gap: 8px;
       transition: all 0.15s ease;
     }
+    
+    .support-dev-card {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.08), rgba(225, 29, 72, 0.04));
+      border: 1px solid rgba(244, 63, 94, 0.25) !important;
+    }
+
+    .btn-support-dev {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      color: #ffffff !important;
+      text-decoration: none !important;
+      padding: 11px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 3px 12px rgba(225, 29, 72, 0.25);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+      width: 100%;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .btn-support-dev:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35);
+      opacity: 0.95;
+    }
+
+    .goal-check-box.unlocked .goal-check-icon {
+      color: #2563eb;
+    }
+
+    .goal-check-box:not(.unlocked) .goal-check-icon {
+      opacity: 0.45;
+      color: var(--text-sub);
+    }
+
     .theme-option-btn.active {
       border-color: #3b82f6 !important;
       background: rgba(59, 130, 246, 0.15) !important;
@@ -1492,6 +1532,18 @@ function buildDashboardTemplate(dashboardData) {
     const QUITLY_PRESETS = ${quitlyPresetsJson};
     const AMPLENOTE_PRESETS = ${amplenotePresetsJson};
     const THEMES = ${themesJson};
+
+    const ICONS = {
+      chevronLeft: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="15 18 9 12 15 6"></polyline></svg>',
+      chevronRight: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="9 18 15 12 9 6"></polyline></svg>',
+      chevronDown: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="6 9 12 15 18 9"></polyline></svg>',
+      arrowLeft: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>',
+      close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+      checkCircle: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.15"></circle><polyline points="16 9 10.5 15 8 12.5"></polyline></svg>',
+      lock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
+      plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+      externalLink: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'
+    };
 
     let currentData = INITIAL_DATA;
     let currentView = "main"; // "main" | "detail" | "templates" | "settings"
@@ -1927,7 +1979,7 @@ function buildDashboardTemplate(dashboardData) {
       if (currentView === "settings") {
         root.innerHTML = \`
           <div class="app-top-header">
-            <button class="btn-header-round" onclick="switchView('main')">\u2715</button>
+            <button class="btn-header-round" title="Close Settings (Esc)" onclick="switchView('main')">\${ICONS.close}</button>
             <span class="header-title-text">Settings & Theming</span>
             <div style="width: 40px;"></div>
           </div>
@@ -1982,7 +2034,22 @@ function buildDashboardTemplate(dashboardData) {
               </div>
             </div>
 
-            <button class="btn-quitly-action" style="width: 100%; justify-content: center;" onclick="switchView('templates')">
+            <!-- Support Developer Section -->
+            <div class="activity-section-card support-dev-card" style="margin-top: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: #e11d48; margin-bottom: 6px;">
+                <span style="font-size: 16px;">\u{1F496}</span>
+                <span>Support the Developer</span>
+              </div>
+              <p style="font-size: 12px; color: var(--text-sub); line-height: 1.45; margin-bottom: 12px;">
+                If Habit Streak helps you stay focused, maintain your streaks, and build positive daily momentum, consider supporting future development and new features!
+              </p>
+              <a href="https://krishnakanthb13.github.io/S/" target="_blank" rel="noopener noreferrer" class="btn-support-dev">
+                <span>\u2615 Support Development</span>
+                \${ICONS.externalLink}
+              </a>
+            </div>
+
+            <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 4px;" onclick="switchView('templates')">
               + Add from Templates Catalog
             </button>
           </div>
@@ -2004,7 +2071,7 @@ function buildDashboardTemplate(dashboardData) {
                   <div style="font-size: 11px; opacity: 0.85;">\${p.category}</div>
                 </div>
               </div>
-              <button class="template-btn-add">+</button>
+              <button class="template-btn-add" title="Add Counter">\${ICONS.plus}</button>
             </div>
           \`;
         }).join("");
@@ -2014,7 +2081,7 @@ function buildDashboardTemplate(dashboardData) {
 
         root.innerHTML = \`
           <div class="app-top-header">
-            <button class="btn-header-round" onclick="switchView('main')">\u2715</button>
+            <button class="btn-header-round" title="Back to Habits (Esc)" onclick="switchView('main')">\${ICONS.close}</button>
             <span class="header-title-text">New Counter</span>
             <div style="width: 40px;"></div>
           </div>
@@ -2036,7 +2103,7 @@ function buildDashboardTemplate(dashboardData) {
                 <span style="display: flex; align-items: center; gap: 6px;">
                   <span>\u{1F4A1}</span> <span>How to Add & Track Habits</span>
                 </span>
-                <span style="font-size: 10px; opacity: 0.75;">\u25BC</span>
+                <span style="display: flex; align-items: center; opacity: 0.75;">\${ICONS.chevronDown}</span>
               </summary>
               <div class="guide-accordion-body">
                 <strong>1. Choose Source:</strong> Pick a preset template below, create a custom counter, or import tasks from any note.<br>
@@ -2093,7 +2160,7 @@ function buildDashboardTemplate(dashboardData) {
                 <span style="font-size: 11px; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 12px; font-weight: 700;">
                   \${isQuit ? '\u{1F6E1}\uFE0F Auto-Done' : '\u{1F3AF} Check-In'}
                 </span>
-                <span class="counter-card-arrow">\u203A</span>
+                <span class="counter-card-arrow">\${ICONS.chevronRight}</span>
               </div>
             </div>
           \`;
@@ -2135,7 +2202,7 @@ function buildDashboardTemplate(dashboardData) {
           <div class="app-top-header">
             <button class="btn-header-round" title="Settings & Themes" onclick="switchView('settings')">\u2699\uFE0F</button>
             <span class="header-title-text">Habit Streaks</span>
-            <button class="btn-header-round" title="Add Counter" onclick="switchView('templates')">+</button>
+            <button class="btn-header-round" title="Add Counter" onclick="switchView('templates')">\${ICONS.plus}</button>
           </div>
 
           <div class="filter-segment-bar">
@@ -2374,7 +2441,7 @@ function buildDashboardTemplate(dashboardData) {
         <!-- Hero Header -->
         <div class="single-counter-hero \${grad}">
           <div class="single-hero-nav">
-            <button class="btn-header-round" onclick="switchView('main')">\u2039</button>
+            <button class="btn-header-round" title="Back to Habits (Esc / Backspace)" onclick="switchView('main')">\${ICONS.arrowLeft}</button>
             <div style="display: flex; gap: 8px;">
               <button class="btn-header-round" title="Edit Settings" onclick="callHost('editHabit', '\${activeHabit.id}')">\u270F\uFE0F</button>
               <button class="btn-header-round" title="Delete Counter" onclick="deleteHabitFromDetail('\${activeHabit.id}')">\u{1F5D1}\uFE0F</button>
@@ -2479,11 +2546,11 @@ function buildDashboardTemplate(dashboardData) {
                   <button class="btn-cal-action" onclick="startCalendarEditMode()">\u270F\uFE0F Edit Calendar</button>
                 \` : \`
                   <button class="btn-cal-action btn-cal-save" onclick="saveCalendarEdits()">\u{1F4BE} Save (\${editModifiedCount})</button>
-                  <button class="btn-cal-action btn-cal-cancel" onclick="cancelCalendarEditMode()">\u2715 Cancel</button>
+                  <button class="btn-cal-action btn-cal-cancel" onclick="cancelCalendarEditMode()">\${ICONS.close} Cancel</button>
                 \`}
                 <div style="display: flex; gap: 2px; margin-left: 2px;">
-                  <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\u2039</button>
-                  <button class="btn-header-round" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\u203A</button>
+                  <button class="btn-header-round btn-month-nav" title="Previous Month (\u2190 / <)" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\${ICONS.chevronLeft}</button>
+                  <button class="btn-header-round btn-month-nav" title="Next Month (\u2192 / >)" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\${ICONS.chevronRight}</button>
                 </div>
               </div>
             </div>
@@ -2496,7 +2563,7 @@ function buildDashboardTemplate(dashboardData) {
               <div class="cal-quick-actions-row">
                 <button class="btn-cal-quick" onclick="markMonthAllDone()">\u2705 Mark Month Clean</button>
                 <button class="btn-cal-quick" onclick="markMonthAllSkipped()">\u{1F6AB} Mark Month Missed</button>
-                <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\u2715 Discard</button>
+                <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\${ICONS.close} Discard</button>
               </div>
             \` : ''}
 
@@ -2590,6 +2657,32 @@ function buildDashboardTemplate(dashboardData) {
         }
       } catch (e) {}
     }, { passive: true });
+
+    
+    // Global keyboard navigation listener
+    window.addEventListener("keydown", (e) => {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable)) return;
+
+      if (e.key === "Escape") {
+        if (isCalendarEditMode) {
+          cancelCalendarEditMode();
+        } else if (currentView !== "main") {
+          switchView("main");
+        }
+      } else if (currentView === "templates" || currentView === "settings") {
+        if (e.key === "Backspace") {
+          switchView("main");
+        }
+      } else if (currentView === "detail") {
+        if (e.key === "ArrowLeft" || e.key === "<" || e.key === ",") {
+          changeMonth(-1);
+        } else if (e.key === "ArrowRight" || e.key === ">" || e.key === ".") {
+          changeMonth(1);
+        } else if (e.key === "Backspace" && !isCalendarEditMode) {
+          switchView("main");
+        }
+      }
+    });
 
     function escapeHtml(str) {
       if (!str) return "";
