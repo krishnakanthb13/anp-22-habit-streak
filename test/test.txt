@@ -1,0 +1,79 @@
+# Test Analysis & Verification — Habit Streak (anp-22)
+**Date**: 2026-08-19
+**Runner**: Jest (Node.js ESM)
+
+## Summary
+| Metric              | Result                        |
+|---------------------|-------------------------------|
+| Total test suites   | 4                             |
+| Total tests         | 48                            |
+| Passed              | 48 ✅                          |
+| Failed              | 0 ❌                          |
+| Skipped             | 0 ⚠️                         |
+| Confidence Score    | 10/10                         |
+| Regression Coverage | Yes                           |
+
+---
+
+## Test Suite Coverage
+
+### 1. `streakEngine.test.js` (15 tests)
+- **Happy Path**:
+  - Contiguous date range generation (`getDateRange`).
+  - Formatting ISO date strings and objects (`formatDate`, `getTodayString`).
+  - Dual tracking philosophy resolution (`getHabitDayStatus` for `skip` and `complete` types).
+  - Metrics computation (`currentStreak`, `longestStreak`, `completionRate`, `streakStartDate`).
+  - Tiered milestone progress and unlocked badges (`calculateTierProgress`).
+  - Monthly calendar matrix calculation with weekday alignment (`generateMonthCalendar`).
+  - Aggregated multi-habit dashboard summary (`calculateAllHabitsSummary`).
+  - 7-day weekly repeatingness frequency (`calculateWeeklyFrequency`).
+- **Edge Cases**:
+  - Inverted date ranges (`start > end`).
+  - Single-day start/end boundaries.
+  - Zero tracked days and future start dates.
+  - Backdated completions occurring before habit creation.
+  - Full milestone unlocks when streaks exceed 5 years.
+- **Error Handling**:
+  - Invalid date parsing (NaN/non-date strings).
+  - Missing or null habit objects handled without unhandled exceptions.
+
+### 2. `store.test.js` (9 tests)
+- **Happy Path**:
+  - Serialization to markdown with ```` ```json ```` fenced block.
+  - Parsing state from markdown code blocks.
+  - Loading state from Amplenote note UUID.
+  - Saving state back into note markdown.
+- **Edge Cases & Resilience**:
+  - Robust extraction when arbitrary markdown or comments surround the code block.
+  - Bare JSON fallback parsing.
+  - Temporary `local-` UUID resolution to persistent online note UUIDs (`getNoteUUID`).
+  - Automatic note creation and setting synchronization if note is absent.
+  - Fallback initialization if note content is damaged.
+- **Error Handling**:
+  - Null, undefined, empty string, or invalid JSON handling.
+  - Graceful boolean return on API rejection without throwing unhandled exceptions.
+
+### 3. `features.test.js` (19 tests)
+- **Creation & Templates**:
+  - Creating new custom counters with prompt input mapping (`handleCreateHabit`).
+  - Instantiating predefined Quitly & Amplenote templates (`handleCreateFromTemplate`).
+- **Management**:
+  - Editing counter settings (`handleEditHabit`).
+  - Safe deletion with confirmation modal (`handleDeleteHabit`).
+  - Active habit tab selection (`handleSelectHabit`).
+- **Activity & Day Toggling**:
+  - Interactive day toggling between done and skipped (`handleToggleDay`).
+  - Batch editing and saving staged calendar changes (`handleSaveCalendarEdits`).
+  - Logging slip/skip with optional reflection note (`handleSkipToday`).
+  - Logging positive session check-ins (`handleCompleteToday`).
+  - Reverting / undoing today's actions (`handleUndoToday`).
+  - Resetting streak with date range selection and reason note (`handleResetToDate`).
+- **Launcher & Tasks Import**:
+  - Launching in fullscreen tab vs sidebar peek viewer (`launchHabitDashboard`).
+  - Importing recurring tasks from user-selected notes into streak counters (`handleImportFromNote`).
+
+### 4. `plugin.test.js` (5 tests)
+- Entry point `appOption["Habit Streaks Dashboard"]`.
+- Entry point `noteOption["Habit Streaks Dashboard"]` and `noteOption["Insert Habit Streaks Widget"]`.
+- Embed message dispatcher `onEmbedCall` (`setTheme`, `refreshData`).
+- Complete HTML embed document generation (`renderEmbed`).

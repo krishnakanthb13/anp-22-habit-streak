@@ -3,12 +3,15 @@ import {
   calculateHabitStats, 
   calculateTierProgress, 
   calculateAllHabitsSummary,
+  calculateWeeklyFrequency,
   generateMonthCalendar, 
-  getDateRange
+  getDateRange,
+  formatDate,
+  getTodayString
 } from "../lib/engine/streakEngine.js";
-import { TRACK_TYPES } from "../lib/constants.js";
+import { TRACK_TYPES, QUITLY_TIERS } from "../lib/constants.js";
 
-describe("streakEngine", () => {
+describe("streakEngine — Happy Path", () => {
   test("getDateRange returns contiguous date strings", () => {
     const range = getDateRange("2026-08-01", "2026-08-05");
     expect(range).toEqual([
@@ -18,6 +21,16 @@ describe("streakEngine", () => {
       "2026-08-04",
       "2026-08-05"
     ]);
+  });
+
+  test("formatDate formats valid date objects and ISO strings", () => {
+    expect(formatDate(new Date(2026, 7, 19))).toBe("2026-08-19");
+    expect(formatDate("2026-01-05T12:00:00Z")).toBe("2026-01-05");
+  });
+
+  test("getTodayString returns a valid YYYY-MM-DD string", () => {
+    const today = getTodayString();
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   test("getHabitDayStatus correctly handles skip-tracked habits", () => {
@@ -59,7 +72,7 @@ describe("streakEngine", () => {
 
     const stats = calculateHabitStats(habit, "2026-08-05");
     // Aug 1 (done), Aug 2 (done), Aug 3 (skipped), Aug 4 (done), Aug 5 (done)
-    expect(stats.currentStreak).toBe(2); // Aug 4 and Aug 5
+    expect(stats.currentStreak).toBe(2);
     expect(stats.longestStreak).toBe(2);
     expect(stats.totalTrackedDays).toBe(5);
     expect(stats.completedDays).toBe(4);
@@ -80,6 +93,7 @@ describe("streakEngine", () => {
     expect(tier7d.isUnlocked).toBe(false);
     expect(tier7d.isCurrentGoal).toBe(true);
     expect(tier7d.daysRemaining).toBe(2);
+    expect(tier7d.progressPercent).toBe(Math.round((5 / 7) * 100));
   });
 
   test("generateMonthCalendar produces correct grid days", () => {
@@ -95,7 +109,7 @@ describe("streakEngine", () => {
     expect(cal.month).toBe(8);
     expect(cal.totalDaysInMonth).toBe(31);
     expect(cal.days.length).toBe(31);
-    expect(cal.days[18].isToday).toBe(true); // 19th
+    expect(cal.days[18].isToday).toBe(true);
   });
 
   test("calculateAllHabitsSummary aggregates metrics across multiple habits", () => {
@@ -120,9 +134,107 @@ describe("streakEngine", () => {
 
     const summary = calculateAllHabitsSummary(habits, "2026-08-05");
     expect(summary.totalHabits).toBe(2);
-    expect(summary.bestOverallStreak).toBe(5); // h1 has 5 days streak
+    expect(summary.bestOverallStreak).toBe(5);
     expect(summary.habitCards.length).toBe(2);
     expect(summary.habitCards[0].stats.currentStreak).toBe(5);
     expect(summary.habitCards[1].stats.currentStreak).toBe(0);
+  });
+
+  test("calculateWeeklyFrequency calculates 7-day logs distribution", () => {
+    const habit = {
+      type: TRACK_TYPES.SKIP,
+      createdAt: "2026-08-01",
+      skips: ["2026-08-18"],
+      events: [
+        { type: "skip", date: "2026-08-18", note: "Tempted" },
+        { type: "done", date: "2026-08-19", note: "Morning run" }
+      ]
+    };
+
+    const freq = calculateWeeklyFrequency(habit, "2026-08-19");
+    expect(freq.weekCounts.length).toBe(7);
+    expect(freq.weekCounts[6].isToday).toBe(true);
+    expect(freq.weekCounts[6].dateStr).toBe("2026-08-19");
+    expect(freq.totalWeekLogs).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("streakEngine — Edge Cases", () => {
+  test("getDateRange returns empty array if start > end", () => {
+    expect(getDateRange("2026-08-10", "2026-08-05")).toEqual([]);
+  });
+
+  test("getDateRange returns single day if start === end", () => {
+    expect(getDateRange("2026-08-05", "2026-08-05")).toEqual(["2026-08-05"]);
+  });
+
+  test("calculateHabitStats handles habits with zero tracked days", () => {
+    const habit = {
+      type: TRACK_TYPES.SKIP,
+      createdAt: "2026-08-10",
+      skips: [],
+      completions: []
+    };
+
+    const stats = calculateHabitStats(habit, "2026-08-05");
+    expect(stats.currentStreak).toBe(0);
+    expect(stats.totalTrackedDays).toBe(0);
+    expect(stats.completionRate).toBe(0);
+  });
+
+  test("calculateHabitStats with backdated completions before createdAt", () => {
+    const habit = {
+      type: TRACK_TYPES.COMPLETE,
+      createdAt: "2026-08-05",
+      completions: ["2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04", "2026-08-05"],
+      skips: []
+    };
+
+    const stats = calculateHabitStats(habit, "2026-08-05");
+    expect(stats.currentStreak).toBe(5);
+    expect(stats.longestStreak).toBe(5);
+    expect(stats.totalTrackedDays).toBe(5);
+  });
+
+  test("calculateAllHabitsSummary handles empty or null array gracefully", () => {
+    expect(calculateAllHabitsSummary([])).toEqual({
+      totalHabits: 0,
+      bestOverallStreak: 0,
+      totalCompletedDaysAll: 0,
+      averageCompletionRate: 0,
+      habitCards: []
+    });
+
+    expect(calculateAllHabitsSummary(null)).toEqual({
+      totalHabits: 0,
+      bestOverallStreak: 0,
+      totalCompletedDaysAll: 0,
+      averageCompletionRate: 0,
+      habitCards: []
+    });
+  });
+
+  test("calculateTierProgress when all tiers are unlocked", () => {
+    const maxDays = QUITLY_TIERS[QUITLY_TIERS.length - 1].days + 100;
+    const tiers = calculateTierProgress(maxDays);
+    expect(tiers.every(t => t.isUnlocked)).toBe(true);
+    expect(tiers.some(t => t.isCurrentGoal)).toBe(false);
+  });
+});
+
+describe("streakEngine — Error Handling", () => {
+  test("formatDate returns empty string for invalid date inputs", () => {
+    expect(formatDate("invalid-date-string")).toBe("");
+    expect(formatDate(NaN)).toBe("");
+  });
+
+  test("getDateRange returns empty array on invalid date strings", () => {
+    expect(getDateRange("invalid", "2026-08-05")).toEqual([]);
+    expect(getDateRange("2026-08-01", "invalid")).toEqual([]);
+  });
+
+  test("getHabitDayStatus handles null habit safely", () => {
+    expect(getHabitDayStatus(null, "2026-08-01", "2026-08-05")).toBe("before_start");
+    expect(getHabitDayStatus(null, "2026-08-05", "2026-08-05")).toBe("completed");
   });
 });

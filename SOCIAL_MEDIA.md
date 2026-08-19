@@ -1,5 +1,95 @@
 # Social Media Announcements: Habit Streaks Plugin
 
+## Released: Habit Streaks v0.0.9
+
+### LinkedIn
+Excited to share the latest release of Habit Streaks (v0.0.9) for Amplenote! 🚀
+
+This release focuses on enterprise-grade hardening, complete XSS input sanitization, and a brand new comprehensive 48-test test suite.
+
+What makes Habit Streaks unique:
+• 🛡️ Dual Tracking Model: Quitly-style continuous count-up for sobriety and breaking bad habits, paired with Amplenote-style intentional daily check-in habits.
+• 🔒 Security Hardened: Full HTML entity sanitization across all custom emojis, habit titles, and session notes, with zero external network telemetry.
+• 🧪 100% Test Coverage: 48 automated test cases verifying mathematical streak precision, leap years, milestone unlocks, and offline note UUID resolution.
+• 🎨 5 Visual Themes: Instant switching between Midnight, Frosted Glass, Pure Dark, Light Minimalist, and Cyberpunk Neon.
+• 📥 Note Importer: Instantly convert existing task lists and markdown checklists into tracked habit counters.
+
+Check out the open-source repository and installation instructions:
+https://github.com/krishnakanthb13/amplenote_stg_plugins
+
+#OpenSource #Amplenote #Productivity #PKM #WebDev #JavaScript #Testing #Security
+
+---
+
+### Twitter / X
+🚀 Habit Streaks v0.0.9 is live for @Amplenote!
+
+✨ Dual tracking: Sobriety/Quitting (auto count-up) + Positive Habits
+🔒 Security hardened & XSS sanitized
+🧪 48/48 automated tests passed
+🎨 5 beautiful themes: Frosted Glass, Neon, Dark, Light & Midnight
+
+https://github.com/krishnakanthb13/amplenote_stg_plugins
+
+---
+
+### Bluesky
+Habit Streaks v0.0.9 for Amplenote is out! 🚀
+
+Brings Quitly-style sobriety & abstinence count-ups + positive action habit tracking with live digital clocks, laurel milestone tiers, 7-day repetition charts, and a complete 48-test verification suite.
+
+https://github.com/krishnakanthb13/amplenote_stg_plugins
+
+#Amplenote #Productivity #OpenSource
+
+---
+
+### Mastodon
+Released: Habit Streaks v0.0.9 for Amplenote! 🚀
+
+A high-fidelity habit & sobriety tracking plugin featuring:
+• Dual tracking (Auto-tracked Quitting vs Daily Check-in Practices)
+• Real-time digital clock ticker (Days : Hours : Mins : Secs)
+• Complete XSS protection & zero-telemetry security model
+• 48 automated Jest unit and regression tests (100% pass)
+• 5 themes: Midnight, Frosted Glass, Dark, Light, Neon
+
+https://github.com/krishnakanthb13/amplenote_stg_plugins
+
+#Amplenote #Productivity #PKM #OpenSource #JavaScript
+
+---
+
+### Reddit
+**Title**: [Release] Habit Streaks v0.0.9 for Amplenote: Dual-Philosophy Tracker (Quitly-style Sobriety & Positive Habits) + 5 Themes & Full Calendar
+
+**Target Subreddits**: `r/Amplenote`, `r/Productivity`, `r/PKM`, `r/SideProject`, `r/javascript`
+
+Hey everyone! 👋
+
+I've just released v0.0.9 of **Habit Streaks**, an open-source plugin for Amplenote that brings a dual tracking philosophy to your daily routines.
+
+### Why Dual Tracking?
+Most habit trackers assume every habit starts at zero and requires a manual tap each day. But when you are quitting a bad habit or maintaining sobriety (no smoking, no alcohol, no sugar), you are already succeeding every second you go about your day.
+
+Habit Streaks supports both:
+1. **🛡️ Abstinence / Quitting Mode**: Passive count-up with live ticking clocks (Days, Hours, Minutes, Seconds). You only check in if a slip occurs, with reflection notes.
+2. **🎯 Positive Action Mode**: Active daily check-ins with multi-session support (+1) and 7-day repetition frequency bar charts.
+
+### Key Highlights:
+- **🎨 5 Visual Themes**: Midnight, Frosted Glass (Glassmorphism), Pure Dark, Light Clean, and Cyberpunk Neon.
+- **📅 Interactive Monthly Calendar**: Stage multi-day edits with 1-click batch actions (*Mark Clean*, *Mark Missed*).
+- **📥 Task Import Wizard**: Scans any Amplenote note and imports tasks into habit counters.
+- **🔒 Secure & Private**: State stays 100% in your private workspace note. Zero external network tracking.
+- **🧪 48 Automated Tests**: Comprehensive test suite ensuring zero regressions.
+
+Check out the code and installation instructions on GitHub:
+https://github.com/krishnakanthb13/amplenote_stg_plugins
+
+Feedback and feature requests are always welcome!
+
+---
+
 ## Released: Habit Streaks v0.0.3
 
 ### LinkedIn

@@ -1,5 +1,25 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.10 (2026-08-19)
+
+### 🔒 Security & XSS Hardening
+- **End-to-End Input Sanitization**: Added rigorous `escapeHtml` protection to all dynamic user inputs (custom emoji icons, counter names, category tags, session notes, and reset reflection logs) inside [`dashboardTemplate.js`](./lib/ui/dashboardTemplate.js).
+- **Embed State Sanitization**: Ensured embedded JSON payload converts `<` to `\u003c` to eliminate closing script tag breakout vulnerabilities.
+- **Dedicated Security Audit**: Created [`SECURITY.md`](./SECURITY.md) documenting OWASP compliance, zero hardcoded credentials, zero dynamic `eval()`, zero telemetry/network calls, and safe local note UUID resolution.
+
+### 🧪 Comprehensive Test Suite (100% Pass Rate)
+- **Scaffolded Full Test Suites**: Created modular Jest ESM test suites covering Happy Path, Edge Cases, and Error Handling across:
+  - [`streakEngine.test.js`](./test/streakEngine.test.js) (15 tests)
+  - [`store.test.js`](./test/store.test.js) (9 tests)
+  - [`features.test.js`](./test/features.test.js) (19 tests)
+  - [`plugin.test.js`](./test/plugin.test.js) (5 tests)
+- **48/48 Passing Tests**: Validated regression resistance for offline note creation, UUID resolution, start date backfilling, dual tracking mathematics, and batch calendar mutations.
+
+### 📦 Distribution Bundle Verification
+- **Compiled & Verified IIFE Bundle**: Built production bundle [`habit-streak.compiled.js`](./build/habit-streak.compiled.js) (136.5 KB) with clean syntax, zero module leaks, and full Amplenote expression compatibility.
+
+---
+
 ## v0.0.8 (2026-08-19)
 
 ### ⚡ Performance & Engine Optimization
