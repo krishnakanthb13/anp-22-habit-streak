@@ -20,7 +20,7 @@ import {
   SETTING_DATA_NOTE_UUID 
 } from "../lib/data/store.js";
 import { handleSkipToday, handleUndoToday, handleCompleteToday, handleResetToDate } from "../lib/features/resetStreak.js";
-import { handleSaveCalendarEdits } from "../lib/features/toggleDay.js";
+import { handleToggleDay, handleSaveCalendarEdits } from "../lib/features/toggleDay.js";
 import { TRACK_TYPES, INTERVAL_PERIODS, DATA_NOTE_NAME, DATA_NOTE_TAGS, DEFAULT_STATE, VALID_THEMES } from "../lib/constants.js";
 
 describe("Design Spec Audit Scenarios (1-18) Verification", () => {
@@ -487,5 +487,103 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
 
     expect(state.theme).toBe("midnight");
     expect(state.habits[0].colorTheme).toBe("blue");
+  });
+
+  // 24. Invariant: Multi-event Undo state reconstruction
+  test("Invariant 6: Undo Today reconstructs date state correctly when multiple events exist", async () => {
+    let savedState = null;
+    const todayStr = getTodayString();
+
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      getNoteContent: jest.fn().mockImplementation(() => {
+        return Promise.resolve(formatStateAsMarkdown(savedState || {
+          version: 2,
+          revision: 1,
+          habits: [
+            {
+              id: "h_undo_test",
+              name: "Undo Multi Test",
+              type: TRACK_TYPES.SKIP,
+              trackingStartDate: "2026-08-01",
+              skips: [todayStr],
+              completions: [],
+              events: [
+                { id: "ev1", type: "skip", date: todayStr, timestamp: "2026-08-19T10:00:00.000Z", note: "Slip #1" },
+                { id: "ev2", type: "skip", date: todayStr, timestamp: "2026-08-19T14:00:00.000Z", note: "Slip #2" }
+              ],
+              resetLogs: [
+                { id: "rl1", date: todayStr, timestamp: "2026-08-19T10:00:00.000Z" },
+                { id: "rl2", date: todayStr, timestamp: "2026-08-19T14:00:00.000Z" }
+              ]
+            }
+          ]
+        }));
+      }),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    // First undo: Undoing Slip #2 -> Slip #1 remains, so today MUST still be in skips
+    await handleUndoToday(app, "h_undo_test");
+    expect(savedState.habits[0].events.length).toBe(1);
+    expect(savedState.habits[0].events[0].id).toBe("ev1");
+    expect(savedState.habits[0].skips).toContain(todayStr);
+
+    // Second undo: Undoing Slip #1 -> 0 events remain, so today is removed from skips
+    await handleUndoToday(app, "h_undo_test");
+    expect(savedState.habits[0].events.length).toBe(0);
+    expect(savedState.habits[0].skips).not.toContain(todayStr);
+  });
+
+  // 25. Invariant: Off-day toggle rejection at mutation boundary
+  test("Invariant 7: handleToggleDay rejects toggling non-scheduled/off-days", async () => {
+    let savedState = null;
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown({
+        version: 2,
+        revision: 1,
+        habits: [
+          {
+            id: "h_weekly",
+            name: "Weekly Habit",
+            type: TRACK_TYPES.COMPLETE,
+            trackingStartDate: "2026-08-17", // Monday
+            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+            skips: [],
+            completions: []
+          }
+        ]
+      })),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    // 2026-08-18 is Tuesday (off-day for Monday weekly habit)
+    await handleToggleDay(app, "h_weekly", "2026-08-18", "not_applicable");
+    expect(savedState).not.toBeNull();
+    // Non-scheduled day must NOT be added to completions or skips
+    expect(savedState.habits[0].completions).toEqual([]);
+    expect(savedState.habits[0].skips).toEqual([]);
+  });
+
+  // 26. Invariant: isScheduledDate returns false on invalid date inputs
+  test("Invariant 8: isScheduledDate returns false on invalid dates", () => {
+    const habit = { trackingStartDate: "2026-08-01", interval: { n: 1, period: INTERVAL_PERIODS.DAY } };
+    expect(isScheduledDate(habit, "invalid-date")).toBe(false);
+    expect(isScheduledDate(habit, "2026-02-30")).toBe(false);
   });
 });

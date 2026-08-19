@@ -159,7 +159,7 @@ function isScheduledDate(habit, dateStr, refStartStr) {
   const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00");
   const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
   if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
-    return true;
+    return false;
   }
   const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
   if (diffInDays < 0) {
@@ -415,6 +415,11 @@ function generateMonthCalendar(habit, year, month, todayStr = getTodayString()) 
 // anp-22-habit-streak/lib/data/store.js
 var SETTING_DATA_NOTE_UUID = "Habit_Streak_Data_UUID [Do not Edit!]";
 var mutationQueue = Promise.resolve();
+function isValidTimestamp(ts) {
+  if (typeof ts !== "string" || ts.length < 10) return false;
+  const d = new Date(ts);
+  return !isNaN(d.getTime());
+}
 function normalizeHabit(habit) {
   if (!habit || typeof habit !== "object") {
     return null;
@@ -436,11 +441,11 @@ function normalizeHabit(habit) {
     }
   }
   const nowISO = (/* @__PURE__ */ new Date()).toISOString();
-  const createdAt = habit.createdAt && typeof habit.createdAt === "string" ? habit.createdAt : nowISO;
+  const createdAt = habit.createdAt && isValidTimestamp(habit.createdAt) ? habit.createdAt : nowISO;
   const createdDateStr = createdAt.split("T")[0];
   const trackingStartDate = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : isValidDateString(createdDateStr) ? createdDateStr : nowISO.split("T")[0];
-  const streakAnchor = habit.streakAnchor && typeof habit.streakAnchor === "string" ? habit.streakAnchor : nowISO;
-  const streakStartedAt = habit.streakStartedAt && typeof habit.streakStartedAt === "string" ? habit.streakStartedAt : streakAnchor;
+  const streakAnchor = habit.streakAnchor && isValidTimestamp(habit.streakAnchor) ? habit.streakAnchor : nowISO;
+  const streakStartedAt = habit.streakStartedAt && isValidTimestamp(habit.streakStartedAt) ? habit.streakStartedAt : streakAnchor;
   const skips = Array.isArray(habit.skips) ? Array.from(new Set(habit.skips.filter(isValidDateString))).sort() : [];
   const skipSet = new Set(skips);
   const rawCompletions = Array.isArray(habit.completions) ? Array.from(new Set(habit.completions.filter(isValidDateString))).sort() : [];
@@ -448,15 +453,15 @@ function normalizeHabit(habit) {
   const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object" && typeof e.type === "string").map((e) => ({
     id: e.id && typeof e.id === "string" ? e.id : generateUniqueId("event"),
     type: e.type,
-    date: e.date && isValidDateString(e.date) ? e.date : e.timestamp ? e.timestamp.split("T")[0] : nowISO.split("T")[0],
-    timestamp: e.timestamp && typeof e.timestamp === "string" ? e.timestamp : nowISO,
+    date: e.date && isValidDateString(e.date) ? e.date : e.timestamp && isValidTimestamp(e.timestamp) ? e.timestamp.split("T")[0] : nowISO.split("T")[0],
+    timestamp: e.timestamp && isValidTimestamp(e.timestamp) ? e.timestamp : nowISO,
     note: e.note && typeof e.note === "string" ? e.note : "",
     ...Number.isInteger(e.streakLength) ? { streakLength: e.streakLength } : {}
   })) : [];
   const resetLogs = Array.isArray(habit.resetLogs) ? habit.resetLogs.filter((r) => r && typeof r === "object").map((r) => ({
     id: r.id && typeof r.id === "string" ? r.id : generateUniqueId("reset"),
-    date: r.date && isValidDateString(r.date) ? r.date : r.timestamp ? r.timestamp.split("T")[0] : nowISO.split("T")[0],
-    timestamp: r.timestamp && typeof r.timestamp === "string" ? r.timestamp : nowISO,
+    date: r.date && isValidDateString(r.date) ? r.date : r.timestamp && isValidTimestamp(r.timestamp) ? r.timestamp.split("T")[0] : nowISO.split("T")[0],
+    timestamp: r.timestamp && isValidTimestamp(r.timestamp) ? r.timestamp : nowISO,
     note: r.note && typeof r.note === "string" ? r.note : "",
     ...Number.isInteger(r.streakLength) ? { streakLength: r.streakLength } : {}
   })) : [];
@@ -2671,9 +2676,9 @@ function buildDashboardTemplate(dashboardData) {
         if (d.status === 'completed') monthDoneCount++;
         if (d.status === 'skipped') monthSkipCount++;
         if (d.isToday) cls += ' is-today';
-        if (isCalendarEditMode && d.status !== 'future') cls += ' editing';
+        if (isCalendarEditMode && d.status !== 'future' && d.status !== 'not_applicable') cls += ' editing';
 
-        let isClickable = (d.status !== 'future');
+        let isClickable = (d.status !== 'future' && d.status !== 'not_applicable');
         let clickAttr = isClickable 
           ? \`onclick="onDayDotClick('\${d.dateStr}', '\${d.status}')"\` 
           : "";
@@ -3355,6 +3360,14 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
+      const currentStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : dateStr;
+      const effectiveStart = dateStr < currentStart ? dateStr : currentStart;
+      if (!isScheduledDate(habit, dateStr, effectiveStart)) {
+        return;
+      }
+      if (dateStr < currentStart) {
+        habit.trackingStartDate = dateStr;
+      }
       habit.skips = habit.skips || [];
       habit.completions = habit.completions || [];
       habit.events = habit.events || [];
@@ -3403,9 +3416,15 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
       if (!habit) return;
       const oldSkipsStr = (habit.skips || []).slice().sort().join(",");
       const oldCompsStr = (habit.completions || []).slice().sort().join(",");
-      const validSkips = Array.isArray(skips) ? Array.from(new Set(skips.filter(isValidDateString))).sort() : [];
+      const allIncomingDates = [...Array.isArray(skips) ? skips : [], ...Array.isArray(completions) ? completions : []].filter(isValidDateString).sort();
+      let effectiveStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : allIncomingDates[0] || getTodayString();
+      if (allIncomingDates.length > 0 && allIncomingDates[0] < effectiveStart) {
+        effectiveStart = allIncomingDates[0];
+        habit.trackingStartDate = effectiveStart;
+      }
+      const validSkips = Array.isArray(skips) ? Array.from(new Set(skips.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, effectiveStart)))).sort() : [];
       const skipSet = new Set(validSkips);
-      const rawCompletions = Array.isArray(completions) ? Array.from(new Set(completions.filter(isValidDateString))).sort() : [];
+      const rawCompletions = Array.isArray(completions) ? Array.from(new Set(completions.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, effectiveStart)))).sort() : [];
       const validCompletions = rawCompletions.filter((d) => !skipSet.has(d));
       habit.skips = validSkips;
       habit.completions = validCompletions;
@@ -3519,24 +3538,30 @@ async function handleUndoToday(app, habitId) {
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
-      habit.skips = (habit.skips || []).filter((d) => d !== todayStr);
-      habit.completions = (habit.completions || []).filter((d) => d !== todayStr);
-      if (Array.isArray(habit.events) && habit.events.length > 0) {
-        let lastTodayIdx = -1;
-        for (let i = habit.events.length - 1; i >= 0; i--) {
-          if (habit.events[i].date === todayStr) {
-            lastTodayIdx = i;
-            break;
-          }
-        }
-        if (lastTodayIdx !== -1) {
-          habit.events.splice(lastTodayIdx, 1);
+      habit.events = habit.events || [];
+      habit.resetLogs = habit.resetLogs || [];
+      habit.skips = habit.skips || [];
+      habit.completions = habit.completions || [];
+      let removedEventType = null;
+      let lastTodayIdx = -1;
+      for (let i = habit.events.length - 1; i >= 0; i--) {
+        const ev = habit.events[i];
+        const evDate = ev.date || (ev.timestamp ? ev.timestamp.split("T")[0] : "");
+        if (evDate === todayStr) {
+          lastTodayIdx = i;
+          removedEventType = ev.type;
+          break;
         }
       }
-      if (Array.isArray(habit.resetLogs) && habit.resetLogs.length > 0) {
+      if (lastTodayIdx !== -1) {
+        habit.events.splice(lastTodayIdx, 1);
+      }
+      if (removedEventType === "skip" || removedEventType === "slip" || lastTodayIdx !== -1) {
         let lastTodayResetIdx = -1;
         for (let i = habit.resetLogs.length - 1; i >= 0; i--) {
-          if (habit.resetLogs[i].date === todayStr) {
+          const rl = habit.resetLogs[i];
+          const rlDate = rl.date || (rl.timestamp ? rl.timestamp.split("T")[0] : "");
+          if (rlDate === todayStr) {
             lastTodayResetIdx = i;
             break;
           }
@@ -3544,6 +3569,27 @@ async function handleUndoToday(app, habitId) {
         if (lastTodayResetIdx !== -1) {
           habit.resetLogs.splice(lastTodayResetIdx, 1);
         }
+      }
+      const remainingTodayEvents = habit.events.filter((e) => {
+        const d = e.date || (e.timestamp ? e.timestamp.split("T")[0] : "");
+        return d === todayStr;
+      });
+      if (remainingTodayEvents.length > 0) {
+        const latestRemaining = remainingTodayEvents[remainingTodayEvents.length - 1];
+        if (latestRemaining.type === "done") {
+          habit.skips = habit.skips.filter((d) => d !== todayStr);
+          if (!habit.completions.includes(todayStr)) {
+            habit.completions.push(todayStr);
+          }
+        } else {
+          habit.completions = habit.completions.filter((d) => d !== todayStr);
+          if (!habit.skips.includes(todayStr)) {
+            habit.skips.push(todayStr);
+          }
+        }
+      } else {
+        habit.skips = habit.skips.filter((d) => d !== todayStr);
+        habit.completions = habit.completions.filter((d) => d !== todayStr);
       }
     });
     if (app.context && typeof app.context.renderEmbed === "function") {
