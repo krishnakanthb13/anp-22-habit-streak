@@ -4,9 +4,9 @@ var DATA_NOTE_NAME = "habit_streak_data";
 var DATA_NOTE_TAGS = ["-reports/-habit-streak"];
 var TRACK_TYPES = {
   SKIP: "skip",
-  // Quitly default: habit is done unless explicitly marked skipped
+  // Quitly default: habit is done unless explicitly marked skipped (Abstinence)
   COMPLETE: "complete"
-  // Amplenote default: habit is not done unless explicitly completed
+  // Amplenote default: habit is not done unless explicitly completed (Positive Action)
 };
 var INTERVAL_PERIODS = {
   DAY: "day",
@@ -26,15 +26,26 @@ var QUITLY_TIERS = [
   { id: "730d", label: "2 Years", days: 730, tierNum: 10, badge: "\u{1F3C6}", title: "Tier 10: 2 Years" },
   { id: "1825d", label: "5 Years", days: 1825, tierNum: 11, badge: "\u{1F31F}", title: "Tier 11: 5 Years" }
 ];
-var PRESET_TEMPLATES = [
-  { name: "No Junk Food", icon: "\u{1F354}", category: "Diet & Health", type: TRACK_TYPES.SKIP, colorTheme: "amber" },
-  { name: "No Sugar", icon: "\u{1F9C1}", category: "Diet & Health", type: TRACK_TYPES.SKIP, colorTheme: "rose" },
+var QUITLY_TEMPLATES = [
   { name: "I am Sober (No Alcohol)", icon: "\u{1F377}", category: "Sobriety", type: TRACK_TYPES.SKIP, colorTheme: "blue" },
-  { name: "No Smoking", icon: "\u{1F6AD}", category: "Sobriety", type: TRACK_TYPES.SKIP, colorTheme: "bronze" },
-  { name: "Without Coffee", icon: "\u2615", category: "Lifestyle", type: TRACK_TYPES.SKIP, colorTheme: "teal" },
+  { name: "No Smoking / Nicotine", icon: "\u{1F6AD}", category: "Sobriety", type: TRACK_TYPES.SKIP, colorTheme: "bronze" },
+  { name: "No Junk Food & Fast Food", icon: "\u{1F354}", category: "Diet & Health", type: TRACK_TYPES.SKIP, colorTheme: "amber" },
+  { name: "No Refined Sugar", icon: "\u{1F9C1}", category: "Diet & Health", type: TRACK_TYPES.SKIP, colorTheme: "rose" },
+  { name: "Without Caffeine", icon: "\u2615", category: "Lifestyle", type: TRACK_TYPES.SKIP, colorTheme: "teal" },
   { name: "No Social Media Doomscrolling", icon: "\u{1F4F1}", category: "Mindfulness", type: TRACK_TYPES.SKIP, colorTheme: "purple" },
-  { name: "Daily Workout", icon: "\u{1F3C3}", category: "Fitness", type: TRACK_TYPES.COMPLETE, colorTheme: "emerald" },
-  { name: "Daily Reading & Journaling", icon: "\u{1F4DA}", category: "Mindfulness", type: TRACK_TYPES.COMPLETE, colorTheme: "indigo" }
+  { name: "No Impulse Online Shopping", icon: "\u{1F4B8}", category: "Finance", type: TRACK_TYPES.SKIP, colorTheme: "amber" }
+];
+var AMPLENOTE_TEMPLATES = [
+  { name: "Daily Workout & Exercise", icon: "\u{1F3C3}", category: "Fitness", type: TRACK_TYPES.COMPLETE, colorTheme: "emerald" },
+  { name: "Daily Reading (20 Mins)", icon: "\u{1F4DA}", category: "Knowledge", type: TRACK_TYPES.COMPLETE, colorTheme: "indigo" },
+  { name: "Morning Meditation", icon: "\u{1F9D8}", category: "Mindfulness", type: TRACK_TYPES.COMPLETE, colorTheme: "purple" },
+  { name: "Drink 2L Water", icon: "\u{1F4A7}", category: "Health", type: TRACK_TYPES.COMPLETE, colorTheme: "blue" },
+  { name: "Daily Journaling & Review", icon: "\u270D\uFE0F", category: "Mindfulness", type: TRACK_TYPES.COMPLETE, colorTheme: "teal" },
+  { name: "Deep Work Session (90m)", icon: "\u{1F4BB}", category: "Productivity", type: TRACK_TYPES.COMPLETE, colorTheme: "rose" }
+];
+var PRESET_TEMPLATES = [
+  ...QUITLY_TEMPLATES,
+  ...AMPLENOTE_TEMPLATES
 ];
 var COLOR_THEMES = {
   amber: {
@@ -418,6 +429,8 @@ function generateMonthCalendar(habit, year, month, todayStr = getTodayString()) 
 function buildDashboardTemplate(dashboardData) {
   const safeDataJson = JSON.stringify(dashboardData).replace(/</g, "\\u003c");
   const presetsJson = JSON.stringify(PRESET_TEMPLATES).replace(/</g, "\\u003c");
+  const quitlyPresetsJson = JSON.stringify(QUITLY_TEMPLATES).replace(/</g, "\\u003c");
+  const amplenotePresetsJson = JSON.stringify(AMPLENOTE_TEMPLATES).replace(/</g, "\\u003c");
   const themesJson = JSON.stringify(COLOR_THEMES).replace(/</g, "\\u003c");
   return `
 <!DOCTYPE html>
@@ -442,6 +455,7 @@ function buildDashboardTemplate(dashboardData) {
       --blue-light: #dbeafe;
       --emerald-accent: #10b981;
       --rose-accent: #f43f5e;
+      --indigo-accent: #6366f1;
       --radius-sm: 10px;
       --radius-md: 16px;
       --radius-lg: 24px;
@@ -531,6 +545,39 @@ function buildDashboardTemplate(dashboardData) {
       transform: scale(1.05);
     }
 
+    /* Segment Filter Bar */
+    .filter-segment-bar {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .filter-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .filter-tab-btn:hover {
+      color: #ffffff;
+    }
+    .filter-tab-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
     /* Main Container (White Rounded Sheet like Quitly) */
     .quitly-white-sheet {
       background: #ffffff;
@@ -540,7 +587,20 @@ function buildDashboardTemplate(dashboardData) {
       box-shadow: var(--shadow-card);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
+    }
+
+    /* Section Category Headings */
+    .section-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 0;
     }
 
     /* Quitly Colorful Counter Pill Cards (Image 2) */
@@ -942,6 +1002,51 @@ function buildDashboardTemplate(dashboardData) {
       border-top: 1px solid #e2e8f0;
     }
 
+    /* Weekly Frequency Chart */
+    .weekly-bars-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px;
+      height: 90px;
+      padding: 10px 4px 0 4px;
+      margin-bottom: 8px;
+    }
+
+    .weekly-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      gap: 4px;
+    }
+
+    .weekly-bar-fill {
+      width: 100%;
+      max-width: 28px;
+      background: #3b82f6;
+      border-radius: 6px 6px 2px 2px;
+      min-height: 6px;
+      transition: height 0.3s ease;
+    }
+    .weekly-bar-col.today .weekly-bar-fill {
+      background: #10b981;
+    }
+
+    .weekly-day-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .weekly-count-lbl {
+      font-size: 10px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
     /* Templates Modal / Section (Image 3) */
     .templates-shelf-card {
       background: #ffffff;
@@ -956,9 +1061,14 @@ function buildDashboardTemplate(dashboardData) {
 
     .templates-category-title {
       font-size: 13px;
-      font-weight: 700;
-      color: #64748b;
-      margin-top: 6px;
+      font-weight: 800;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .template-item-row {
@@ -1017,11 +1127,15 @@ function buildDashboardTemplate(dashboardData) {
   <script>
     const INITIAL_DATA = ${safeDataJson};
     const PRESETS = ${presetsJson};
+    const QUITLY_PRESETS = ${quitlyPresetsJson};
+    const AMPLENOTE_PRESETS = ${amplenotePresetsJson};
     const THEMES = ${themesJson};
 
     let currentData = INITIAL_DATA;
-    let currentView = "main"; // "main" | "detail" | "templates"
+    let currentView = "main"; // "main" | "detail" | "templates" | "settings"
     let selectedHabitId = null;
+    let mainFilter = "all"; // "all" | "quit" | "positive"
+    let templateFilter = "all"; // "all" | "quit" | "positive"
     let viewingYear = new Date().getFullYear();
     let viewingMonth = new Date().getMonth() + 1;
 
@@ -1038,6 +1152,16 @@ function buildDashboardTemplate(dashboardData) {
       selectedHabitId = habitId;
       viewingYear = new Date().getFullYear();
       viewingMonth = new Date().getMonth() + 1;
+      render();
+    }
+
+    function setMainFilter(filter) {
+      mainFilter = filter;
+      render();
+    }
+
+    function setTemplateFilter(filter) {
+      templateFilter = filter;
       render();
     }
 
@@ -1110,26 +1234,110 @@ function buildDashboardTemplate(dashboardData) {
       return { year, month, monthName, firstDayWeekday, totalDaysInMonth, days };
     }
 
+    function getClientWeeklyFrequency(habit) {
+      const events = habit.events || [];
+      const daysNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const today = new Date();
+      const weekCounts = [];
+      let totalWeekLogs = 0;
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        const dayName = daysNames[d.getDay()];
+
+        let count = 0;
+        for (const ev of events) {
+          if (ev.date === dateStr) count++;
+        }
+
+        if (count === 0) {
+          if (habit.type === 'complete' && (habit.completions || []).includes(dateStr)) count = 1;
+          else if (habit.type === 'skip' && (habit.skips || []).includes(dateStr)) count = 1;
+        }
+
+        totalWeekLogs += count;
+        weekCounts.push({ dateStr, dayName, count, isToday: i === 0 });
+      }
+
+      const maxCount = Math.max(...weekCounts.map(w => w.count), 1);
+      return { weekCounts, maxCount, totalWeekLogs };
+    }
+
     function render() {
       const root = document.getElementById("appRoot");
       const habits = currentData.habits || [];
       const summary = currentData.summary || {};
       const activeHabit = habits.find(h => h.id === selectedHabitId) || habits[0] || null;
 
-      // 1. TEMPLATES VIEW (Image 3)
+      // 1. SETTINGS VIEW
+      if (currentView === "settings") {
+        root.innerHTML = \`
+          <div class="app-top-header">
+            <button class="btn-header-round" onclick="switchView('main')">\u2715</button>
+            <span class="header-title-text">Settings & Data</span>
+            <div style="width: 40px;"></div>
+          </div>
+
+          <div class="quitly-white-sheet">
+            <div style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">
+              \u2699\uFE0F Plugin Configuration
+            </div>
+            
+            <div class="activity-section-card">
+              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F504} Sync Status</div>
+              <p style="font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 12px;">
+                Your streak logs are stored in the data note with tag <code>-reports/-habit-streak</code>.
+              </p>
+              <button class="btn-create-custom" style="padding: 10px; font-size: 13px;" onclick="callHost('refreshData')">
+                \u{1F504} Force Refresh from Note
+              </button>
+            </div>
+
+            <div class="activity-section-card">
+              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F4CA} Total Overview</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                <div style="background: #ffffff; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <div style="font-size: 18px; font-weight: 800; color: #2563eb;">\${habits.length}</div>
+                  <div style="color: #64748b;">Total Counters</div>
+                </div>
+                <div style="background: #ffffff; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <div style="font-size: 18px; font-weight: 800; color: #10b981;">\${summary.bestOverallStreak || 0}d</div>
+                  <div style="color: #64748b;">Best Record</div>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn-quitly-action" style="width: 100%; justify-content: center;" onclick="switchView('templates')">
+              + Add from Templates Catalog
+            </button>
+          </div>
+        \`;
+        return;
+      }
+
+      // 2. TEMPLATES VIEW (Image 3) - Categorized into Quitly (Negative) and Amplenote (Positive)
       if (currentView === "templates") {
-        let templatesHtml = PRESETS.map((p, idx) => {
+        const renderTemplateRows = (list) => list.map(p => {
+          const globalIdx = PRESETS.findIndex(item => item.name === p.name);
           const grad = "grad-" + (p.colorTheme || "blue");
           return \`
-            <div class="template-item-row \${grad}" onclick="callHost('createFromTemplate', \${idx})">
+            <div class="template-item-row \${grad}" onclick="callHost('createFromTemplate', \${globalIdx >= 0 ? globalIdx : 0})">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 24px;">\${p.icon}</span>
-                <span style="font-weight: 700; font-size: 15px;">\${p.name}</span>
+                <div>
+                  <div style="font-weight: 700; font-size: 14px;">\${p.name}</div>
+                  <div style="font-size: 11px; opacity: 0.85;">\${p.category}</div>
+                </div>
               </div>
               <button class="template-btn-add">+</button>
             </div>
           \`;
         }).join("");
+
+        let quitlyListHtml = renderTemplateRows(QUITLY_PRESETS);
+        let amplenoteListHtml = renderTemplateRows(AMPLENOTE_PRESETS);
 
         root.innerHTML = \`
           <div class="app-top-header">
@@ -1138,26 +1346,47 @@ function buildDashboardTemplate(dashboardData) {
             <div style="width: 40px;"></div>
           </div>
 
+          <div class="filter-segment-bar">
+            <button class="filter-tab-btn \${templateFilter === 'all' ? 'active' : ''}" onclick="setTemplateFilter('all')">All</button>
+            <button class="filter-tab-btn \${templateFilter === 'quit' ? 'active' : ''}" onclick="setTemplateFilter('quit')">\u{1F6E1}\uFE0F Quitting</button>
+            <button class="filter-tab-btn \${templateFilter === 'positive' ? 'active' : ''}" onclick="setTemplateFilter('positive')">\u{1F3AF} Positive Habits</button>
+          </div>
+
           <div class="templates-shelf-card">
             <button class="btn-create-custom" onclick="callHost('createHabit')">+ Create a Custom Counter</button>
-            <div class="templates-category-title">Recommended Counter Templates</div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              \${templatesHtml}
-            </div>
+
+            \${(templateFilter === 'all' || templateFilter === 'quit') ? \`
+              <div class="templates-category-title">
+                <span>\u{1F6E1}\uFE0F Break Bad Habits & Sobriety (Quitly Style)</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                \${quitlyListHtml}
+              </div>
+            \` : ''}
+
+            \${(templateFilter === 'all' || templateFilter === 'positive') ? \`
+              <div class="templates-category-title" style="margin-top: 14px;">
+                <span>\u{1F3AF} Build Positive Daily Habits (Amplenote Style)</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                \${amplenoteListHtml}
+              </div>
+            \` : ''}
           </div>
         \`;
         return;
       }
 
-      // 2. MAIN COUNTERS LIST VIEW (Image 2)
+      // 3. MAIN COUNTERS LIST VIEW (Image 2) - Segmented into Quitting vs Positive
       if (currentView === "main" || !activeHabit) {
-        let cardsListHtml = habits.map((h, idx) => {
+        const renderHabitCard = (h, idx) => {
           const grad = getHabitGradientClass(h, idx);
           const hcObj = summary.habitCards ? summary.habitCards.find(c => c.id === h.id) : null;
           const streak = hcObj ? hcObj.stats.currentStreak : 0;
           const durationStr = formatDurationQuitly(streak);
           const icon = getHabitEmoji(h);
           const cleanName = getHabitCleanName(h);
+          const isQuit = h.type === 'skip';
 
           return \`
             <div class="counter-pill-card \${grad}" onclick="switchView('detail', '\${h.id}')">
@@ -1168,20 +1397,69 @@ function buildDashboardTemplate(dashboardData) {
                   <div class="counter-card-name">\${escapeHtml(cleanName)}</div>
                 </div>
               </div>
-              <div class="counter-card-arrow">\u203A</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+                  \${isQuit ? '\u{1F6E1}\uFE0F Auto-Done' : '\u{1F3AF} Check-In'}
+                </span>
+                <span class="counter-card-arrow">\u203A</span>
+              </div>
             </div>
           \`;
-        }).join("");
+        };
+
+        const quittingHabits = habits.filter(h => h.type === 'skip');
+        const positiveHabits = habits.filter(h => h.type === 'complete');
+
+        let displayCardsHtml = "";
+
+        if (mainFilter === "quit") {
+          displayCardsHtml = quittingHabits.map((h, i) => renderHabitCard(h, i)).join("");
+        } else if (mainFilter === "positive") {
+          displayCardsHtml = positiveHabits.map((h, i) => renderHabitCard(h, i)).join("");
+        } else {
+          // Grouped Sections for All
+          if (quittingHabits.length > 0) {
+            displayCardsHtml += \`
+              <div class="section-category-header">
+                <span>\u{1F6E1}\uFE0F Bad Habits to Break (Abstinence)</span>
+                <span style="font-size: 11px; color: #64748b;">\${quittingHabits.length}</span>
+              </div>
+              \${quittingHabits.map((h, i) => renderHabitCard(h, i)).join("")}
+            \`;
+          }
+
+          if (positiveHabits.length > 0) {
+            displayCardsHtml += \`
+              <div class="section-category-header" style="margin-top: 10px;">
+                <span>\u{1F3AF} Positive Habits to Build (Daily Practice)</span>
+                <span style="font-size: 11px; color: #64748b;">\${positiveHabits.length}</span>
+              </div>
+              \${positiveHabits.map((h, i) => renderHabitCard(h, i + quittingHabits.length)).join("")}
+            \`;
+          }
+        }
 
         root.innerHTML = \`
           <div class="app-top-header">
-            <button class="btn-header-round" title="Refresh from note" onclick="callHost('refreshData')">\u2699\uFE0F</button>
+            <button class="btn-header-round" title="Settings & Data" onclick="switchView('settings')">\u2699\uFE0F</button>
             <span class="header-title-text">Quitly Streaks</span>
             <button class="btn-header-round" title="Add Counter" onclick="switchView('templates')">+</button>
           </div>
 
+          <div class="filter-segment-bar">
+            <button class="filter-tab-btn \${mainFilter === 'all' ? 'active' : ''}" onclick="setMainFilter('all')">
+              All (\${habits.length})
+            </button>
+            <button class="filter-tab-btn \${mainFilter === 'quit' ? 'active' : ''}" onclick="setMainFilter('quit')">
+              \u{1F6E1}\uFE0F Quitting (\${quittingHabits.length})
+            </button>
+            <button class="filter-tab-btn \${mainFilter === 'positive' ? 'active' : ''}" onclick="setMainFilter('positive')">
+              \u{1F3AF} Positive (\${positiveHabits.length})
+            </button>
+          </div>
+
           <div class="quitly-white-sheet">
-            \${habits.length > 0 ? cardsListHtml : \`
+            \${habits.length > 0 ? displayCardsHtml : \`
               <div style="text-align: center; padding: 40px 20px;">
                 <div style="font-size: 44px; margin-bottom: 12px;">\u{1F331}</div>
                 <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">No counters yet</h3>
@@ -1194,41 +1472,17 @@ function buildDashboardTemplate(dashboardData) {
         return;
       }
 
-      // 3. SINGLE COUNTER DETAILED VIEW (Image 1, 4, 5)
+      // 4. SINGLE COUNTER DETAILED VIEW (Image 1, 4, 5)
       const hcObj = summary.habitCards ? summary.habitCards.find(c => c.id === activeHabit.id) : null;
       const stats = hcObj ? hcObj.stats : (currentData.stats || {});
       const tiers = currentData.tiers || [];
       const calendar = getClientMonthCalendar(activeHabit, viewingYear, viewingMonth);
+      const weeklyFreq = getClientWeeklyFrequency(activeHabit);
       const activeTier = tiers.find(t => t.isCurrentGoal) || tiers[0];
       const habitIdx = habits.findIndex(h => h.id === activeHabit.id);
       const grad = getHabitGradientClass(activeHabit, habitIdx >= 0 ? habitIdx : 0);
       const icon = getHabitEmoji(activeHabit);
       const cleanName = getHabitCleanName(activeHabit);
-
-      // 3-Column Goals Checklist Grid (Image 1)
-      let goalsHtml = tiers.map(t => {
-        const isUnlocked = t.isUnlocked;
-        return \`
-          <div class="goal-check-box \${isUnlocked ? 'unlocked' : ''}">
-            <span class="goal-check-icon">\${isUnlocked ? '\u2611' : '\u{1F512}'}</span>
-            <div class="goal-label-wrap">
-              <span class="goal-days-text">\${t.label}</span>
-              <span class="goal-tier-text">Tier \${t.tierNum || t.days}</span>
-            </div>
-          </div>
-        \`;
-      }).join("");
-
-      // Calendar mini-dots (Image 4)
-      let emptyDots = Array(calendar.firstDayWeekday).fill('<div class="day-mini-dot empty"></div>').join("");
-      let dayDots = calendar.days.map(d => {
-        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : '');
-        let isClickable = d.status === "completed" || d.status === "skipped";
-        let clickAttr = isClickable 
-          ? \`onclick="callHost('toggleDay', '\${activeHabit.id}', '\${d.dateStr}', '\${d.status}')"\` 
-          : "";
-        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${d.dateStr}: \${d.status}">\${d.dayNumber}</div>\`;
-      }).join("");
 
       const isQuitly = activeHabit.type === 'skip';
       const isCompletedToday = stats.statusToday === "completed";
@@ -1281,8 +1535,8 @@ function buildDashboardTemplate(dashboardData) {
 
         actionsClusterHtml = isCompletedToday ? \`
           <div class="action-pills-cluster">
-            <button class="btn-quitly-action btn-done-success" style="cursor: default;">
-              \u{1F389} Done for Today!
+            <button class="btn-quitly-action btn-done-success" onclick="callHost('completeToday', '\${activeHabit.id}')" title="Log additional completion">
+              + Log Additional Done (+1)
             </button>
             <button class="btn-quitly-action" onclick="callHost('skipToday', '\${activeHabit.id}')">
               \u21A9\uFE0F Undo / Mark Skipped
@@ -1311,11 +1565,48 @@ function buildDashboardTemplate(dashboardData) {
               <span>\u{1F3AF} Amplenote Intentional Action Philosophy (Positive Habit)</span>
             </div>
             <p style="font-size: 12px; color: #4338ca; line-height: 1.4;">
-              This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> whenever you finish your practice.
+              This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> whenever you finish your practice. You can also log multiple sessions per day.
             </p>
           </div>
         \`;
       }
+
+      // 3-Column Goals Checklist Grid (Image 1)
+      let goalsHtml = tiers.map(t => {
+        const isUnlocked = t.isUnlocked;
+        return \`
+          <div class="goal-check-box \${isUnlocked ? 'unlocked' : ''}">
+            <span class="goal-check-icon">\${isUnlocked ? '\u2611' : '\u{1F512}'}</span>
+            <div class="goal-label-wrap">
+              <span class="goal-days-text">\${t.label}</span>
+              <span class="goal-tier-text">Tier \${t.tierNum || t.days}</span>
+            </div>
+          </div>
+        \`;
+      }).join("");
+
+      // Calendar mini-dots (Image 4)
+      let emptyDots = Array(calendar.firstDayWeekday).fill('<div class="day-mini-dot empty"></div>').join("");
+      let dayDots = calendar.days.map(d => {
+        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : '');
+        let isClickable = d.status === "completed" || d.status === "skipped";
+        let clickAttr = isClickable 
+          ? \`onclick="callHost('toggleDay', '\${activeHabit.id}', '\${d.dateStr}', '\${d.status}')"\` 
+          : "";
+        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${d.dateStr}: \${d.status}">\${d.dayNumber}</div>\`;
+      }).join("");
+
+      // Weekly frequency bars (Quitly Image 4)
+      let weeklyBarsHtml = weeklyFreq.weekCounts.map(w => {
+        const heightPct = Math.max(10, Math.round((w.count / weeklyFreq.maxCount) * 100));
+        return \`
+          <div class="weekly-bar-col \${w.isToday ? 'today' : ''}">
+            <span class="weekly-count-lbl">\${w.count > 0 ? w.count : ''}</span>
+            <div class="weekly-bar-fill" style="height: \${w.count > 0 ? heightPct + '%' : '6px'}; opacity: \${w.count > 0 ? 1 : 0.25};"></div>
+            <span class="weekly-day-lbl">\${w.dayName}</span>
+          </div>
+        \`;
+      }).join("");
 
       root.innerHTML = \`
         <!-- Hero Header (Image 1) -->
@@ -1397,6 +1688,17 @@ function buildDashboardTemplate(dashboardData) {
             <div class="goals-section-title">All Goals</div>
             <div class="goals-3col-grid">
               \${goalsHtml}
+            </div>
+          </div>
+
+          <!-- Weekly Repeatingness Frequency Bar Chart (Image 4) -->
+          <div class="activity-section-card">
+            <div class="activity-header">
+              <span style="font-size: 14px; font-weight: 800; color: #1e293b;">\u{1F4CA} 7-Day Frequency</span>
+              <span style="font-size: 12px; font-weight: 700; color: #2563eb;">\${weeklyFreq.totalWeekLogs} total this week</span>
+            </div>
+            <div class="weekly-bars-container">
+              \${weeklyBarsHtml}
             </div>
           </div>
 
@@ -1825,13 +2127,19 @@ async function handleSkipToday(app, habitId) {
   habit.skips = habit.skips || [];
   habit.completions = habit.completions || [];
   habit.resetLogs = habit.resetLogs || [];
+  habit.events = habit.events || [];
   const stats = calculateHabitStats(habit, todayStr);
+  habit.events.push({
+    type: "skip",
+    date: todayStr,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
   if (!habit.skips.includes(todayStr)) {
     habit.skips.push(todayStr);
     habit.resetLogs.push({
       date: todayStr,
       streakLength: stats.currentStreak,
-      note: "Daily skip logged",
+      note: "Daily slip logged",
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     });
   }
@@ -1849,6 +2157,12 @@ async function handleCompleteToday(app, habitId) {
   const todayStr = getTodayString();
   habit.skips = habit.skips || [];
   habit.completions = habit.completions || [];
+  habit.events = habit.events || [];
+  habit.events.push({
+    type: "done",
+    date: todayStr,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
   habit.skips = habit.skips.filter((d) => d !== todayStr);
   if (!habit.completions.includes(todayStr)) {
     habit.completions.push(todayStr);
@@ -1900,12 +2214,19 @@ async function handleResetToDate(app, habitId) {
   habit.skips = habit.skips || [];
   habit.completions = habit.completions || [];
   habit.resetLogs = habit.resetLogs || [];
+  habit.events = habit.events || [];
   for (const d of rangeDates) {
     if (!habit.skips.includes(d)) {
       habit.skips.push(d);
     }
     habit.completions = habit.completions.filter((c) => c !== d);
   }
+  habit.events.push({
+    type: "skip",
+    date: String(startDateVal).trim(),
+    note: noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged",
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
   habit.resetLogs.push({
     date: String(startDateVal).trim(),
     streakLength: stats.currentStreak,
