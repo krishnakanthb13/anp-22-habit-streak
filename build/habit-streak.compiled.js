@@ -90,13 +90,97 @@ var COLOR_THEMES = {
   }
 };
 var DEFAULT_STATE = {
-  version: 1,
+  version: 2,
+  revision: 0,
   activeHabitId: null,
   habits: []
 };
+function generateUniqueId(prefix = "habit") {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 10);
+  return `${prefix}_${timestamp}_${randomPart}`;
+}
 
 // anp-22-habit-streak/lib/data/store.js
 var SETTING_DATA_NOTE_UUID = "Habit_Streak_Data_UUID [Do not Edit!]";
+var mutationQueue = Promise.resolve();
+function normalizeHabit(habit) {
+  if (!habit || typeof habit !== "object") {
+    return null;
+  }
+  const id = habit.id && typeof habit.id === "string" ? habit.id : generateUniqueId("habit");
+  const name = habit.name && typeof habit.name === "string" ? habit.name.trim() : "Untitled Habit";
+  const icon = habit.icon && typeof habit.icon === "string" ? habit.icon.trim() : "\u{1F525}";
+  const colorTheme = habit.colorTheme && typeof habit.colorTheme === "string" ? habit.colorTheme : "blue";
+  const type = habit.type === TRACK_TYPES.COMPLETE || habit.type === TRACK_TYPES.SKIP ? habit.type : TRACK_TYPES.SKIP;
+  let intervalN = 1;
+  let intervalPeriod = INTERVAL_PERIODS.DAY;
+  if (habit.interval && typeof habit.interval === "object") {
+    const rawN = parseInt(habit.interval.n, 10);
+    if (!isNaN(rawN) && rawN >= 1 && rawN <= 365) {
+      intervalN = rawN;
+    }
+    if ([INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(habit.interval.period)) {
+      intervalPeriod = habit.interval.period;
+    }
+  }
+  const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+  const createdAt = habit.createdAt && typeof habit.createdAt === "string" ? habit.createdAt : nowISO;
+  const createdDateStr = createdAt.split("T")[0];
+  const trackingStartDate = habit.trackingStartDate && typeof habit.trackingStartDate === "string" ? habit.trackingStartDate : createdDateStr || nowISO.split("T")[0];
+  const streakAnchor = habit.streakAnchor && typeof habit.streakAnchor === "string" ? habit.streakAnchor : nowISO;
+  const streakStartedAt = habit.streakStartedAt && typeof habit.streakStartedAt === "string" ? habit.streakStartedAt : streakAnchor;
+  const skips = Array.isArray(habit.skips) ? Array.from(new Set(habit.skips.filter((d) => typeof d === "string" && d.length === 10))).sort() : [];
+  const completions = Array.isArray(habit.completions) ? Array.from(new Set(habit.completions.filter((d) => typeof d === "string" && d.length === 10))).sort() : [];
+  const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object") : [];
+  const resetLogs = Array.isArray(habit.resetLogs) ? habit.resetLogs.filter((r) => r && typeof r === "object") : [];
+  return {
+    id,
+    name,
+    icon,
+    colorTheme,
+    type,
+    interval: {
+      n: intervalN,
+      period: intervalPeriod
+    },
+    createdAt,
+    trackingStartDate,
+    streakAnchor,
+    streakStartedAt,
+    skips,
+    completions,
+    events,
+    resetLogs,
+    ...habit.taskUUID ? { taskUUID: habit.taskUUID } : {}
+  };
+}
+function normalizeState(parsed) {
+  if (!parsed || typeof parsed !== "object") {
+    return { ...DEFAULT_STATE };
+  }
+  const rawHabits = Array.isArray(parsed.habits) ? parsed.habits : [];
+  const habits = rawHabits.map(normalizeHabit).filter(Boolean);
+  let activeHabitId = parsed.activeHabitId && typeof parsed.activeHabitId === "string" ? parsed.activeHabitId : null;
+  if (activeHabitId && !habits.some((h) => h.id === activeHabitId)) {
+    activeHabitId = habits.length > 0 ? habits[0].id : null;
+  } else if (!activeHabitId && habits.length > 0) {
+    activeHabitId = habits[0].id;
+  }
+  const revision = Number.isInteger(parsed.revision) ? parsed.revision : 0;
+  const version = Number.isInteger(parsed.version) ? parsed.version : 2;
+  const theme = parsed.theme && typeof parsed.theme === "string" ? parsed.theme : "midnight";
+  return {
+    version,
+    revision,
+    theme,
+    activeHabitId,
+    habits
+  };
+}
 async function getNoteUUID(app, noteName, tagNames, settingKey) {
   const existingUUID = app.settings ? await app.settings[settingKey] : null;
   if (existingUUID) {
@@ -130,13 +214,24 @@ async function getNoteUUID(app, noteName, tagNames, settingKey) {
         console.error("[HabitStreak] Error resolving note UUID:", error);
       }
     } else {
-      return existingUUID;
+      try {
+        const note = await app.findNote({ uuid: existingUUID });
+        if (note) {
+          return existingUUID;
+        }
+      } catch {
+        console.warn("[HabitStreak] Stored UUID could not be verified, rediscovering note.");
+      }
     }
   }
   try {
     const allNotes = await app.filterNotes({});
     if (allNotes && Array.isArray(allNotes)) {
-      const match = allNotes.find((n) => n.name === noteName);
+      const match = allNotes.find((n) => {
+        const nameMatches = n.name === noteName;
+        const tagMatches = n.tags && tagNames.every((t) => n.tags.includes(t));
+        return nameMatches && tagMatches;
+      });
       if (match && match.uuid) {
         if (typeof app.setSetting === "function") {
           await app.setSetting(settingKey, match.uuid);
@@ -169,13 +264,18 @@ function extractJsonFromMarkdown(content) {
       return JSON.parse(match[1].trim());
     } catch (err) {
       console.error("[HabitStreak] Error parsing JSON from code block:", err);
+      return null;
     }
   }
   try {
-    return JSON.parse(content.trim());
+    const trimmed = content.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      return JSON.parse(trimmed);
+    }
   } catch {
     return null;
   }
+  return null;
 }
 function formatStateAsMarkdown(state) {
   const jsonStr = JSON.stringify(state, null, 2);
@@ -192,33 +292,54 @@ async function loadState(app) {
   try {
     const dataNoteUUID = await getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID);
     const content = await app.getNoteContent({ uuid: dataNoteUUID });
-    const parsed = extractJsonFromMarkdown(content);
-    if (parsed && typeof parsed === "object") {
-      return {
-        ...DEFAULT_STATE,
-        ...parsed,
-        habits: Array.isArray(parsed.habits) ? parsed.habits : []
-      };
+    if (content && typeof content === "string" && content.trim().length > 0) {
+      const parsed = extractJsonFromMarkdown(content);
+      if (parsed && typeof parsed === "object") {
+        return normalizeState(parsed);
+      }
+      console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");
+      return normalizeState({ ...DEFAULT_STATE });
     }
-    const fallbackState = { ...DEFAULT_STATE };
+    const fallbackState = normalizeState({ ...DEFAULT_STATE });
     const markdown = formatStateAsMarkdown(fallbackState);
     await app.replaceNoteContent({ uuid: dataNoteUUID }, markdown);
     return fallbackState;
   } catch (err) {
     console.error("[HabitStreak] Failed to load state:", err);
-    return { ...DEFAULT_STATE };
+    return normalizeState({ ...DEFAULT_STATE });
   }
 }
 async function saveState(app, state) {
   try {
+    const normalized = normalizeState(state);
+    normalized.revision = (Number.isInteger(normalized.revision) ? normalized.revision : 0) + 1;
     const dataNoteUUID = await getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID);
-    const markdown = formatStateAsMarkdown(state);
+    const markdown = formatStateAsMarkdown(normalized);
     await app.replaceNoteContent({ uuid: dataNoteUUID }, markdown);
+    if (state && typeof state === "object") {
+      state.revision = normalized.revision;
+    }
     return true;
   } catch (err) {
     console.error("[HabitStreak] Failed to save state:", err);
     return false;
   }
+}
+async function saveStateOrThrow(app, state) {
+  const success = await saveState(app, state);
+  if (!success) {
+    throw new Error("Failed to persist Habit Streak state to note.");
+  }
+}
+function mutateState(app, mutator) {
+  mutationQueue = mutationQueue.catch(() => {
+  }).then(async () => {
+    const state = await loadState(app);
+    const result = await mutator(state);
+    await saveStateOrThrow(app, state);
+    return result !== void 0 ? result : state;
+  });
+  return mutationQueue;
 }
 
 // anp-22-habit-streak/lib/engine/streakEngine.js
@@ -249,6 +370,51 @@ function getDateRange(startStr, endStr) {
   }
   return dates;
 }
+function isScheduledDate(habit, dateStr, refStartStr) {
+  const habitStart = refStartStr || habit?.trackingStartDate || (habit?.createdAt ? habit.createdAt.split("T")[0] : getTodayString());
+  if (dateStr < habitStart) {
+    return false;
+  }
+  const interval = habit?.interval || { n: 1, period: INTERVAL_PERIODS.DAY };
+  const n = interval.n && Number.isInteger(interval.n) && interval.n >= 1 ? interval.n : 1;
+  const period = interval.period || INTERVAL_PERIODS.DAY;
+  if (period === INTERVAL_PERIODS.DAY && n === 1) {
+    return true;
+  }
+  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00");
+  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
+    return true;
+  }
+  const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
+  if (diffInDays < 0) {
+    return false;
+  }
+  if (period === INTERVAL_PERIODS.DAY) {
+    return diffInDays % n === 0;
+  }
+  if (period === INTERVAL_PERIODS.WEEK) {
+    const isSameWeekday = targetDate.getDay() === startDate.getDay();
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    return isSameWeekday && diffInWeeks % n === 0;
+  }
+  if (period === INTERVAL_PERIODS.MONTH) {
+    const sYear = startDate.getFullYear();
+    const sMonth = startDate.getMonth();
+    const sDay = startDate.getDate();
+    const tYear = targetDate.getFullYear();
+    const tMonth = targetDate.getMonth();
+    const tDay = targetDate.getDate();
+    const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
+    if (monthDiff < 0 || monthDiff % n !== 0) {
+      return false;
+    }
+    const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
+    const expectedDay = Math.min(sDay, lastDayInTargetMonth);
+    return tDay === expectedDay;
+  }
+  return true;
+}
 function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSets = null) {
   if (dateStr > todayStr) {
     return "future";
@@ -261,9 +427,13 @@ function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSe
   if (completions.has(dateStr)) {
     return "completed";
   }
-  const habitStart = habit?.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  const habitStart = habit?.trackingStartDate || (habit?.createdAt ? habit.createdAt.split("T")[0] : todayStr);
   if (dateStr < habitStart) {
     return "before_start";
+  }
+  const scheduled = isScheduledDate(habit, dateStr, habitStart);
+  if (!scheduled) {
+    return "not_applicable";
   }
   if (habit?.type === TRACK_TYPES.COMPLETE) {
     return "skipped";
@@ -271,7 +441,7 @@ function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSe
   return "completed";
 }
 function calculateHabitStats(habit, todayStr = getTodayString()) {
-  let habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+  let habitStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : todayStr);
   const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
   if (allRecordedDates.length > 0 && allRecordedDates[0] < habitStart) {
     habitStart = allRecordedDates[0];
@@ -282,6 +452,7 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
       currentStreak: 0,
       longestStreak: 0,
       totalTrackedDays: 0,
+      totalScheduledDays: 0,
       completedDays: 0,
       skippedDays: 0,
       completionRate: 0,
@@ -301,20 +472,27 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
   const totalTrackedDays = dayStatuses.length;
   let completedDays = 0;
   let skippedDays = 0;
+  let scheduledDays = 0;
   for (const item of dayStatuses) {
     if (item.status === "completed") {
       completedDays++;
+      scheduledDays++;
     } else if (item.status === "skipped") {
       skippedDays++;
+      scheduledDays++;
     }
   }
-  const completionRate = totalTrackedDays > 0 ? Math.round(completedDays / totalTrackedDays * 100) : 0;
+  const totalRelevantDays = scheduledDays > 0 ? scheduledDays : totalTrackedDays;
+  const completionRate = totalRelevantDays > 0 ? Math.round(completedDays / totalRelevantDays * 100) : 0;
   let currentStreak = 0;
   let streakStartDate = null;
   for (let i = dayStatuses.length - 1; i >= 0; i--) {
-    if (dayStatuses[i].status === "completed") {
+    const { dateStr, status } = dayStatuses[i];
+    if (status === "completed") {
       currentStreak++;
-      streakStartDate = dayStatuses[i].dateStr;
+      streakStartDate = dateStr;
+    } else if (status === "not_applicable") {
+      continue;
     } else {
       break;
     }
@@ -327,23 +505,35 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
       if (tempStreak > longestStreak) {
         longestStreak = tempStreak;
       }
+    } else if (item.status === "not_applicable") {
+      continue;
     } else {
       tempStreak = 0;
     }
   }
   let streakAnchorTimestamp = null;
   if (currentStreak > 0 && streakStartDate) {
-    if (habit.streakAnchor && habit.streakAnchor.startsWith(streakStartDate)) {
-      streakAnchorTimestamp = new Date(habit.streakAnchor).getTime();
-    } else {
+    if (habit.streakStartedAt && typeof habit.streakStartedAt === "string") {
+      const parsed = new Date(habit.streakStartedAt).getTime();
+      if (!isNaN(parsed)) {
+        streakAnchorTimestamp = parsed;
+      }
+    } else if (habit.streakAnchor && typeof habit.streakAnchor === "string") {
+      const parsed = new Date(habit.streakAnchor).getTime();
+      if (!isNaN(parsed)) {
+        streakAnchorTimestamp = parsed;
+      }
+    }
+    if (!streakAnchorTimestamp) {
       streakAnchorTimestamp = (/* @__PURE__ */ new Date(`${streakStartDate}T00:00:00`)).getTime();
     }
   }
-  const statusToday = getHabitDayStatus(habit, todayStr, todayStr);
+  const statusToday = getHabitDayStatus(habit, todayStr, todayStr, cachedSets);
   return {
     currentStreak,
     longestStreak,
     totalTrackedDays,
+    totalScheduledDays: scheduledDays,
     completedDays,
     skippedDays,
     completionRate,
@@ -1313,6 +1503,13 @@ function buildDashboardTemplate(dashboardData) {
       opacity: 0.55;
     }
 
+    .day-mini-dot.off-day {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--text-sub);
+      border: 1px dashed var(--border-color);
+      opacity: 0.65;
+    }
+
     .day-mini-dot.future {
       background: transparent;
       opacity: 0.25;
@@ -1907,6 +2104,43 @@ function buildDashboardTemplate(dashboardData) {
       return daysCount + " day" + (daysCount !== 1 ? "s" : "") + ", 0 hrs";
     }
 
+    function getClientIsScheduledDate(habit, dateStr, habitStart) {
+      if (dateStr < habitStart) return false;
+      const interval = (habit && habit.interval) ? habit.interval : { n: 1, period: "day" };
+      const n = (interval.n && Number.isInteger(interval.n) && interval.n >= 1) ? interval.n : 1;
+      const period = interval.period || "day";
+      if (period === "day" && n === 1) return true;
+
+      const startDate = new Date(habitStart + "T00:00:00");
+      const targetDate = new Date(dateStr + "T00:00:00");
+      if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) return true;
+      const diffInDays = Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24));
+      if (diffInDays < 0) return false;
+
+      if (period === "day") {
+        return diffInDays % n === 0;
+      }
+      if (period === "week") {
+        const isSameWeekday = targetDate.getDay() === startDate.getDay();
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        return isSameWeekday && (diffInWeeks % n === 0);
+      }
+      if (period === "month") {
+        const sYear = startDate.getFullYear();
+        const sMonth = startDate.getMonth();
+        const sDay = startDate.getDate();
+        const tYear = targetDate.getFullYear();
+        const tMonth = targetDate.getMonth();
+        const tDay = targetDate.getDate();
+        const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
+        if (monthDiff < 0 || monthDiff % n !== 0) return false;
+        const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
+        const expectedDay = Math.min(sDay, lastDayInTargetMonth);
+        return tDay === expectedDay;
+      }
+      return true;
+    }
+
     function getClientDayStatus(habit, dateStr, todayStr) {
       if (dateStr > todayStr) return "future";
       const skipsList = (isCalendarEditMode && editSkips) ? editSkips : (habit.skips || []);
@@ -1917,8 +2151,12 @@ function buildDashboardTemplate(dashboardData) {
       if (skips.has(dateStr)) return "skipped";
       if (completions.has(dateStr)) return "completed";
 
-      const habitStart = habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
+      const habitStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : todayStr);
       if (dateStr < habitStart) return "before_start";
+
+      const isScheduled = getClientIsScheduledDate(habit, dateStr, habitStart);
+      if (!isScheduled) return "not_applicable";
+
       if (habit.type === 'complete') return "skipped";
       return "completed";
     }
@@ -2395,7 +2633,7 @@ function buildDashboardTemplate(dashboardData) {
       let monthSkipCount = 0;
 
       let dayDots = calendar.days.map(d => {
-        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : (d.status === 'before_start' ? 'before-start' : (d.status === 'future' ? 'future' : '')));
+        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : (d.status === 'before_start' ? 'before-start' : (d.status === 'not_applicable' ? 'off-day' : (d.status === 'future' ? 'future' : ''))));
         if (d.status === 'completed') monthDoneCount++;
         if (d.status === 'skipped') monthSkipCount++;
         if (d.isToday) cls += ' is-today';
@@ -2405,7 +2643,7 @@ function buildDashboardTemplate(dashboardData) {
         let clickAttr = isClickable 
           ? \`onclick="onDayDotClick('\${d.dateStr}', '\${d.status}')"\` 
           : "";
-        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'before_start' ? 'Before Start' : 'Future'))}\`;
+        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'not_applicable' ? 'Off-Day (Not Scheduled)' : (d.status === 'before_start' ? 'Before Start' : 'Future')))}\`;
         return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${titleTip}">\${d.dayNumber}</div>\`;
       }).join("");
 
@@ -2463,6 +2701,10 @@ function buildDashboardTemplate(dashboardData) {
           <div class="hero-habit-badge">
             <span style="font-size: 22px;">\${escapeHtml(icon)}</span>
             <span class="hero-habit-title">\${escapeHtml(cleanName)}</span>
+          </div>
+
+          <div style="font-size: 11px; opacity: 0.9; margin-top: 2px; margin-bottom: 6px; background: rgba(255,255,255,0.18); display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 700; letter-spacing: 0.2px;">
+            \u{1F4C5} Every \${activeHabit.interval?.n || 1} \${activeHabit.interval?.period || 'day'}\${(activeHabit.interval?.n || 1) > 1 ? 's' : ''}
           </div>
 
           <div class="hero-its-been">\${isQuitly ? "Clean & sober for" : "Continuous unbroken streak"}</div>
@@ -2541,8 +2783,8 @@ function buildDashboardTemplate(dashboardData) {
           <!-- Weekly Repeatingness Frequency Bar Chart -->
           <div class="activity-section-card">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800;">\u{1F4CA} 7-Day Frequency</span>
-              <span style="font-size: 12px; font-weight: 700; color: #2563eb;">\${weeklyFreq.totalWeekLogs} total this week</span>
+              <span style="font-size: 14px; font-weight: 800;">\u{1F4CA} 7-Day Activity & Logs</span>
+              <span style="font-size: 12px; font-weight: 700; color: #2563eb;">\${weeklyFreq.totalWeekLogs} logs \xB7 \${weeklyFreq.completedDaysInWeek || 0} active days</span>
             </div>
             <div class="weekly-bars-container">
               \${weeklyBarsHtml}
@@ -2868,16 +3110,20 @@ async function handleCreateHabit(app) {
     }
     const [iconVal, nameVal, themeVal, typeVal, periodNVal, periodUnitVal] = result;
     if (!nameVal || !String(nameVal).trim()) {
+      await app.alert("Habit name cannot be empty.");
       return;
     }
     const habitName = String(nameVal).trim();
     const habitIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F525}";
-    const colorTheme = themeVal || "blue";
-    const habitType = typeVal || TRACK_TYPES.SKIP;
-    const periodN = parseInt(periodNVal, 10) || 1;
-    const periodUnit = periodUnitVal || INTERVAL_PERIODS.DAY;
+    const colorTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : "blue";
+    const habitType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
+    const parsedN = parseInt(periodNVal, 10);
+    const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
+    const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+    const todayStr = getTodayString();
     const newHabit = {
-      id: `habit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: generateUniqueId("habit"),
       name: habitName,
       icon: habitIcon,
       colorTheme,
@@ -2886,17 +3132,20 @@ async function handleCreateHabit(app) {
         n: periodN,
         period: periodUnit
       },
-      createdAt: `${getTodayString()}T00:00:00Z`,
-      streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
+      createdAt: nowISO,
+      trackingStartDate: todayStr,
+      streakAnchor: nowISO,
+      streakStartedAt: nowISO,
       skips: [],
-      completions: habitType === TRACK_TYPES.COMPLETE ? [getTodayString()] : [],
+      completions: habitType === TRACK_TYPES.COMPLETE ? [todayStr] : [],
       events: [],
       resetLogs: []
     };
-    const state = await loadState(app);
-    state.habits.push(newHabit);
-    state.activeHabitId = newHabit.id;
-    await saveState(app, state);
+    await mutateState(app, async (state) => {
+      state.habits = state.habits || [];
+      state.habits.push(newHabit);
+      state.activeHabitId = newHabit.id;
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -2909,8 +3158,10 @@ async function handleCreateFromTemplate(app, templateIndex) {
   try {
     const template = PRESET_TEMPLATES[templateIndex];
     if (!template) return;
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+    const todayStr = getTodayString();
     const newHabit = {
-      id: `habit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: generateUniqueId("habit"),
       name: template.name,
       icon: template.icon || "\u{1F525}",
       type: template.type || TRACK_TYPES.SKIP,
@@ -2919,17 +3170,20 @@ async function handleCreateFromTemplate(app, templateIndex) {
         n: 1,
         period: INTERVAL_PERIODS.DAY
       },
-      createdAt: `${getTodayString()}T00:00:00Z`,
-      streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
+      createdAt: nowISO,
+      trackingStartDate: todayStr,
+      streakAnchor: nowISO,
+      streakStartedAt: nowISO,
       skips: [],
-      completions: template.type === TRACK_TYPES.COMPLETE ? [getTodayString()] : [],
+      completions: template.type === TRACK_TYPES.COMPLETE ? [todayStr] : [],
       events: [],
       resetLogs: []
     };
-    const state = await loadState(app);
-    state.habits.push(newHabit);
-    state.activeHabitId = newHabit.id;
-    await saveState(app, state);
+    await mutateState(app, async (state) => {
+      state.habits = state.habits || [];
+      state.habits.push(newHabit);
+      state.activeHabitId = newHabit.id;
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -2944,17 +3198,17 @@ async function handleEditHabit(app, habitId) {
   if (!habitId) return;
   try {
     const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) {
+    const habitToEdit = (state.habits || []).find((h) => h.id === habitId);
+    if (!habitToEdit) {
       await app.alert("Habit not found.");
       return;
     }
-    const currentIcon = habit.icon || "\u{1F525}";
-    const currentTheme = habit.colorTheme || "blue";
-    const currentIntervalN = habit.interval && habit.interval.n ? String(habit.interval.n) : "1";
-    const currentIntervalPeriod = habit.interval && habit.interval.period ? habit.interval.period : INTERVAL_PERIODS.DAY;
-    const currentType = habit.type || TRACK_TYPES.SKIP;
-    const result = await app.prompt(`Edit Counter: ${habit.name}`, {
+    const currentIcon = habitToEdit.icon || "\u{1F525}";
+    const currentTheme = habitToEdit.colorTheme || "blue";
+    const currentIntervalN = habitToEdit.interval && habitToEdit.interval.n ? String(habitToEdit.interval.n) : "1";
+    const currentIntervalPeriod = habitToEdit.interval && habitToEdit.interval.period ? habitToEdit.interval.period : INTERVAL_PERIODS.DAY;
+    const currentType = habitToEdit.type || TRACK_TYPES.SKIP;
+    const result = await app.prompt(`Edit Counter: ${habitToEdit.name}`, {
       inputs: [
         {
           type: "string",
@@ -2964,7 +3218,7 @@ async function handleEditHabit(app, habitId) {
         {
           type: "string",
           label: "Habit / Counter Name",
-          value: habit.name
+          value: habitToEdit.name
         },
         {
           type: "select",
@@ -3015,15 +3269,23 @@ async function handleEditHabit(app, habitId) {
       await app.alert("Habit name cannot be empty.");
       return;
     }
-    habit.icon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F525}";
-    habit.name = String(nameVal).trim();
-    habit.colorTheme = themeVal || "blue";
-    habit.type = typeVal || TRACK_TYPES.SKIP;
-    habit.interval = {
-      n: parseInt(periodNVal, 10) || 1,
-      period: periodUnitVal || INTERVAL_PERIODS.DAY
-    };
-    await saveState(app, state);
+    const parsedN = parseInt(periodNVal, 10);
+    const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
+    const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
+    const colorTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : "blue";
+    const habitType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
+    await mutateState(app, async (state2) => {
+      const habit = state2.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      habit.icon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F525}";
+      habit.name = String(nameVal).trim();
+      habit.colorTheme = colorTheme;
+      habit.type = habitType;
+      habit.interval = {
+        n: periodN,
+        period: periodUnit
+      };
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3037,35 +3299,43 @@ async function handleEditHabit(app, habitId) {
 async function handleToggleDay(app, habitId, dateStr, currentStatus) {
   if (!habitId || !dateStr) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
-    habit.skips = habit.skips || [];
-    habit.completions = habit.completions || [];
-    if (currentStatus === "completed") {
-      habit.completions = habit.completions.filter((d) => d !== dateStr);
-      if (!habit.skips.includes(dateStr)) {
-        habit.skips.push(dateStr);
+    let linkedTaskUUID = null;
+    let toggledToDone = false;
+    await mutateState(app, async (state) => {
+      const habit = state.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      habit.skips = habit.skips || [];
+      habit.completions = habit.completions || [];
+      habit.events = habit.events || [];
+      if (currentStatus === "completed") {
+        habit.completions = habit.completions.filter((d) => d !== dateStr);
+        if (!habit.skips.includes(dateStr)) {
+          habit.skips.push(dateStr);
+        }
+        toggledToDone = false;
+      } else {
+        habit.skips = habit.skips.filter((d) => d !== dateStr);
+        if (!habit.completions.includes(dateStr)) {
+          habit.completions.push(dateStr);
+        }
+        toggledToDone = true;
       }
-    } else {
-      habit.skips = habit.skips.filter((d) => d !== dateStr);
-      if (!habit.completions.includes(dateStr)) {
-        habit.completions.push(dateStr);
+      if (habit.taskUUID) {
+        linkedTaskUUID = habit.taskUUID;
       }
-    }
+    });
     const todayStr = getTodayString();
-    if (dateStr === todayStr && habit.taskUUID) {
+    if (dateStr === todayStr && linkedTaskUUID) {
       try {
-        if (currentStatus === "completed") {
-          await app.updateTask(habit.taskUUID, { completedAt: null });
+        if (toggledToDone) {
+          await app.updateTask(linkedTaskUUID, { completedAt: Math.floor(Date.now() / 1e3) });
         } else {
-          await app.updateTask(habit.taskUUID, { completedAt: Math.floor(Date.now() / 1e3) });
+          await app.updateTask(linkedTaskUUID, { completedAt: null });
         }
       } catch (err) {
         console.warn("[HabitStreak] Task update sync:", err);
       }
     }
-    await saveState(app, state);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3077,21 +3347,28 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
 async function handleSaveCalendarEdits(app, habitId, skips, completions) {
   if (!habitId) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
-    if (Array.isArray(skips)) habit.skips = skips;
-    if (Array.isArray(completions)) habit.completions = completions;
-    const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
-    if (allRecordedDates.length > 0) {
-      const earliest = allRecordedDates[0];
-      const currentStart = habit.createdAt ? habit.createdAt.split("T")[0] : earliest;
-      if (earliest < currentStart) {
-        habit.createdAt = earliest + "T00:00:00Z";
-        habit.streakAnchor = earliest + "T00:00:00Z";
+    await mutateState(app, async (state) => {
+      const habit = state.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      if (Array.isArray(skips)) habit.skips = Array.from(new Set(skips)).sort();
+      if (Array.isArray(completions)) habit.completions = Array.from(new Set(completions)).sort();
+      habit.events = habit.events || [];
+      const allRecordedDates = [...habit.completions || [], ...habit.skips || []].filter(Boolean).sort();
+      if (allRecordedDates.length > 0) {
+        const earliest = allRecordedDates[0];
+        const currentTrackingStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : earliest);
+        if (earliest < currentTrackingStart) {
+          habit.trackingStartDate = earliest;
+        }
       }
-    }
-    await saveState(app, state);
+      habit.events.push({
+        id: generateUniqueId("event"),
+        type: "calendar_edit",
+        date: getTodayString(),
+        note: `Calendar history edited (${habit.completions.length} done, ${habit.skips.length} skips)`,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3105,13 +3382,15 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
 async function handleSkipToday(app, habitId) {
   if (!habitId) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
     const todayStr = getTodayString();
-    const stats = calculateHabitStats(habit, todayStr);
-    const isQuitly = habit.type === "skip";
+    const state = await loadState(app);
+    const habit = (state.habits || []).find((h) => h.id === habitId);
+    if (!habit) return;
+    const habitName = habit.name;
+    const isQuitly = habit.type === TRACK_TYPES.SKIP;
     const alreadySkippedToday = (habit.skips || []).includes(todayStr);
+    const stats = calculateHabitStats(habit, todayStr);
+    const currentStreak = stats.currentStreak;
     const promptTitle = isQuitly ? alreadySkippedToday ? "Log Additional Slip (+1)" : "Log Slip / Reset Today" : "Mark Missed / Skip Today";
     const result = await app.prompt(promptTitle, {
       inputs: [
@@ -3122,7 +3401,7 @@ async function handleSkipToday(app, habitId) {
         },
         {
           type: "checkbox",
-          label: `Confirm logging a ${isQuitly ? "slip/reset" : "missed day"} for ${habit.name}? (Current streak: ${stats.currentStreak} days)`,
+          label: `Confirm logging a ${isQuitly ? "slip/reset" : "missed day"} for ${habitName}? (Current streak: ${currentStreak} days)`,
           value: true
         }
       ]
@@ -3131,29 +3410,38 @@ async function handleSkipToday(app, habitId) {
     const noteVal = Array.isArray(result) ? result[0] : typeof result === "object" ? result.note : "";
     const confirmVal = Array.isArray(result) ? result[1] : typeof result === "object" ? result.confirm : true;
     if (confirmVal === false) return;
-    habit.skips = habit.skips || [];
-    habit.completions = habit.completions || [];
-    habit.resetLogs = habit.resetLogs || [];
-    habit.events = habit.events || [];
     const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : isQuitly ? "Daily slip logged" : "Marked missed today";
-    habit.events.push({
-      type: "skip",
-      date: todayStr,
-      note: noteText,
-      streakLength: stats.currentStreak,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+    await mutateState(app, async (state2) => {
+      const habit2 = state2.habits.find((h) => h.id === habitId);
+      if (!habit2) return;
+      const stats2 = calculateHabitStats(habit2, todayStr);
+      habit2.skips = habit2.skips || [];
+      habit2.completions = habit2.completions || [];
+      habit2.resetLogs = habit2.resetLogs || [];
+      habit2.events = habit2.events || [];
+      habit2.events.push({
+        id: generateUniqueId("event"),
+        type: "skip",
+        date: todayStr,
+        note: noteText,
+        streakLength: stats2.currentStreak,
+        timestamp: nowISO
+      });
+      if (!habit2.skips.includes(todayStr)) {
+        habit2.skips.push(todayStr);
+      }
+      habit2.resetLogs.push({
+        id: generateUniqueId("reset"),
+        date: todayStr,
+        streakLength: stats2.currentStreak,
+        note: noteText,
+        timestamp: nowISO
+      });
+      habit2.completions = habit2.completions.filter((d) => d !== todayStr);
+      habit2.streakAnchor = nowISO;
+      habit2.streakStartedAt = nowISO;
     });
-    if (!habit.skips.includes(todayStr)) {
-      habit.skips.push(todayStr);
-    }
-    habit.resetLogs.push({
-      date: todayStr,
-      streakLength: stats.currentStreak,
-      note: noteText,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    habit.completions = habit.completions.filter((d) => d !== todayStr);
-    await saveState(app, state);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3165,29 +3453,37 @@ async function handleSkipToday(app, habitId) {
 async function handleUndoToday(app, habitId) {
   if (!habitId) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
     const todayStr = getTodayString();
-    habit.skips = (habit.skips || []).filter((d) => d !== todayStr);
-    habit.completions = (habit.completions || []).filter((d) => d !== todayStr);
-    if (Array.isArray(habit.events)) {
-      habit.events = habit.events.filter((e) => {
-        if (e.date !== todayStr) return true;
-        if (!e.timestamp) return false;
-        try {
-          const parsed = new Date(e.timestamp);
-          if (isNaN(parsed.getTime())) return false;
-          return parsed.toISOString().split("T")[0] !== todayStr;
-        } catch {
-          return false;
+    await mutateState(app, async (state) => {
+      const habit = state.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      habit.skips = (habit.skips || []).filter((d) => d !== todayStr);
+      habit.completions = (habit.completions || []).filter((d) => d !== todayStr);
+      if (Array.isArray(habit.events) && habit.events.length > 0) {
+        let lastTodayIdx = -1;
+        for (let i = habit.events.length - 1; i >= 0; i--) {
+          if (habit.events[i].date === todayStr) {
+            lastTodayIdx = i;
+            break;
+          }
         }
-      });
-    }
-    if (Array.isArray(habit.resetLogs)) {
-      habit.resetLogs = habit.resetLogs.filter((rl) => rl.date !== todayStr);
-    }
-    await saveState(app, state);
+        if (lastTodayIdx !== -1) {
+          habit.events.splice(lastTodayIdx, 1);
+        }
+      }
+      if (Array.isArray(habit.resetLogs) && habit.resetLogs.length > 0) {
+        let lastTodayResetIdx = -1;
+        for (let i = habit.resetLogs.length - 1; i >= 0; i--) {
+          if (habit.resetLogs[i].date === todayStr) {
+            lastTodayResetIdx = i;
+            break;
+          }
+        }
+        if (lastTodayResetIdx !== -1) {
+          habit.resetLogs.splice(lastTodayResetIdx, 1);
+        }
+      }
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3199,10 +3495,11 @@ async function handleUndoToday(app, habitId) {
 async function handleCompleteToday(app, habitId) {
   if (!habitId) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
     const todayStr = getTodayString();
+    const state = await loadState(app);
+    const habit = (state.habits || []).find((h) => h.id === habitId);
+    if (!habit) return;
+    const habitName = habit.name;
     const alreadyDoneToday = (habit.completions || []).includes(todayStr);
     const result = await app.prompt(alreadyDoneToday ? "Log Additional Completion (+1)" : "Mark Done Today", {
       inputs: [
@@ -3213,7 +3510,7 @@ async function handleCompleteToday(app, habitId) {
         },
         {
           type: "checkbox",
-          label: `Confirm logging completion for ${habit.name}?`,
+          label: `Confirm logging completion for ${habitName}?`,
           value: true
         }
       ]
@@ -3222,21 +3519,30 @@ async function handleCompleteToday(app, habitId) {
     const noteVal = Array.isArray(result) ? result[0] : typeof result === "object" ? result.note : "";
     const confirmVal = Array.isArray(result) ? result[1] : typeof result === "object" ? result.confirm : true;
     if (confirmVal === false) return;
-    habit.skips = habit.skips || [];
-    habit.completions = habit.completions || [];
-    habit.events = habit.events || [];
     const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Completed session";
-    habit.events.push({
-      type: "done",
-      date: todayStr,
-      note: noteText,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+    await mutateState(app, async (state2) => {
+      const habit2 = state2.habits.find((h) => h.id === habitId);
+      if (!habit2) return;
+      habit2.skips = habit2.skips || [];
+      habit2.completions = habit2.completions || [];
+      habit2.events = habit2.events || [];
+      habit2.events.push({
+        id: generateUniqueId("event"),
+        type: "done",
+        date: todayStr,
+        note: noteText,
+        timestamp: nowISO
+      });
+      habit2.skips = habit2.skips.filter((d) => d !== todayStr);
+      if (!habit2.completions.includes(todayStr)) {
+        habit2.completions.push(todayStr);
+      }
+      if (!habit2.streakStartedAt) {
+        habit2.streakStartedAt = nowISO;
+        habit2.streakAnchor = nowISO;
+      }
     });
-    habit.skips = habit.skips.filter((d) => d !== todayStr);
-    if (!habit.completions.includes(todayStr)) {
-      habit.completions.push(todayStr);
-    }
-    await saveState(app, state);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3276,38 +3582,46 @@ async function handleResetToDate(app, habitId) {
     if (!startDateVal || !confirmVal) {
       return;
     }
-    const rangeDates = getDateRange(String(startDateVal).trim(), todayStr);
+    const startDateStr = String(startDateVal).trim();
+    const rangeDates = getDateRange(startDateStr, todayStr);
     if (rangeDates.length === 0) {
       await app.alert("Invalid start date provided.");
       return;
     }
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
-    const stats = calculateHabitStats(habit, todayStr);
-    habit.skips = habit.skips || [];
-    habit.completions = habit.completions || [];
-    habit.resetLogs = habit.resetLogs || [];
-    habit.events = habit.events || [];
-    for (const d of rangeDates) {
-      if (!habit.skips.includes(d)) {
-        habit.skips.push(d);
+    const noteText = noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged";
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
+    await mutateState(app, async (state) => {
+      const habit = state.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      const stats = calculateHabitStats(habit, todayStr);
+      habit.skips = habit.skips || [];
+      habit.completions = habit.completions || [];
+      habit.resetLogs = habit.resetLogs || [];
+      habit.events = habit.events || [];
+      for (const d of rangeDates) {
+        if (!habit.skips.includes(d)) {
+          habit.skips.push(d);
+        }
+        habit.completions = habit.completions.filter((c) => c !== d);
       }
-      habit.completions = habit.completions.filter((c) => c !== d);
-    }
-    habit.events.push({
-      type: "skip",
-      date: String(startDateVal).trim(),
-      note: noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      habit.events.push({
+        id: generateUniqueId("event"),
+        type: "skip",
+        date: startDateStr,
+        note: noteText,
+        timestamp: nowISO
+      });
+      habit.resetLogs.push({
+        id: generateUniqueId("reset"),
+        date: startDateStr,
+        streakLength: stats.currentStreak,
+        note: noteText,
+        timestamp: nowISO
+      });
+      const resetAnchorISO = `${startDateStr}T00:00:00Z`;
+      habit.streakAnchor = resetAnchorISO;
+      habit.streakStartedAt = resetAnchorISO;
     });
-    habit.resetLogs.push({
-      date: String(startDateVal).trim(),
-      streakLength: stats.currentStreak,
-      note: noteVal && String(noteVal).trim() ? String(noteVal).trim() : "Reset logged",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-    await saveState(app, state);
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3322,9 +3636,10 @@ async function handleDeleteHabit(app, habitId) {
   if (!habitId) return;
   try {
     const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
+    const habit = (state.habits || []).find((h) => h.id === habitId);
     if (!habit) return;
-    const confirm = await app.prompt(`Delete Habit: "${habit.name}"?`, {
+    const habitName = habit.name;
+    const confirm = await app.prompt(`Delete Habit: "${habitName}"?`, {
       inputs: [
         {
           type: "checkbox",
@@ -3336,11 +3651,12 @@ async function handleDeleteHabit(app, habitId) {
     if (!confirm) return;
     const isConfirmed = Array.isArray(confirm) ? confirm[0] : confirm;
     if (!isConfirmed) return;
-    state.habits = state.habits.filter((h) => h.id !== habitId);
-    if (state.activeHabitId === habitId) {
-      state.activeHabitId = state.habits.length > 0 ? state.habits[0].id : null;
-    }
-    await saveState(app, state);
+    await mutateState(app, async (state2) => {
+      state2.habits = state2.habits.filter((h) => h.id !== habitId);
+      if (state2.activeHabitId === habitId) {
+        state2.activeHabitId = state2.habits.length > 0 ? state2.habits[0].id : null;
+      }
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3352,11 +3668,11 @@ async function handleDeleteHabit(app, habitId) {
 async function handleSelectHabit(app, habitId) {
   if (!habitId) return;
   try {
-    const state = await loadState(app);
-    const habit = state.habits.find((h) => h.id === habitId);
-    if (!habit) return;
-    state.activeHabitId = habitId;
-    await saveState(app, state);
+    await mutateState(app, async (state) => {
+      const habit = state.habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      state.activeHabitId = habitId;
+    });
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
@@ -3445,15 +3761,13 @@ async function handleImportFromNote(app) {
       return;
     }
     const todayStr = getTodayString();
-    const state = await loadState(app);
-    state.habits = state.habits || [];
+    const nowISO = (/* @__PURE__ */ new Date()).toISOString();
     const colorThemes = ["emerald", "blue", "indigo", "teal", "purple", "amber", "rose", "bronze"];
-    let importedCount = 0;
-    let lastImportedHabitId = null;
+    const newHabits = [];
     for (let i = 0; i < selectedTasks.length; i++) {
       const taskObj = selectedTasks[i];
       const taskText = getTaskDisplayText(taskObj, `Task ${i + 1}`);
-      const defaultTheme = colorThemes[(state.habits.length + importedCount) % colorThemes.length];
+      const defaultTheme = colorThemes[i % colorThemes.length];
       const titlePrefix = selectedTasks.length > 1 ? `(${i + 1}/${selectedTasks.length}) ` : "";
       const configResult = await app.prompt(`Configure Habit: ${titlePrefix}${taskText.slice(0, 28)}`, {
         inputs: [
@@ -3515,11 +3829,12 @@ async function handleImportFromNote(app) {
       const [iconVal, nameVal, typeVal, themeVal, periodNVal, periodUnitVal] = configArray;
       const finalName = nameVal && String(nameVal).trim() ? String(nameVal).trim() : taskText;
       const finalIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F4DD}";
-      const finalType = typeVal || TRACK_TYPES.COMPLETE;
-      const finalTheme = themeVal || defaultTheme;
-      const periodN = parseInt(periodNVal, 10) || 1;
-      const periodUnit = periodUnitVal || INTERVAL_PERIODS.DAY;
-      const habitId = `habit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const finalType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.COMPLETE;
+      const finalTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : defaultTheme;
+      const parsedN = parseInt(periodNVal, 10);
+      const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
+      const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
+      const habitId = generateUniqueId("habit");
       const newHabit = {
         id: habitId,
         name: finalName,
@@ -3530,23 +3845,26 @@ async function handleImportFromNote(app) {
           n: periodN,
           period: periodUnit
         },
-        createdAt: `${todayStr}T00:00:00.000Z`,
-        streakAnchor: (/* @__PURE__ */ new Date()).toISOString(),
+        createdAt: nowISO,
+        trackingStartDate: todayStr,
+        streakAnchor: nowISO,
+        streakStartedAt: nowISO,
         skips: [],
         completions: finalType === TRACK_TYPES.COMPLETE ? [todayStr] : [],
         events: [],
         resetLogs: []
       };
-      state.habits.push(newHabit);
-      lastImportedHabitId = habitId;
-      importedCount++;
+      newHabits.push(newHabit);
     }
-    if (importedCount > 0) {
-      if (lastImportedHabitId) {
-        state.activeHabitId = lastImportedHabitId;
-      }
-      await saveState(app, state);
-      await app.alert(`Successfully imported ${importedCount} habit(s)!`);
+    if (newHabits.length > 0) {
+      await mutateState(app, async (state) => {
+        state.habits = state.habits || [];
+        for (const habit of newHabits) {
+          state.habits.push(habit);
+        }
+        state.activeHabitId = newHabits[newHabits.length - 1].id;
+      });
+      await app.alert(`Successfully imported ${newHabits.length} habit(s)!`);
       if (app.context && typeof app.context.renderEmbed === "function") {
         await app.context.renderEmbed();
       }
@@ -3612,9 +3930,9 @@ var plugin = {
           break;
         case "setTheme":
           if (args[1]) {
-            const state = await loadState(app);
-            state.theme = args[1];
-            await saveState(app, state);
+            await mutateState(app, async (state) => {
+              state.theme = args[1];
+            });
           }
           break;
         case "refreshData":

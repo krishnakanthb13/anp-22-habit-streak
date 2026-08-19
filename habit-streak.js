@@ -1,4 +1,4 @@
-import { loadState, saveState } from "./lib/data/store.js";
+import { loadState, saveState, mutateState } from "./lib/data/store.js";
 import { 
   calculateHabitStats, 
   calculateTierProgress, 
@@ -82,9 +82,9 @@ const plugin = {
 
         case "setTheme":
           if (args[1]) {
-            const state = await loadState(app);
-            state.theme = args[1];
-            await saveState(app, state);
+            await mutateState(app, async state => {
+              state.theme = args[1];
+            });
           }
           break;
 

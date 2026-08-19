@@ -26,6 +26,7 @@ function createMockApp(initialState = { version: 1, activeHabitId: null, habits:
     openSidebarEmbed: jest.fn(),
     navigate: jest.fn(),
     setSetting: jest.fn(),
+    findNote: jest.fn().mockResolvedValue({ uuid: "mock-data-uuid", name: "habit_streak_data" }),
     getNoteContent: jest.fn().mockImplementation(() => Promise.resolve(savedContent)),
     replaceNoteContent: jest.fn().mockImplementation((_, content) => {
       savedContent = content;
