@@ -1,42 +1,31 @@
-(node:9504) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(node:6036) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
- PASS  anp-22-habit-streak/test/store.test.js
-  ΓùÅ Console
+PASS test/features.test.js
+(node:8712) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS test/plugin.test.js
+(node:15524) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS test/ds_scenarios.test.js
+  ● Console
 
     console.error
-      [HabitStreak] Error parsing JSON from code block: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
-          at JSON.parse (<anonymous>)
-          at extractJsonFromMarkdown (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\lib\data\store.js:109:19)
-          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\store.test.js:152:12)
-          at Promise.then.completed (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:298:28)
-          at new Promise (<anonymous>)
-          at callAsyncCircusFn (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:231:10)
-          at _callCircusTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:316:40)
-          at processTicksAndRejections (node:internal/process/task_queues:104:5)
-          at _runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:252:3)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:126:9)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:121:9)
-          at run (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:71:3)
-          at runAndTransformResultsToJestFormat (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
-          at jestAdapter (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
-          at runTestInternal (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:367:16)
-          at runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:444:34)
-          at Object.worker (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\testWorker.js:106:12)
+      [HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.
 
-      109 |       return JSON.parse(match[1].trim());
-      110 |     } catch (err) {
-    > 111 |       console.error("[HabitStreak] Error parsing JSON from code block:", err);
+      327 |       // CRITICAL INTEGRITY GUARD:
+      328 |       // Persistent note content exists but JSON parse failed. Refuse to overwrite user data!
+    > 329 |       console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");
           |               ^
-      112 |     }
-      113 |   }
-      114 |
+      330 |       return normalizeState({ ...DEFAULT_STATE });
+      331 |     }
+      332 |
 
-      at extractJsonFromMarkdown (anp-22-habit-streak/lib/data/store.js:111:15)
-      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:152:12)
+      at loadState (anp-22-habit-streak/lib/data/store.js:329:15)
+      at Object.<anonymous> (anp-22-habit-streak/test/ds_scenarios.test.js:303:19)
 
     console.error
-      [HabitStreak] Failed to save state: Error: API Network error
-          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\store.test.js:158:55)
+      [HabitStreak] Failed to save state: Error: Amplenote write timeout
+          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\ds_scenarios.test.js:313:55)
           at Promise.then.completed (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:298:28)
           at new Promise (<anonymous>)
           at callAsyncCircusFn (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:231:10)
@@ -52,27 +41,69 @@
           at runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:444:34)
           at Object.worker (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\testWorker.js:106:12)
 
-      174 |     return true;
-      175 |   } catch (err) {
-    > 176 |     console.error("[HabitStreak] Failed to save state:", err);
+      364 |     return true;
+      365 |   } catch (err) {
+    > 366 |     console.error("[HabitStreak] Failed to save state:", err);
           |             ^
-      177 |     return false;
-      178 |   }
-      179 | }
+      367 |     return false;
+      368 |   }
+      369 | }
 
-      at saveState (anp-22-habit-streak/lib/data/store.js:176:13)
-      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:161:20)
+      at saveState (anp-22-habit-streak/lib/data/store.js:366:13)
+      at saveStateOrThrow (anp-22-habit-streak/lib/data/store.js:378:19)
+      at Object.<anonymous> (anp-22-habit-streak/test/ds_scenarios.test.js:316:5)
 
-(node:16044) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  anp-22-habit-streak/test/streakEngine.test.js
-(node:9768) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
- PASS  anp-22-habit-streak/test/plugin.test.js
- PASS  anp-22-habit-streak/test/features.test.js
+PASS test/store.test.js
+  ● Console
 
-Test Suites: 4 passed, 4 total
-Tests:       48 passed, 48 total
+    console.error
+      [HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.
+
+      327 |       // CRITICAL INTEGRITY GUARD:
+      328 |       // Persistent note content exists but JSON parse failed. Refuse to overwrite user data!
+    > 329 |       console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");
+          |               ^
+      330 |       return normalizeState({ ...DEFAULT_STATE });
+      331 |     }
+      332 |
+
+      at loadState (anp-22-habit-streak/lib/data/store.js:329:15)
+      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:128:19)
+
+    console.error
+      [HabitStreak] Failed to save state: Error: Network write error
+          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\store.test.js:220:55)
+          at Promise.then.completed (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:298:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:231:10)
+          at _callCircusTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:316:40)
+          at processTicksAndRejections (node:internal/process/task_queues:104:5)
+          at _runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:252:3)
+          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:126:9)
+          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:121:9)
+          at run (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:71:3)
+          at runAndTransformResultsToJestFormat (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+          at jestAdapter (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+          at runTestInternal (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:367:16)
+          at runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:444:34)
+          at Object.worker (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\testWorker.js:106:12)
+
+      364 |     return true;
+      365 |   } catch (err) {
+    > 366 |     console.error("[HabitStreak] Failed to save state:", err);
+          |             ^
+      367 |     return false;
+      368 |   }
+      369 | }
+
+      at saveState (anp-22-habit-streak/lib/data/store.js:366:13)
+      at saveStateOrThrow (anp-22-habit-streak/lib/data/store.js:378:19)
+      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:223:5)
+
+PASS test/streakEngine.test.js
+
+Test Suites: 5 passed, 5 total
+Tests:       84 passed, 84 total
 Snapshots:   0 total
-Time:        3.41 s
-Ran all test suites matching /anp-22-habit-streak\\test/i.
+Time:        2.467 s
+Ran all test suites matching /anp-22-habit-streak/i.

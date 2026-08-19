@@ -715,4 +715,50 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(normalized.events.length).toBe(2);
     expect(normalized.events.map(e => e.type)).toEqual(["done", "calendar_edit"]);
   });
+
+  // 31. Invariant: Contract: Undo Today targets explicit check-in actions and preserves calendar_edit audit history
+  test("Invariant 13: Undo Today targets explicit check-in actions and preserves calendar_edit audit history", async () => {
+    let savedState = null;
+    const todayStr = getTodayString();
+
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      getNoteContent: jest.fn().mockImplementation(() => {
+        return Promise.resolve(formatStateAsMarkdown(savedState || {
+          version: 2,
+          revision: 1,
+          habits: [
+            {
+              id: "h_audit_contract",
+              name: "Audit Contract Habit",
+              type: TRACK_TYPES.COMPLETE,
+              trackingStartDate: "2026-08-01",
+              skips: [],
+              completions: [todayStr],
+              events: [
+                { id: "ev_done", type: "done", date: todayStr, timestamp: "2026-08-19T10:00:00.000Z", note: "10am done" },
+                { id: "ev_cal", type: "calendar_edit", date: todayStr, timestamp: "2026-08-19T12:00:00.000Z", note: "Calendar audit event" }
+              ],
+              resetLogs: []
+            }
+          ]
+        }));
+      }),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    // Undo Today should specifically undo the 10am check-in action (done) without removing the calendar_edit audit event
+    await handleUndoToday(app, "h_audit_contract");
+    expect(savedState.habits[0].events.find(e => e.id === "ev_done")).toBeUndefined();
+    expect(savedState.habits[0].events.find(e => e.id === "ev_cal")).toBeDefined();
+    // Since no check-in action events remain, today's completion state is reset to clean baseline
+    expect(savedState.habits[0].completions).not.toContain(todayStr);
+  });
 });

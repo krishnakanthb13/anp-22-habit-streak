@@ -2,7 +2,7 @@
 
 ## 1. Overview & Architecture
 
-The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an in-memory client-side state machine with an authoritative data note (`habit_streak_data` tagged `-reports/-habit-streak`) for persistence.
+The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin. It combines an in-memory client-side reactive state engine with an authoritative persistent JSON data note (`habit_streak_data` tagged `-reports/-habit-streak`).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -13,13 +13,17 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
                     ▼                                 ▼
       ┌───────────────────────────┐     ┌───────────────────────────┐
       │   lib/data/store.js       │     │   habit-streak.js         │
-      │   (Load/Save JSON note)   │     │   (App options & Actions) │
+      │   - loadState/saveState   │     │   - Embed Handlers        │
+      │   - mutationQueue         │     │   - Action Router         │
+      │   - normalizeHabit/State  │     │   - setTheme/onEmbedCall  │
       └─────────────┬─────────────┘     └─────────────┬─────────────┘
                     │                                 │
                     └────────────────┬────────────────┘
                                      ▼
                     ┌─────────────────────────────────┐
                     │   lib/engine/streakEngine.js    │
+                    │   - isScheduledDate()           │
+                    │   - getHabitDayStatus()         │
                     │   - calculateHabitStats()       │
                     │   - calculateTierProgress()     │
                     │   - calculateWeeklyFrequency()  │
@@ -28,81 +32,107 @@ The Habit Streaks Plugin runs as an Amplenote Embed Dashboard plugin. It uses an
                                      ▼
                     ┌─────────────────────────────────┐
                     │   lib/ui/dashboardTemplate.js   │
-                    │   - Main Screen (Segmented)     │
-                    │   - Detail View (Ticker/Bars)   │
-                    │   - Templates & Import Guide    │
-                    │   - Settings & Sync Drawer      │
+                    │   - Main Overview Screen        │
+                    │   - Counter Detail (Ticker/Bars)│
+                    │   - Interactive Dot Calendar    │
+                    │   - Multi-Action Timeline Log   │
+                    │   - Themes & Settings Drawer    │
                     └─────────────────────────────────┘
 ```
 
 ---
 
-## 2. Core Modules
+## 2. Core Modules & Subsystems
 
 ### `lib/constants.js`
 - `DATA_NOTE_NAME = "habit_streak_data"`
 - `DATA_NOTE_TAGS = ["-reports/-habit-streak"]`
-- `TRACK_TYPES = { SKIP: "skip", COMPLETE: "complete" }`
+- `TRACK_TYPES`:
   - `SKIP`: Quitly auto-tracked model (Clean/done unless skipped).
   - `COMPLETE`: Amplenote intentional practice model (Done only when explicitly completed).
+- `INTERVAL_PERIODS`: `{ DAY: "day", WEEK: "week", MONTH: "month" }`.
+- `VALID_THEMES`: `["midnight", "glass", "dark", "light", "neon"]`.
+- `VALID_EVENT_TYPES`: `["done", "skip", "slip", "reset", "calendar_edit"]`.
 - `QUITLY_TIERS`: Array of 11 progressive milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
 - `QUITLY_TEMPLATES` & `AMPLENOTE_TEMPLATES`: Categorized preset templates.
 - `COLOR_THEMES`: 8 gradient palette tokens.
 
+---
+
 ### `lib/data/store.js`
-- `loadState(app)`: Looks up note UUID from settings key `Habit_Streak_Data_UUID [Do not Edit!]`. If missing or note not found, searches/creates `habit_streak_data` with `-reports/-habit-streak` and persists UUID to plugin settings.
-- `saveState(app, state)`: Formats state into `` ```json `` block and replaces content in the authoritative data note.
-
-### `lib/engine/streakEngine.js`
-- `formatDate(date)`: Formats a Date or timestamp string as `YYYY-MM-DD` with defensive `isNaN` validation (returns empty string if invalid).
-- `getTodayString()`: Returns current local date formatted as `YYYY-MM-DD`.
-- `getDateRange(startStr, endStr)`: Returns array of dates between start and end (inclusive) with validation.
-- `getHabitDayStatus(habit, dateStr, todayStr, cachedSets)`: Determines day status (`completed` vs `skipped` vs `future` vs `before_start`). Accepts optional pre-computed `cachedSets` (`{ skips: Set, completions: Set }`) to eliminate redundant heap allocations in tight loops.
-  - For `skip`: Clean/completed unless date is in `habit.skips`.
-  - For `complete`: Skipped unless date is in `habit.completions`.
-- `calculateHabitStats(habit, todayStr)`: Computes current streak, longest record, completion rate, and streak anchor timestamp for sub-second live ticking using high-performance pre-computed `Set` caches.
-- `calculateTierProgress(currentStreak)`: Determines the user's active laurel tier, percentage progress, and remaining days.
-- `calculateWeeklyFrequency(habit, todayStr)`: Computes log/repetition counts across the last 7 days for the weekly frequency bar chart.
-- `calculateAllHabitsSummary(habits, todayStr)`: Aggregates metrics across all counters for the main dashboard view.
-- `generateMonthCalendar(habit, year, month, todayStr)`: Builds calendar grid metadata for interactive widget rendering with pre-allocated date caches.
-
-### `lib/features/`
-All feature modules are hardened with top-level `try/catch` error boundaries, user alert notifications, and full JSDoc `@param` and `@returns` typing:
-- `createHabit.js`: Handles custom creation modal and 1-click template instantiation with error boundaries and data validation.
-- `importFromNote.js`: 
-  - Resolves note handle from `app.prompt({ type: "note" })` supporting single values, arrays, and markdown links.
-  - Queries `app.getNoteTasks({ uuid }, { includeDone: true })` with fallback regex parser for checklist items (`- [ ]`, `- [x]`, `* [ ]`).
-  - Utilizes `getTaskDisplayText` helper for clean label extraction across varying Amplenote task schemas.
-  - Normalizes single-input vs multi-input checkbox confirmations from `app.prompt`.
-  - Runs an interactive per-task setup wizard allowing users to customize title, emoji, color theme, cadence, and choose between **Positive Habit** vs **Bad Habit / Abstinence**.
-  - Activates newly imported habits immediately on the dashboard.
-- `editHabit.js`: Edits existing counter properties with input validation and error recovery.
-- `resetStreak.js`: Handles `handleSkipToday`, `handleCompleteToday`, `handleUndoToday`, and `handleResetToDate` with defensive ISO timestamp parsing, reflection notes, and multi-event logs.
-- `toggleDay.js`: Unified single state-transition handler for toggling completed vs skipped days with automatic linked Amplenote task synchronization (`app.updateTask`).
-- `habitManagement.js`: Deletes counters and handles tab switching with safe state cleanup.
-- `launcher.js`: Opens the habit embed in full or sidebar mode with nullish coalescing settings access (`app.settings?.["Last Embed View"]`).
-
-### `lib/ui/dashboardTemplate.js`
-- Single-page client-side embedded application.
-- Renders **Main View**, **Single Counter View**, **Templates & Import Catalog**, and **Settings & Theming View** with zero host roundtrips.
-- **Vector Iconography (`ICONS`)**: Embedded SVG map (`chevronLeft`, `chevronRight`, `chevronDown`, `arrowLeft`, `close`, `checkCircle`, `lock`, `plus`, `externalLink`) replacing legacy text glyphs for crisp rendering across high-DPI displays.
-- **Keyboard Navigation**: Global key listener supporting <kbd>←</kbd> / <kbd>→</kbd> / <kbd>&lt;</kbd> / <kbd>&gt;</kbd> for month navigation, and <kbd>Esc</kbd> / <kbd>Backspace</kbd> for rapid view dismissal.
-- **In-Calendar Direct Edit Mode**: Enables click-to-stage toggle buffer with `✏️ Edit` / `💾 Save` controls in the calendar header.
-- **Timestamped Activity History**: Displays exact formatted local timestamps for multiple check-ins and reset logs.
-- **Collapsible In-App Guide**: Interactive accordion providing 3-step creation flow, dual tracking philosophy, and calendar mechanics.
-- **Theme Engine**: Provides 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`) utilizing CSS custom property cascading with cross-device sync.
-- **Support Developer Integration**: Direct developer patronage callout linking to `https://krishnakanthb13.github.io/S/`.
-- Runs the 1-second interval live digital sub-clock ticker (`[Days] [Hours] [Mins] [Secs]`).
+- **`mutationQueue`**: In-process serialized execution promise queue ensuring all `load -> mutate -> save` transactions execute sequentially without race conditions.
+- **`isValidTimestamp(ts)`**: Validates strict ISO 8601 strings (`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/` and `!isNaN(Date)`).
+- **`normalizeHabit(habit)`**:
+  - Enforces mutually exclusive sets: $\text{skips} \cap \text{completions} = \emptyset$ (with `skips` taking precedence).
+  - Normalizes `createdAt` and `streakAnchor` from `YYYY-MM-DD` to full ISO timestamps (`${d}T00:00:00.000Z`).
+  - Constrains `colorTheme` to `COLOR_THEMES` and `type` to `TRACK_TYPES`.
+  - Filters `events` to only recognized `VALID_EVENT_TYPES`.
+- **`normalizeState(state)`**: Validates `version: 2`, integer `revision`, and constrains `theme` to `VALID_THEMES`.
+- **`loadState(app)`**: UUID resolution with settings cache, tag/name fallback search, automatic UUID recovery, and **malformed data protection** (refuses to overwrite corrupted notes).
+- **`saveStateOrThrow(app, state)`**: Writes formatted JSON note markdown block with revision counter incrementation.
 
 ---
 
-## 3. Data Schema
+### `lib/engine/streakEngine.js`
+- **`isValidDateString(val)`**: Strict calendar date validator ensuring string matches `YYYY-MM-DD` and corresponds to a genuine calendar date (e.g. rejecting `2026-02-30`).
+- **`isScheduledDate(habit, dateStr, refStartStr, allowBackdated)`**:
+  - Validates recurrence cadence for Daily ($N=1$), Every $N$ Days, Weekly (same weekday $\text{diffWeeks} \pmod N = 0$), and Monthly (same clamped day-of-month $\text{diffMonths} \pmod N = 0$).
+  - Supports bidirectional grid calculation against the anchor date when `allowBackdated = true`.
+  - Defensive fallback: returns `false` on any parsing or NaN error.
+- **`getHabitDayStatus(habit, dateStr, todayStr, cachedSets)`**:
+  - **Schedule-First Evaluation Ordering**:
+    1. Future (`dateStr > todayStr`) $\implies$ `future`
+    2. Before start (`dateStr < habitStart`) $\implies$ `before_start`
+    3. Recurrence check (`!isScheduledDate(...)`) $\implies$ `not_applicable`
+    4. Explicit skips (`dateStr ∈ skips`) $\implies$ `skipped`
+    5. Explicit completions (`dateStr ∈ completions`) $\implies$ `completed`
+    6. Default philosophy fallback: `complete` habits $\implies$ `skipped`; `skip` habits $\implies$ `completed`.
+- **`calculateHabitStats(habit, todayStr)`**: Computes current streak, longest record, completion rate, and verified sub-second anchor timestamp.
+- **`calculateTierProgress(currentStreak)`**: Computes active laurel tier, milestone percentage, and days remaining.
+- **`calculateWeeklyFrequency(habit, todayStr)`**: Calculates 7-day repetition counts for frequency bar charts.
+- **`calculateAllHabitsSummary(habits, todayStr)`**: Aggregates dashboard-level statistics.
+- **`generateMonthCalendar(habit, year, month, todayStr)`**: Builds calendar grid days with off-day classification.
 
-The persistent JSON stored in `habit_streak_data` has the following schema:
+---
+
+### `lib/features/`
+- **`createHabit.js`**: Instantiates new custom counters and 1-click templates with initial `completions: []` for positive habits (streak = 0 until check-in).
+- **`importFromNote.js`**: Multi-step note scanner extracting native Amplenote tasks and `- [ ]` markdown checkboxes into an interactive setup wizard.
+- **`editHabit.js`**: Edits counter metadata with schedule and input validation.
+- **`resetStreak.js`**:
+  - `handleSkipToday`: Logs slip with optional reflection note and updates reset logs.
+  - `handleCompleteToday`: Records positive completion event.
+  - `handleResetToDate`: Backdates relapse, applying skips **only** to scheduled dates in the range.
+  - `handleUndoToday`:
+    - Filters specifically for check-in action events (`done`, `skip`, `slip`), preserving audit events (`calendar_edit`).
+    - Reconstructs today's date state from remaining check-in events.
+    - Removes `resetLog` only if the undone event was a slip/skip.
+- **`toggleDay.js`**:
+  - `handleToggleDay`: **Invariant-First Anchor Validation** — validates against existing `scheduleAnchor` before mutating `trackingStartDate`. Rejects toggling off-days.
+  - `handleSaveCalendarEdits`: Filters out non-scheduled dates, ensures mutual exclusivity, logs audit events only when changes occurred, and extends `trackingStartDate` only after validation passes.
+- **`habitManagement.js`**: Safe deletion and tab switching.
+- **`launcher.js`**: Opens embed in sidebar or main workspace.
+
+---
+
+### `lib/ui/dashboardTemplate.js`
+- Full single-page client-side embedded application.
+- **Responsive Theme Engine**: 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`).
+- **Calendar Dot Matrix**: Visual off-day isolation (`off-day` class), disabling clicks on `not_applicable` days during edit mode.
+- **Audit Timeline**: Dedicated ✏️ *Calendar History Edited* badge distinguishing administrative audit events from slips.
+- **Live Digital Ticker**: Sub-second ticking counter (`[Days] [Hours] [Mins] [Secs]`).
+- **Keyboard Navigation**: <kbd>←</kbd> / <kbd>→</kbd> for months, <kbd>Esc</kbd> / <kbd>Backspace</kbd> for navigation.
+
+---
+
+## 3. Data Schema (`version: 2`)
+
+The persistent JSON stored in `habit_streak_data` conforms to the following schema:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "revision": 14,
   "theme": "midnight",
   "activeHabitId": "habit_1724000000000_abc12",
   "habits": [
@@ -117,17 +147,26 @@ The persistent JSON stored in `habit_streak_data` has the following schema:
         "period": "day"
       },
       "createdAt": "2026-08-01T00:00:00.000Z",
+      "trackingStartDate": "2026-08-01",
       "streakAnchor": "2026-08-01T00:00:00.000Z",
+      "streakStartedAt": "2026-08-01T00:00:00.000Z",
       "skips": ["2026-08-05"],
       "completions": [],
       "events": [
-        { "type": "skip", "date": "2026-08-05", "timestamp": "2026-08-05T14:30:00.000Z" }
+        {
+          "id": "event_1724000000000_def34",
+          "type": "skip",
+          "date": "2026-08-05",
+          "timestamp": "2026-08-05T14:30:00.000Z",
+          "note": "Slip at dinner party"
+        }
       ],
       "resetLogs": [
         {
+          "id": "reset_1724000000000_ghi56",
           "date": "2026-08-05",
           "streakLength": 4,
-          "note": "Attended dinner party, resolved to restart",
+          "note": "Slip at dinner party",
           "timestamp": "2026-08-05T14:30:00.000Z"
         }
       ]
@@ -136,3 +175,21 @@ The persistent JSON stored in `habit_streak_data` has the following schema:
 }
 ```
 
+---
+
+## 4. Invariant Test Matrix (84 Unit Tests)
+
+The test suite in [`test/ds_scenarios.test.js`](./test/ds_scenarios.test.js) verifies 18 design-spec scenarios and 13 core behavioral invariants:
+1. **Off-Day Isolation**: Non-scheduled days cannot be transformed into scheduled days by skips or completions.
+2. **Range Reset Filtering**: `handleResetToDate` skips only scheduled days within the range.
+3. **Mutual Exclusivity**: $\text{skips} \cap \text{completions} = \emptyset$ at the normalization boundary.
+4. **Strict Date Validation**: `isValidDateString` strictly rejects invalid calendar days (e.g. `2026-02-30`).
+5. **Theme Normalization**: Host and habit themes are validated against `VALID_THEMES` and `COLOR_THEMES`.
+6. **Multi-Event Undo Reconstruction**: Undoing one of multiple today actions restores the date state from the remaining event.
+7. **Off-Day Toggle Rejection**: `handleToggleDay` rejects toggling `not_applicable` dates.
+8. **Defensive Scheduling Fallback**: `isScheduledDate` returns `false` on any invalid/NaN input.
+9. **Schedule Anchor Preservation**: Backdated off-days cannot redefine the recurrence anchor; backdated scheduled occurrences safely extend `trackingStartDate`.
+10. **Action Undo vs Audit Isolation**: Undoing check-in actions preserves `calendar_edit` audit records and only removes matching `resetLog` records.
+11. **Strict ISO 8601 Validation**: `isValidTimestamp` strictly validates ISO 8601 formatting and parseability.
+12. **Event Schema Filtering**: `normalizeHabit` drops unrecognized event types.
+13. **Calendar-Edit vs Undo Contract**: "Undo Today" operates specifically on daily check-in actions while preserving the full calendar audit history.

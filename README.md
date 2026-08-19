@@ -1,6 +1,6 @@
 # Habit Streaks Plugin (Beautiful Streaks & Days-Since Counter)
 
-> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Break Bad Habits vs Build Positive Habits), real-time live digital tickers, 7-day repeatingness bar charts, interactive monthly dot calendars, tiered milestone badges, per-task import wizard, and reflection history logging.
+> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Break Bad Habits vs Build Positive Habits), flexible recurrence (Daily, Every N Days, Weekly, Monthly), real-time live digital tickers, 7-day repeatingness bar charts, interactive monthly dot calendars, tiered milestone badges, per-task import wizard, non-destructive undo, and robust reflection history logging.
 
 Icon: `local_fire_department`  
 Author: [Krishna Kanth B](https://github.com/krishnakanthb13)  
@@ -42,7 +42,7 @@ When importing tasks from your existing Amplenote notes:
    * **Tracking Philosophy**: Choose whether this is a **`✨ Positive Habit`** (done when checked in) or a **`🛡️ Bad Habit / Abstinence`** (auto-done unless skipped).
    * **Emoji Icon**: Assign any emoji (🏃, 📚, 🧘, 🔥, 🍷, etc.).
    * **Color Theme**: Choose from 8 vibrant gradients (Emerald, Sky Blue, Indigo, Teal, Purple, Amber, Rose, Bronze).
-   * **Recurrence**: Set cadence (Every 1 Day, 1 Week, etc.).
+   * **Recurrence Cadence**: Set schedule (*Every 1 Day*, *Every 2 Days*, *Every 1 Week*, *Every 1 Month*).
 4. **Immediate Activation**: The newly imported habit opens directly on your dashboard.
 
 ### 3. Understanding the Dual Tracking Philosophies
@@ -51,21 +51,32 @@ When importing tasks from your existing Amplenote notes:
   * **Interaction**: Auto-tracked! Days count up continuously without requiring daily check-ins.
   * **When a slip occurs**: Tap **`🚨 Log Slip / Reset Today`** or **`🔄 Backdate Relapse Date with Note`** to record your reflection note.
 * **🎯 Positive Daily Habits (Amplenote Style)**:
-  * **Concept**: Intentional daily practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
+  * **Concept**: Intentional practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
   * **Interaction**: Tap **`✅ Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
+  * **Creation Baseline**: Positive habits start at 0 days completed until your first check-in.
 
-### 4. Interactive Monthly Calendar & Keyboard Navigation
+### 4. Recurrence Schedules & Off-Day Isolation
+* Supports **Daily**, **Every N Days**, **Weekly** (e.g. Every Monday), and **Monthly** (same day of month) recurrence.
+* **Off-Day Immunity**: Non-scheduled calendar days are classified as `not_applicable` and are visually disabled in the calendar. They never break your streak, never contribute false missed days, and cannot be corrupted by manual edits.
+* **Invariant-First Backdating**: Backdating an entry validates against the established schedule grid before extending the start date, preventing accidental weekday cadence drift.
+
+### 5. Interactive Monthly Calendar & Keyboard Navigation
 * View any month using the smooth navigation buttons with modern vector icons (`←` / `→`).
 * **Keyboard Shortcuts**: Navigate months instantly with <kbd>←</kbd> / <kbd>→</kbd> or <kbd>&lt;</kbd> / <kbd>&gt;</kbd>; press <kbd>Esc</kbd> or <kbd>Backspace</kbd> to return to the counters overview.
-* Completed days appear **Green**; skipped/relapsed days appear **Red**.
-* **Click-to-Toggle**: Click any past or current day cell directly to toggle its status between completed and skipped.
+* Completed days appear **Green**; skipped/relapsed days appear **Red**; off-days appear dim and non-interactive.
+* **Click-to-Toggle**: Click any scheduled past or current day cell directly to toggle its status between completed and skipped.
 * **Edit Calendar Mode**: Use **`✏️ Edit Calendar`** to stage multi-day changes with one-click batch actions (*Mark Month Clean*, *Mark Month Missed*, or *Discard*).
 
-### 5. Goals & Milestone Badges
+### 6. Action Undo & Audit History
+* **Non-Destructive Undo**: Tapping **`Undo Today`** rolls back your latest daily check-in action (`done`, `skip`, `slip`) and reconstructs today's status from any remaining check-in events.
+* **Audit Trail Preservation**: Calendar modifications are recorded with dedicated ✏️ *Calendar History Edited* badges and are preserved when rolling back daily check-ins.
+* **Reset Log Isolation**: Undoing a `done` action preserves earlier today's `resetLog` records.
+
+### 7. Goals & Milestone Badges
 * Track progress toward 11 milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
 * View your current goal card with real-time percentage progress bars and an interactive goals checklist with vector trophy and checkmark badges.
 
-### 6. Themes & Appearance Customization
+### 8. Themes & Appearance Customization
 Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 * **🌌 Midnight**: Deep Obsidian with crisp white card sheets.
 * **🔮 Frosted Glass**: Modern glassmorphism with dynamic backdrop blur.
@@ -73,7 +84,7 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 * **☀️ Light Clean**: Minimal daylight appearance.
 * **⚡ Cyberpunk Neon**: High-contrast dark theme with neon cyan & purple accents.
 
-### 7. Support the Developer
+### 9. Support the Developer
 * If Habit Streak empowers your daily routines, visit the **Support the Developer** section at the bottom of the Settings sheet or support future development directly at [krishnakanthb13.github.io/S](https://krishnakanthb13.github.io/S/).
 
 ---
@@ -85,22 +96,24 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 | `Habit_Streak_Data_UUID [Do not Edit!]` | UUID of the authoritative `habit_streak_data` note tagged `-reports/-habit-streak`. | Auto-populated on initial load |
 
 * **Zero Data Loss**: All streak history, reflection notes, and custom settings are stored in JSON format inside the authoritative data note.
+* **Corruption Protection**: The storage layer refuses to overwrite corrupt or malformed notes with empty defaults.
+* **Mutation Serialization**: Concurrent mutations are serialized in an in-memory execution queue.
 * **Device Portability**: Synchronizes automatically across all your devices using standard Amplenote note syncing.
 
 ---
 
 ## 📁 Technical Architecture
 
-- [`habit-streak.js`](./habit-streak.js): Plugin entry point and action router.
-- [`lib/constants.js`](./lib/constants.js): Core constants, 11 milestone tiers, and categorized templates.
-- [`lib/data/store.js`](./lib/data/store.js): Authoritative JSON data note persistence.
-- [`lib/engine/streakEngine.js`](./lib/engine/streakEngine.js): Mathematical calculations for continuous streaks, milestone tiers, and 7-day frequencies.
+- [`habit-streak.js`](./habit-streak.js): Plugin entry point, embed handlers, and theme action routers.
+- [`lib/constants.js`](./lib/constants.js): Core constants, 11 milestone tiers, categorized templates, allowed themes, and valid event types.
+- [`lib/data/store.js`](./lib/data/store.js): Authoritative JSON data note persistence, mutation serialization queue, strict ISO timestamp validation, and schema normalization.
+- [`lib/engine/streakEngine.js`](./lib/engine/streakEngine.js): Mathematical calculations for continuous streaks, schedule-first status ordering, recurrence grids, and live digital tickers.
 - [`lib/features/`](./lib/features/):
   - `createHabit.js`: Custom habit creation and 1-click template instantiation.
   - `importFromNote.js`: Note scanner with task normalization and interactive setup wizard.
   - `editHabit.js`: Edit existing counter settings.
-  - `resetStreak.js`: Reset handlers with reflection note logging.
-  - `toggleDay.js`: Direct calendar day toggle engine.
+  - `resetStreak.js`: Reset handlers with reflection notes, isolated reset logs, and multi-action state reconstruction undo.
+  - `toggleDay.js`: Direct calendar day toggle engine with invariant-first anchor validation.
   - `habitManagement.js`: Counter deletion and active tab selection.
   - `launcher.js`: Embed opener and sidebar dispatcher.
 - [`lib/ui/dashboardTemplate.js`](./lib/ui/dashboardTemplate.js): Responsive single-page client-side embedded application.

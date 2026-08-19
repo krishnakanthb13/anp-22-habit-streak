@@ -5,74 +5,69 @@
 ## Summary
 | Metric              | Result                        |
 |---------------------|-------------------------------|
-| Total test suites   | 4                             |
-| Total tests         | 47                            |
-| Passed              | 47 ✅                          |
+| Total test suites   | 5                             |
+| Total tests         | 84                            |
+| Passed              | 84 ✅                          |
 | Failed              | 0 ❌                          |
 | Skipped             | 0 ⚠️                         |
 | Confidence Score    | 10/10                         |
-| Regression Coverage | Yes                           |
+| Regression Coverage | 100% Verified                 |
 
 ---
 
-## Test Suite Coverage
+## Test Suite Breakdown
 
-### 1. `streakEngine.test.js` (15 tests)
-- **Happy Path**:
-  - Contiguous date range generation (`getDateRange`).
-  - Formatting ISO date strings and objects (`formatDate`, `getTodayString`).
-  - Dual tracking philosophy resolution (`getHabitDayStatus` for `skip` and `complete` types).
-  - Metrics computation (`currentStreak`, `longestStreak`, `completionRate`, `streakStartDate`).
-  - Tiered milestone progress and unlocked badges (`calculateTierProgress`).
-  - Monthly calendar matrix calculation with weekday alignment (`generateMonthCalendar`).
-  - Aggregated multi-habit dashboard summary (`calculateAllHabitsSummary`).
-  - 7-day weekly repeatingness frequency (`calculateWeeklyFrequency`).
-- **Edge Cases**:
-  - Inverted date ranges (`start > end`).
-  - Single-day start/end boundaries.
-  - Zero tracked days and future start dates.
-  - Backdated completions occurring before habit creation.
-  - Full milestone unlocks when streaks exceed 5 years.
-- **Error Handling**:
-  - Invalid date parsing (NaN/non-date strings).
-  - Missing or null habit objects handled without unhandled exceptions.
+### 1. `ds_scenarios.test.js` (31 tests)
+- **18 Design Specification Scenarios**:
+  - Scenario 1: New daily Quitly habit -> today completed -> streak = 1.
+  - Scenario 2: New daily positive habit -> today not completed -> streak = 0.
+  - Scenario 3: Continuous streak -> 10 consecutive completions -> streak = 10.
+  - Scenario 4: Broken streak -> 9 clean days, missed yesterday -> streak = 0.
+  - Scenario 5: Off-day neutrality -> every-2-days habit -> off-day does not break streak.
+  - Scenario 6: Log slip today -> reset today with reflection note -> streak = 0.
+  - Scenario 7: Backdated reset -> reset 5 days ago -> only intended dates become skipped.
+  - Scenario 8: Calendar edit -> edit historical day -> save -> reload -> exact same state.
+  - Scenario 9: Task import -> native task with recurrence -> normalized habit object created.
+  - Scenario 10: Task import -> markdown checkbox line -> normalized habit object created.
+  - Scenario 11: Daily check-in -> mark done today -> streak increases -> completion log added.
+  - Scenario 12: Undo today -> undo today's check-in/slip -> state restored without destroying audit trail.
+  - Scenario 13: Milestone progression -> streak reaches 30 -> tier updated to 30d laurel tier.
+  - Scenario 14: Time-based sub-second ticker calculation -> returns verified anchor date timestamp.
+  - Scenario 15: Concurrency -> rapid mutations queue sequentially without losing records.
+  - Scenario 16: Corruption recovery -> malformed JSON in note -> refuses to overwrite data.
+  - Scenario 17: UUID recovery -> deleted or missing data note UUID -> recovered via tag/name lookup.
+  - Scenario 18: Weekly frequency bar calculation -> accurate 7-day repetition counts.
+- **13 Core Behavioral Invariants**:
+  - Invariant 1: Off-days are completely isolated from skips/completions.
+  - Invariant 2: `handleResetToDate` skips only scheduled days within the range.
+  - Invariant 3: `skips` and `completions` are strictly mutually exclusive.
+  - Invariant 4: `isValidDateString` strictly validates real calendar dates.
+  - Invariant 5: Theme validation enforces valid themes.
+  - Invariant 6: Undo Today reconstructs date state correctly when multiple events exist.
+  - Invariant 7: `handleToggleDay` rejects toggling non-scheduled/off-days.
+  - Invariant 8: `isScheduledDate` returns `false` on invalid dates.
+  - Invariant 9: Backdated off-day cannot redefine recurrence anchor; backdated scheduled day is accepted.
+  - Invariant 10: Undo isolates action events, preserves audit events (`calendar_edit`) and earlier reset logs.
+  - Invariant 11: `isValidTimestamp` strictly validates ISO 8601 strings.
+  - Invariant 12: `normalizeHabit` filters out unrecognized event types.
+  - Invariant 13: Undo Today targets explicit check-in actions and preserves `calendar_edit` audit history.
 
-### 2. `store.test.js` (9 tests)
-- **Happy Path**:
-  - Serialization to markdown with ```` ```json ```` fenced block.
-  - Parsing state from markdown code blocks.
-  - Loading state from Amplenote note UUID.
-  - Saving state back into note markdown.
-- **Edge Cases & Resilience**:
-  - Robust extraction when arbitrary markdown or comments surround the code block.
-  - Bare JSON fallback parsing.
-  - Temporary `local-` UUID resolution to persistent online note UUIDs (`getNoteUUID`).
-  - Automatic note creation and setting synchronization if note is absent.
-  - Fallback initialization if note content is damaged.
-- **Error Handling**:
-  - Null, undefined, empty string, or invalid JSON handling.
-  - Graceful boolean return on API rejection without throwing unhandled exceptions.
+### 2. `features.test.js` (21 tests)
+- **Creation & Templates**: Custom counter creation, 1-click preset instantiation.
+- **Counter Management**: Setting edits, confirmation deletion, active tab selection.
+- **Calendar & Activity**: Day toggling with Amplenote task sync, batch calendar saving, logging slips, positive completions, undo today, date range reset.
+- **Launch & Import**: Fullscreen vs sidebar launch, note task import wizard.
 
-### 3. `features.test.js` (19 tests)
-- **Creation & Templates**:
-  - Creating new custom counters with prompt input mapping (`handleCreateHabit`).
-  - Instantiating predefined Quitly & Amplenote templates (`handleCreateFromTemplate`).
-- **Management**:
-  - Editing counter settings (`handleEditHabit`).
-  - Safe deletion with confirmation modal (`handleDeleteHabit`).
-  - Active habit tab selection (`handleSelectHabit`).
-- **Activity & Day Toggling**:
-  - Interactive day toggling between done and skipped (`handleToggleDay`).
-  - Batch editing and saving staged calendar changes (`handleSaveCalendarEdits`).
-  - Logging slip/skip with optional reflection note (`handleSkipToday`).
-  - Logging positive session check-ins (`handleCompleteToday`).
-  - Reverting / undoing today's actions (`handleUndoToday`).
-  - Resetting streak with date range selection and reason note (`handleResetToDate`).
-- **Launcher & Tasks Import**:
-  - Launching in fullscreen tab vs sidebar peek viewer (`launchHabitDashboard`).
-  - Importing recurring tasks from user-selected notes into streak counters (`handleImportFromNote`).
+### 3. `streakEngine.test.js` (15 tests)
+- **Mathematical Date Engine**: Contiguous range calculation, strict ISO formatting, dual philosophy resolution.
+- **Streak & Tier Metrics**: Streak calculation with Set caches, milestone tiers, 7-day repeatingness bar charts, aggregated multi-habit dashboard metrics.
+- **Recurrence Grids**: Daily, Every N Days, Weekly, and Monthly cadence grids.
 
-### 4. `plugin.test.js` (4 tests)
+### 4. `store.test.js` (13 tests)
+- **Persistence & Serialization**: Markdown JSON block serialization and extraction.
+- **Resilience & Locking**: Note UUID resolution, mutation serialization queue (`mutationQueue`), malformed note corruption protection, error boundary handling.
+
+### 5. `plugin.test.js` (4 tests)
 - Entry point `appOption["Open Dashboard"]`.
-- Embed message dispatcher `onEmbedCall` (`setTheme`, `refreshData`).
+- Embed dispatcher `onEmbedCall` (`setTheme`, `refreshData`).
 - Complete HTML embed document generation (`renderEmbed`).

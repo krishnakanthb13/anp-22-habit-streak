@@ -12,28 +12,48 @@ Traditional habit trackers enforce a single rigid model: every habit starts as "
 ### B. The Intentional Practice Paradigm (Amplenote Style)
 - **Concept**: If your goal is *Daily Workout*, *Meditation*, or *Reading*, you must actively expend effort to complete the practice.
 - **Interaction Model**: Requires an explicit check-in each period. Supports multiple session repetitions per day with a 7-day frequency chart.
+- **Creation Baseline**: Starts with clean zero completions on creation rather than artificially pre-completing the first day.
 
 ---
 
-## 2. User Empowerment During Note Imports
+## 2. Invariant-First State Integrity
 
-When users import existing checklists from their Amplenote notes, the plugin should never make unguided assumptions about whether a task represents a positive daily practice or a bad habit to quit.
+A core lesson in distributed and local-first application design is maintaining absolute determinism at the mutation boundary:
 
-- **Intentional Categorization**: The import workflow guides the user through a dedicated per-task wizard, prompting for custom emoji icon, theme gradient, and tracking philosophy.
-- **Transparent Guidance**: In-app guide cards and informative prompts keep the user fully aware of the steps they are taking and how their data will be tracked.
+- **Validate Against the Existing Anchor First**: The system never allows input data to alter the reference frame used for its own validation. In recurrence calculations, backdated calendar entries are strictly tested against the established schedule grid before any start-date extension is permitted.
+- **Mutual Exclusivity by Invariant**: A calendar day cannot logically be both completed and skipped. The normalization layer enforces $\text{skips} \cap \text{completions} = \emptyset$ as an invariant, eliminating contradictory persisted state.
+- **Strict Date & Timestamp Hygiene**: All calendar operations operate strictly on real calendar dates (`isValidDateString`), and timestamps are strictly validated against ISO 8601 formatting to prevent silent date drift.
 
 ---
 
-## 3. Zero-Lag Responsive Embed UI
+## 3. Off-Day Immunity & Schedule-First Evaluation
+
+Recurrence schedules (Daily, Every N Days, Weekly, Monthly) introduce non-scheduled "off-days":
+- **Neutrality**: Non-scheduled calendar days are classified as `not_applicable`. They never penalize streak momentum, never contribute false missed days, and cannot be transformed into tracked days by accidental clicks.
+- **UI Guardrails**: Off-days are visually dimmed and non-interactive in edit mode to prevent user confusion and maintain clean persisted datasets.
+
+---
+
+## 4. Action Rollback vs. Audit History Isolation
+
+User workflows require a clear distinction between daily behavioral check-ins and administrative history edits:
+- **Action Rollback**: "Undo Today" operates specifically on explicit daily check-in actions (`done`, `skip`, `slip`), reconstructing today's state from any remaining check-in occurrences.
+- **Audit Preservation**: Calendar modifications are recorded as administrative audit events (`calendar_edit`) with dedicated styling and are preserved during check-in undos, maintaining an immutable log of historical corrections.
+- **Reset Log Integrity**: Undoing an action never deletes an unrelated reset log from an earlier slip.
+
+---
+
+## 5. Zero-Lag Responsive Embed UI
 
 Amplenote plugins run within sandboxed iframes. Frequent asynchronous host roundtrips degrade the tactile satisfaction of habit tracking.
 
-- **Instantaneous Client State**: Tab switching, month traversal, and view transitions occur entirely in-memory with 0ms delay.
-- **Restricted Sync Boundary**: Persistence across Amplenote notes is strictly triggered on initial load, mutating actions (create, edit, toggle, reset), and manual refresh.
+- **Instantaneous Client State**: Tab switching, month traversal, theme switching, and view transitions occur entirely in-memory with 0ms delay.
+- **Serialized Mutation Queue**: Persistence across Amplenote notes is strictly serialized through an in-memory promise queue, preventing concurrency race conditions during rapid user check-ins.
+- **Corruption Resilience**: The storage layer strictly refuses to overwrite existing malformed data notes with empty defaults, safeguarding user data against network or format anomalies.
 
 ---
 
-## 4. Visual Delight & Emotional Momentum
+## 6. Visual Delight & Emotional Momentum
 
 - **Laurel Milestones & Progressive Tiers**: Unlocking tiers (from 1 Day to 5 Years) provides long-term intrinsic reward.
 - **Vibrant Gradient Identity**: Distinct gradient palettes (Emerald, Rose, Sky Blue, Purple, Amber, Teal, Bronze, Indigo) make each counter immediately recognizable.
@@ -42,24 +62,14 @@ Amplenote plugins run within sandboxed iframes. Frequent asynchronous host round
 
 ---
 
-## 5. Vector-First UI & Keyboard Accessibility
+## 7. Vector-First UI & Keyboard Accessibility
 
-Text glyphs and basic emojis often render inconsistently across operating systems and screen resolutions.
 - **Precision SVGs**: Core navigation (`chevronLeft`, `chevronRight`, `arrowLeft`, `close`), checklist state indicators (`checkCircle`, `lock`), and action icons are authored as clean, high-resolution SVG vectors.
 - **Keyboard Ergonomics**: Power users can navigate months (<kbd>←</kbd> / <kbd>→</kbd>), dismiss modal views (<kbd>Esc</kbd>), and return to home (<kbd>Backspace</kbd>) without lifting their fingers from the keyboard.
 
 ---
 
-## 6. Transparent Developer Support & Sustainability
+## 8. Transparent Developer Support & Sustainability
 
 To maintain high software quality, ongoing maintenance, and responsive community feature requests, transparent and non-intrusive developer patronage options are provided in the settings layer.
-
----
-
-## 7. Defensive Architecture & Algorithmic Efficiency
-
-Habit and calendar calculations run continuously on every render cycle and live ticker tick:
-- **Pre-Computed Set Lookup Caching**: Day statuses are evaluated over long date intervals using O(1) Set lookups with pre-allocated structures, avoiding redundant garbage collection churn.
-- **Fail-Safe User Touchpoints**: Every user prompt, modal dialog, and storage mutation is wrapped in an explicit error boundary with helpful alerts, ensuring the UI never locks or silently fails if host operations are interrupted.
-- **Deterministic Historical Preservation**: Date parsers defensively validate against malformed inputs and invalid ISO strings to ensure historical integrity is unconditionally preserved.
 

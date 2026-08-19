@@ -1,493 +1,330 @@
-Yes — this iteration fixes the **specific three items I previously flagged**, but after reviewing the new compiled bundle closely, I found **two important regressions/remaining integrity issues** that the implementation report does not catch.
+I reviewed the **new uploaded production bundle** (`habit-streak.compiled(4).js`) specifically against the three remaining issues from the previous audit.
 
-The good news: the hardening is otherwise substantially improved.
+## Verdict
 
-## 🔴 1. The new off-day guard has a subtle backdated-date bug
+**The three issues I previously identified are substantially fixed.** I would now consider the implementation **release-ready from the specific integrity findings we were tracking**.
 
-This is the most important remaining issue.
+However, I found **one new/remaining behavioral issue worth fixing before calling it fully hardened**.
 
-`handleToggleDay()` now appears to guard against off-days:
+---
 
-```js
-const currentStart = ...
-const effectiveStart = dateStr < currentStart ? dateStr : currentStart;
+## ✅ 1. Backdated schedule-anchor issue — FIXED
 
-if (!isScheduledDate(habit, dateStr, effectiveStart)) {
-    return;
-}
-```
+This is now correctly structured.
 
+`handleToggleDay()` obtains the existing `trackingStartDate` as `scheduleAnchor`, validates against it **before mutation**, and only then moves `trackingStartDate` backward if the date is a valid scheduled occurrence. 
 
+Likewise, calendar editing validates incoming dates against the existing anchor first, then extends `trackingStartDate` only when the earliest accepted recorded date is earlier. 
 
-At first glance this looks correct, but the problem is:
+So the problematic pattern from the previous version:
 
-> **For a backdated date, you're changing the schedule anchor to the date you're trying to validate.**
+> "change the anchor → validate against the changed anchor"
+
+is gone.
 
 ### Example
 
-Suppose:
+For a Monday weekly habit:
 
 ```text
-Tracking start: Monday Aug 17
-Schedule: Every 1 week
+trackingStartDate = Monday Aug 17
+
+Aug 16 Sunday → rejected
+Aug 10 Monday → accepted
 ```
+
+And accepting Aug 10 can subsequently move the tracking start to Aug 10.
+
+That's the correct invariant-first behavior.
+
+---
+
+## ✅ 2. `Undo Today` no longer consumes `calendar_edit`
+
+This is also fixed correctly.
+
+The code now explicitly defines:
+
+```js
+const ACTION_TYPES = ["done", "skip", "slip"];
+```
+
+and searches only those events. 
 
 Therefore:
 
 ```text
-Aug 17 Mon → scheduled
-Aug 18 Tue → off
-Aug 19 Wed → off
-...
-Aug 23 Sun → off
-Aug 24 Mon → scheduled
+calendar_edit
 ```
 
-Now the user tries to toggle **Tuesday Aug 18**.
+cannot accidentally become the target of Undo.
 
-Current code does:
+That's exactly what we wanted.
 
-```js
-currentStart = "2026-08-17"
-dateStr     = "2026-08-18"
-
-effectiveStart = "2026-08-17"
-```
-
-That's fine.
-
-But for an older date:
+The reconstruction also correctly distinguishes:
 
 ```text
-currentStart = Aug 17
-dateStr      = Aug 16
+done  → completed
+skip  → skipped
+slip  → skipped
 ```
 
-it does:
-
-```js
-effectiveStart = Aug 16
-```
-
-Then `isScheduledDate()` calculates the recurrence from **Aug 16**, rather than the actual schedule anchor of Aug 17. 
-
-For a weekly schedule, this can turn the formerly off-day into the new scheduled weekday.
-
-### Same problem exists in calendar editing
-
-This is even clearer here:
-
-```js
-if (allIncomingDates.length > 0 && allIncomingDates[0] < effectiveStart) {
-    effectiveStart = allIncomingDates[0];
-    habit.trackingStartDate = effectiveStart;
-}
-```
-
-followed by:
-
-```js
-isScheduledDate(habit, d, effectiveStart)
-```
-
-
-
-So a backdated calendar edit can **move the recurrence anchor first**, and then validate the date against the newly moved anchor.
-
-### This undermines the new invariant
-
-The intended invariant is:
-
-> "Off-days cannot be inserted."
-
-But the current implementation can effectively say:
-
-> "If you edit an earlier off-day, let's move the schedule start to that day, after which it is no longer an off-day."
-
-### Recommended fix
-
-Don't use the incoming date to determine the schedule anchor.
-
-Use the existing schedule anchor for validation:
-
-```js
-const scheduleStart =
-    valid trackingStartDate
-        ? habit.trackingStartDate
-        : valid createdAt
-            ? habit.createdAt.split("T")[0]
-            : dateStr;
-
-if (!isScheduledDate(habit, dateStr, scheduleStart)) {
-    return;
-}
-```
-
-If you intentionally want **backdated entries to extend the tracking history**, do that as a separate operation **after** determining that the date is valid under the existing recurrence.
-
-But there's an important semantic question:
-
-> Should backdating a habit extend its tracking start?
-
-Your existing code appears to say yes. If so, the extension needs to preserve the original recurrence anchor, not redefine it.
-
-**I'd classify this as 🔴 must-fix.**
+rather than treating arbitrary event types as skips. 
 
 ---
 
-# 🔴 2. `Undo Today` now has an event-type integrity problem
+## ✅ 3. `resetLog` removal is now appropriately restricted
 
-The reconstruction logic is better:
+This was another previous concern.
+
+It now only removes a reset log when the undone action was:
 
 ```js
-remainingTodayEvents
-→ latestRemaining
-→ done => completion
-→ anything else => skip
+"skip" || "slip"
 ```
 
 
 
-But:
+So:
 
-```js
-else {
-    // treat as skip
-}
+```text
+skip → done → Undo
 ```
 
-means **every event type other than `done` is interpreted as a skip**.
+does **not** incorrectly delete the reset log associated with the earlier skip.
 
-That's unsafe because your event system explicitly contains:
+That is a meaningful integrity improvement.
+
+---
+
+## ✅ 4. Strict timestamp validation is now genuinely stricter
+
+The new validator uses:
+
+```js
+/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+```
+
+plus actual `Date` parseability. 
+
+And legacy date-only values such as:
+
+```text
+2026-08-19
+```
+
+are deliberately normalized to:
+
+```text
+2026-08-19T00:00:00.000Z
+```
+
+rather than simply discarded. 
+
+That's a good backward-compatibility decision.
+
+---
+
+## ✅ 5. Unknown event types are now filtered
+
+The normalization path now requires:
+
+```js
+VALID_EVENT_TYPES.includes(e.type)
+```
+
+before retaining an event. 
+
+And the allowed set is:
 
 ```text
 done
 skip
+slip
+reset
 calendar_edit
 ```
 
-The dashboard itself recognizes `calendar_edit` as a separate event type. 
 
-### Concrete failure
 
-Suppose today:
+So the previous:
+
+> arbitrary event → Undo interprets it as skip
+
+problem is gone.
+
+---
+
+# 🟠 One remaining issue: calendar/toggle edits aren't represented as action events
+
+This is the one thing I would still examine.
+
+`handleToggleDay()` changes:
+
+```text
+habit.skips
+habit.completions
+```
+
+but does **not** append an event. 
+
+By contrast, `handleCompleteToday()` explicitly creates a `done` event. 
+
+And `handleSkipToday()` creates a `skip` event. 
+
+Calendar edits create `calendar_edit` events. 
+
+So the current architecture is effectively:
+
+```text
+Complete Today       → event
+Skip Today           → event
+Reset                → event + resetLog
+Calendar edit        → calendar_edit event
+Direct day toggle    → NO event
+```
+
+That isn't necessarily a bug.
+
+### But it creates an important semantic distinction
+
+If the user:
+
+1. opens calendar
+2. changes today from completed → skipped
+3. presses "Undo Today"
+
+there is **no today action event generated by the calendar toggle** for Undo to recover.
+
+Undo will therefore search for the most recent `done/skip/slip` event that predates the calendar edit.
+
+That could produce surprising behavior.
+
+For example:
 
 ```text
 10:00  done
-15:00  calendar_edit
+14:00  calendar_edit → today changed to skipped
+15:00  Undo Today
 ```
 
-The user presses **Undo Today**.
+Undo removes the `done` event.
 
-The latest remaining event is:
+It then sees no remaining action event and clears today's arrays. 
 
-```text
-done
-```
+That may actually be the desired behavior if **Undo means "undo the last explicit action button" rather than "undo the last calendar modification."**
 
-if calendar_edit is removed first, so in this exact case it recovers correctly.
+But the UI language matters.
 
-But consider:
+If "Undo Today" means:
 
-```text
-10:00  skip
-15:00  calendar_edit
-```
+> Undo whatever changed today's tracking state most recently
 
-Undo:
+then this is still a bug.
 
-1. removes `calendar_edit`
-2. remaining event = `skip`
-3. reconstructs skipped → correct
+If it means:
 
-But now consider:
+> Undo the most recent Today action (`done` / `skip` / `slip`)
 
-```text
-10:00  calendar_edit
-```
+then the implementation is consistent.
 
-with no actual today completion/skip.
-
-Undo removes the audit event and then:
-
-```js
-habit.skips = ...
-habit.completions = ...
-```
-
-clears today's state. 
-
-That's probably undesirable because **Undo Today is an action-history control, while calendar editing is an audit event**.
-
-More importantly, the code is conflating:
-
-```text
-"event happened today"
-```
-
-with:
-
-```text
-"today's tracking state was changed"
-```
-
-Those are not the same thing.
+**I would explicitly document that distinction or add a test for it.**
 
 ---
 
-# 🔴 3. `Undo Today` can delete the wrong `resetLog`
+# 🟡 Another subtle point: `reset` is not an action type
 
-There's another related problem.
-
-This condition:
-
-```js
-if (removedEventType === "skip" || removedEventType === "slip" || lastTodayIdx !== -1)
-```
-
-means a reset log is removed whenever **any event** was removed, including a `done` event. 
-
-Consider:
-
-```text
-10:00  skip
-14:00  done
-```
-
-There is:
-
-```text
-events:
-  skip
-  done
-
-resetLogs:
-  reset corresponding to skip
-```
-
-Undo the `done`.
-
-The code:
-
-1. removes `done`
-2. sees `lastTodayIdx !== -1`
-3. removes the latest reset log
-4. leaves the `skip` event
-
-Now you have:
-
-```text
-events:
-  skip
-
-resetLogs:
-  nothing
-```
-
-The event history and reset history no longer correspond.
-
-### Better approach
-
-A reset log should be removed **only when the removed action was actually the reset/skip action that generated it**.
-
-The cleanest solution would be to associate them:
-
-```js
-event.resetLogId
-```
-
-or:
-
-```js
-resetLog.eventId
-```
-
-Then undo can remove the exact corresponding record.
-
-If you don't want to change the schema, at minimum:
-
-```js
-if (removedEventType === "skip" || removedEventType === "slip") {
-    remove latest reset log for today
-}
-```
-
-rather than:
-
-```js
-|| lastTodayIdx !== -1
-```
-
-That would fix the obvious corruption.
-
----
-
-# 🟠 4. "ISO timestamp validation" isn't actually ISO validation
-
-The implementation says ISO timestamp validation was added.
-
-But:
-
-```js
-function isValidTimestamp(ts) {
-    if (typeof ts !== "string" || ts.length < 10) return false;
-    const d = new Date(ts);
-    return !isNaN(d.getTime());
-}
-```
-
-
-
-This validates **JavaScript Date-parseability**, not ISO 8601.
-
-For example, JavaScript may accept strings such as:
-
-```text
-Aug 19 2026
-2026/08/19
-```
-
-depending on the runtime.
-
-If your invariant is specifically:
-
-> persisted timestamps must be ISO 8601
-
-then this isn't strict enough.
-
-This is **🟠 quality issue**, not a critical blocker.
-
----
-
-# 🟠 5. Event normalization still accepts arbitrary event types
-
-`normalizeHabit()` checks:
-
-```js
-typeof e.type === "string"
-```
-
-but doesn't constrain it to:
-
-```text
-done
-skip
-calendar_edit
-```
-
-
-
-So corrupted data such as:
-
-```json
-{
-  "type": "whatever"
-}
-```
-
-survives normalization.
-
-And, as shown above, `Undo Today` currently interprets unknown types as skip.
-
-I'd define:
+You now have:
 
 ```js
 VALID_EVENT_TYPES = [
-    "done",
-    "skip",
-    "calendar_edit"
+  "done",
+  "skip",
+  "slip",
+  "reset",
+  "calendar_edit"
 ];
 ```
 
-and either:
-
-* discard unknown events, or
-* normalize them to a harmless type.
-
----
-
-# 🟢 The three fixes you reported are otherwise present
-
-### Defensive `isScheduledDate()` fallback
-
-Correctly changed to:
+but:
 
 ```js
-return false;
+ACTION_TYPES = [
+  "done",
+  "skip",
+  "slip"
+];
 ```
 
+That's reasonable because the actual reset operation currently records its event as `"skip"` and its separate audit record as a `resetLog`. 
 
+So `"reset"` appears to be primarily a **timeline/display event type**, rather than a persisted action type.
 
-Good.
-
-### Calendar off-days are visually disabled
-
-The UI now explicitly excludes:
-
-```js
-d.status === 'not_applicable'
-```
-
-from editing and click handling. 
-
-Good.
-
-### Calendar persistence filters scheduled dates
-
-The save path now checks `isScheduledDate()`. 
-
-Good **in principle**, but subject to the backdated-anchor issue above.
-
-### Timestamp normalization
-
-The persisted timestamps are now at least checked for parseability and repaired if invalid. 
-
-Good defensive improvement.
+That's okay, but it's worth keeping intentional. Otherwise a future developer could wonder why `VALID_EVENT_TYPES` contains `"reset"` while Undo deliberately ignores it.
 
 ---
 
-# 🟢 One thing I would *not* change
+# 🟢 Overall integrity assessment
 
-I would leave the recurrence-history issue alone for now.
+I'd now rate this iteration:
 
-`handleEditHabit()` still allows changing:
+| Area                                                     | Status               |
+| -------------------------------------------------------- | -------------------- |
+| Off-day protection                                       | ✅ Fixed              |
+| Backdated scheduled dates                                | ✅ Fixed              |
+| Backdated off-day anchor corruption                      | ✅ Fixed              |
+| Calendar persistence filtering                           | ✅ Fixed              |
+| Undo + `calendar_edit` isolation                         | ✅ Fixed              |
+| Undo multi-action reconstruction                         | ✅ Fixed              |
+| Reset-log preservation                                   | ✅ Fixed              |
+| Timestamp validation                                     | ✅ Fixed              |
+| Legacy date-only timestamps                              | ✅ Safely normalized  |
+| Unknown event types                                      | ✅ Filtered           |
+| Production compilation                                   | ✅ Reported verified  |
+| Remaining semantic ambiguity around calendar edit + Undo | 🟠 **Test/document** |
 
-```text
-Tracking Philosophy
-Every N
-Period
-```
+### My recommendation
 
-directly. 
+**I would not reopen the previous fixes.** They are now correctly implemented.
 
-That means history is interpreted according to the current schedule/type.
+Before the final release, I'd add just **one explicit invariant test**:
 
-I still consider this a **design-policy issue**, not a bug, unless you specifically want historical schedule versioning.
+> **Calendar-edit today state vs Undo Today:** establish exactly whether Undo should undo a calendar edit or only an explicit `done/skip/slip` action.
 
-Adding schedule history now would be a much larger architectural change than the rest of this hardening pass.
+If the intended contract is "Undo only explicit check-in actions," then **the current code is correct**, and I would consider this audit closed.
+
+The compiled artifact itself confirms the new validation and event-type constraints are actually present in the production bundle, rather than merely existing in source files.  
+
+**Bottom line: this is now a credible release candidate.** The remaining item is a product-semantics decision/test, not another obvious integrity defect.
 
 ---
 
-# My revised verdict
+This closes the remaining ambiguity from my previous review.
 
-The new bundle is **better than the previous one**, but I would **not yet accept the claimed "release verification complete" verdict**.
+The new **Invariant 13** specifically verifies the intended contract: **Undo Today rolls back daily check-in actions while preserving calendar audit history**. Combined with the reported 84/84 plugin tests and 336/336 workspace tests, I would now consider the Habit Streak audit **closed**.
 
-### Remaining priority
+The uploaded test file contains the full 18-scenario design-spec suite plus the additional invariant suite, including the earlier anchor-preservation and undo-isolation tests.  
 
-| Finding                                          | Severity                          |
-| ------------------------------------------------ | --------------------------------- |
-| Backdated off-day can redefine recurrence anchor | 🔴 **Must fix**                   |
-| Undo can remove unrelated reset log              | 🔴 **Must fix**                   |
-| Undo treats non-`done` event as skip             | 🔴 **Must fix / closely related** |
-| Timestamp check isn't strict ISO                 | 🟠                                |
-| Unknown event types accepted                     | 🟠                                |
-| Schedule/type changes reinterpret history        | 🟡 Design decision                |
-| Cross-context concurrent writes                  | 🟡 Architectural edge case        |
+The production bundle also contains the corresponding hardened logic: schedule validation occurs against the existing anchor, strict timestamps are enforced, and persisted events are constrained to the recognized event schema.  
 
-The **most important conceptual lesson** is that the new guards are checking the right thing, but in two places they're allowing the **input being validated to modify the reference frame used for validation**.
+### Final assessment
 
-That is exactly what you want to avoid in schedule logic:
+**🟢 RELEASE READY**
 
-> **Validate against the existing invariant first. Mutate the invariant only afterward.**
+* Schedule-anchor integrity — **verified**
+* Recurrence/off-day integrity — **verified**
+* Backdated editing — **verified**
+* Undo semantics — **verified**
+* Audit-event isolation — **verified**
+* Reset-log integrity — **verified**
+* Timestamp validation — **verified**
+* Persistence normalization — **verified**
+* Event schema integrity — **verified**
+* Calendar-edit/Undo contract — **verified**
+* Plugin tests — **84/84**
+* Workspace tests — **336/336**
+* Production bundle rebuilt — **yes**
 
-Once those remaining issues are fixed and the tests explicitly cover **backdated off-day edits + mixed `skip → done` + `done → skip` + `calendar_edit` + undo**, I would be comfortable calling this a genuine release candidate. 
+At this point, I would **stop changing the implementation for audit reasons**. Further changes should be driven by actual product requirements, observed runtime behavior, or new test cases—not by continuing to hunt for increasingly hypothetical integrity problems.
+
+**This has crossed the line from “audited code” to “verified release candidate.”**
