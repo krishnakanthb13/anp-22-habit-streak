@@ -4,8 +4,7 @@ import {
   calculateTierProgress, 
   calculateAllHabitsSummary,
   generateMonthCalendar, 
-  getDateRange,
-  formatDate 
+  getDateRange
 } from "../lib/engine/streakEngine.js";
 import { TRACK_TYPES } from "../lib/constants.js";
 
