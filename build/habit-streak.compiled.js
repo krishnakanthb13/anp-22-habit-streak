@@ -90,6 +90,7 @@ var COLOR_THEMES = {
   }
 };
 var VALID_THEMES = ["midnight", "glass", "dark", "light", "neon"];
+var VALID_EVENT_TYPES = ["done", "skip", "slip", "reset", "calendar_edit"];
 var DEFAULT_STATE = {
   version: 2,
   revision: 0,
@@ -142,12 +143,12 @@ function getDateRange(startStr, endStr) {
   }
   return dates;
 }
-function isScheduledDate(habit, dateStr, refStartStr) {
+function isScheduledDate(habit, dateStr, refStartStr, allowBackdated = false) {
   if (!isValidDateString(dateStr)) {
     return false;
   }
   const habitStart = refStartStr && isValidDateString(refStartStr) ? refStartStr : habit?.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit?.createdAt ? habit.createdAt.split("T")[0] : getTodayString();
-  if (dateStr < habitStart) {
+  if (!allowBackdated && dateStr < habitStart) {
     return false;
   }
   const interval = habit?.interval || { n: 1, period: INTERVAL_PERIODS.DAY };
@@ -162,15 +163,15 @@ function isScheduledDate(habit, dateStr, refStartStr) {
     return false;
   }
   const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
-  if (diffInDays < 0) {
+  if (!allowBackdated && diffInDays < 0) {
     return false;
   }
   if (period === INTERVAL_PERIODS.DAY) {
-    return diffInDays % n === 0;
+    return Math.abs(diffInDays) % n === 0;
   }
   if (period === INTERVAL_PERIODS.WEEK) {
     const isSameWeekday = targetDate.getDay() === startDate.getDay();
-    const diffInWeeks = Math.floor(diffInDays / 7);
+    const diffInWeeks = Math.floor(Math.abs(diffInDays) / 7);
     return isSameWeekday && diffInWeeks % n === 0;
   }
   if (period === INTERVAL_PERIODS.MONTH) {
@@ -181,7 +182,10 @@ function isScheduledDate(habit, dateStr, refStartStr) {
     const tMonth = targetDate.getMonth();
     const tDay = targetDate.getDate();
     const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
-    if (monthDiff < 0 || monthDiff % n !== 0) {
+    if (!allowBackdated && monthDiff < 0) {
+      return false;
+    }
+    if (Math.abs(monthDiff) % n !== 0) {
       return false;
     }
     const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
@@ -416,9 +420,9 @@ function generateMonthCalendar(habit, year, month, todayStr = getTodayString()) 
 var SETTING_DATA_NOTE_UUID = "Habit_Streak_Data_UUID [Do not Edit!]";
 var mutationQueue = Promise.resolve();
 function isValidTimestamp(ts) {
-  if (typeof ts !== "string" || ts.length < 10) return false;
-  const d = new Date(ts);
-  return !isNaN(d.getTime());
+  if (typeof ts !== "string") return false;
+  const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+  return isoRegex.test(ts) && !isNaN(new Date(ts).getTime());
 }
 function normalizeHabit(habit) {
   if (!habit || typeof habit !== "object") {
@@ -441,16 +445,19 @@ function normalizeHabit(habit) {
     }
   }
   const nowISO = (/* @__PURE__ */ new Date()).toISOString();
-  const createdAt = habit.createdAt && isValidTimestamp(habit.createdAt) ? habit.createdAt : nowISO;
+  const rawCreated = habit.createdAt;
+  const createdAt = rawCreated && isValidTimestamp(rawCreated) ? rawCreated : rawCreated && isValidDateString(rawCreated) ? `${rawCreated}T00:00:00.000Z` : nowISO;
   const createdDateStr = createdAt.split("T")[0];
   const trackingStartDate = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : isValidDateString(createdDateStr) ? createdDateStr : nowISO.split("T")[0];
-  const streakAnchor = habit.streakAnchor && isValidTimestamp(habit.streakAnchor) ? habit.streakAnchor : nowISO;
-  const streakStartedAt = habit.streakStartedAt && isValidTimestamp(habit.streakStartedAt) ? habit.streakStartedAt : streakAnchor;
+  const rawAnchor = habit.streakAnchor;
+  const streakAnchor = rawAnchor && isValidTimestamp(rawAnchor) ? rawAnchor : rawAnchor && isValidDateString(rawAnchor) ? `${rawAnchor}T00:00:00.000Z` : nowISO;
+  const rawStartedAt = habit.streakStartedAt;
+  const streakStartedAt = rawStartedAt && isValidTimestamp(rawStartedAt) ? rawStartedAt : rawStartedAt && isValidDateString(rawStartedAt) ? `${rawStartedAt}T00:00:00.000Z` : streakAnchor;
   const skips = Array.isArray(habit.skips) ? Array.from(new Set(habit.skips.filter(isValidDateString))).sort() : [];
   const skipSet = new Set(skips);
   const rawCompletions = Array.isArray(habit.completions) ? Array.from(new Set(habit.completions.filter(isValidDateString))).sort() : [];
   const completions = rawCompletions.filter((d) => !skipSet.has(d));
-  const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object" && typeof e.type === "string").map((e) => ({
+  const events = Array.isArray(habit.events) ? habit.events.filter((e) => e && typeof e === "object" && typeof e.type === "string" && VALID_EVENT_TYPES.includes(e.type)).map((e) => ({
     id: e.id && typeof e.id === "string" ? e.id : generateUniqueId("event"),
     type: e.type,
     date: e.date && isValidDateString(e.date) ? e.date : e.timestamp && isValidTimestamp(e.timestamp) ? e.timestamp.split("T")[0] : nowISO.split("T")[0],
@@ -3360,12 +3367,11 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
-      const currentStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : dateStr;
-      const effectiveStart = dateStr < currentStart ? dateStr : currentStart;
-      if (!isScheduledDate(habit, dateStr, effectiveStart)) {
+      const scheduleAnchor = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : dateStr;
+      if (!isScheduledDate(habit, dateStr, scheduleAnchor, true)) {
         return;
       }
-      if (dateStr < currentStart) {
+      if (dateStr < scheduleAnchor) {
         habit.trackingStartDate = dateStr;
       }
       habit.skips = habit.skips || [];
@@ -3416,15 +3422,10 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
       if (!habit) return;
       const oldSkipsStr = (habit.skips || []).slice().sort().join(",");
       const oldCompsStr = (habit.completions || []).slice().sort().join(",");
-      const allIncomingDates = [...Array.isArray(skips) ? skips : [], ...Array.isArray(completions) ? completions : []].filter(isValidDateString).sort();
-      let effectiveStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : allIncomingDates[0] || getTodayString();
-      if (allIncomingDates.length > 0 && allIncomingDates[0] < effectiveStart) {
-        effectiveStart = allIncomingDates[0];
-        habit.trackingStartDate = effectiveStart;
-      }
-      const validSkips = Array.isArray(skips) ? Array.from(new Set(skips.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, effectiveStart)))).sort() : [];
+      const scheduleAnchor = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : getTodayString();
+      const validSkips = Array.isArray(skips) ? Array.from(new Set(skips.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, scheduleAnchor, true)))).sort() : [];
       const skipSet = new Set(validSkips);
-      const rawCompletions = Array.isArray(completions) ? Array.from(new Set(completions.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, effectiveStart)))).sort() : [];
+      const rawCompletions = Array.isArray(completions) ? Array.from(new Set(completions.filter((d) => isValidDateString(d) && isScheduledDate(habit, d, scheduleAnchor, true)))).sort() : [];
       const validCompletions = rawCompletions.filter((d) => !skipSet.has(d));
       habit.skips = validSkips;
       habit.completions = validCompletions;
@@ -3432,8 +3433,7 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
       const allRecordedDates = [...habit.completions, ...habit.skips].sort();
       if (allRecordedDates.length > 0) {
         const earliest = allRecordedDates[0];
-        const currentTrackingStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : earliest;
-        if (earliest < currentTrackingStart) {
+        if (earliest < scheduleAnchor) {
           habit.trackingStartDate = earliest;
         }
       }
@@ -3535,6 +3535,7 @@ async function handleUndoToday(app, habitId) {
   if (!habitId) return;
   try {
     const todayStr = getTodayString();
+    const ACTION_TYPES = ["done", "skip", "slip"];
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
@@ -3543,20 +3544,20 @@ async function handleUndoToday(app, habitId) {
       habit.skips = habit.skips || [];
       habit.completions = habit.completions || [];
       let removedEventType = null;
-      let lastTodayIdx = -1;
+      let lastTodayActionIdx = -1;
       for (let i = habit.events.length - 1; i >= 0; i--) {
         const ev = habit.events[i];
         const evDate = ev.date || (ev.timestamp ? ev.timestamp.split("T")[0] : "");
-        if (evDate === todayStr) {
-          lastTodayIdx = i;
+        if (evDate === todayStr && ACTION_TYPES.includes(ev.type)) {
+          lastTodayActionIdx = i;
           removedEventType = ev.type;
           break;
         }
       }
-      if (lastTodayIdx !== -1) {
-        habit.events.splice(lastTodayIdx, 1);
+      if (lastTodayActionIdx !== -1) {
+        habit.events.splice(lastTodayActionIdx, 1);
       }
-      if (removedEventType === "skip" || removedEventType === "slip" || lastTodayIdx !== -1) {
+      if (removedEventType === "skip" || removedEventType === "slip") {
         let lastTodayResetIdx = -1;
         for (let i = habit.resetLogs.length - 1; i >= 0; i--) {
           const rl = habit.resetLogs[i];
@@ -3570,18 +3571,18 @@ async function handleUndoToday(app, habitId) {
           habit.resetLogs.splice(lastTodayResetIdx, 1);
         }
       }
-      const remainingTodayEvents = habit.events.filter((e) => {
+      const remainingTodayActionEvents = habit.events.filter((e) => {
         const d = e.date || (e.timestamp ? e.timestamp.split("T")[0] : "");
-        return d === todayStr;
+        return d === todayStr && ACTION_TYPES.includes(e.type);
       });
-      if (remainingTodayEvents.length > 0) {
-        const latestRemaining = remainingTodayEvents[remainingTodayEvents.length - 1];
+      if (remainingTodayActionEvents.length > 0) {
+        const latestRemaining = remainingTodayActionEvents[remainingTodayActionEvents.length - 1];
         if (latestRemaining.type === "done") {
           habit.skips = habit.skips.filter((d) => d !== todayStr);
           if (!habit.completions.includes(todayStr)) {
             habit.completions.push(todayStr);
           }
-        } else {
+        } else if (latestRemaining.type === "skip" || latestRemaining.type === "slip") {
           habit.completions = habit.completions.filter((d) => d !== todayStr);
           if (!habit.skips.includes(todayStr)) {
             habit.skips.push(todayStr);

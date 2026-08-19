@@ -17,6 +17,7 @@ import {
   normalizeHabit, 
   normalizeState, 
   formatStateAsMarkdown,
+  isValidTimestamp,
   SETTING_DATA_NOTE_UUID 
 } from "../lib/data/store.js";
 import { handleSkipToday, handleUndoToday, handleCompleteToday, handleResetToDate } from "../lib/features/resetStreak.js";
@@ -585,5 +586,133 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     const habit = { trackingStartDate: "2026-08-01", interval: { n: 1, period: INTERVAL_PERIODS.DAY } };
     expect(isScheduledDate(habit, "invalid-date")).toBe(false);
     expect(isScheduledDate(habit, "2026-02-30")).toBe(false);
+  });
+
+  // 27. Invariant: Backdated edits preserve existing recurrence anchor
+  test("Invariant 9: Backdated off-day cannot redefine recurrence anchor; backdated scheduled day is accepted", async () => {
+    let savedState = null;
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown({
+        version: 2,
+        revision: 1,
+        habits: [
+          {
+            id: "h_weekly_anchor",
+            name: "Monday Weekly Habit",
+            type: TRACK_TYPES.COMPLETE,
+            trackingStartDate: "2026-08-17", // Monday
+            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+            skips: [],
+            completions: []
+          }
+        ]
+      })),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    // Attempting to toggle Sunday Aug 16 (backdated off-day for Monday weekly habit)
+    await handleToggleDay(app, "h_weekly_anchor", "2026-08-16", "not_applicable");
+    expect(savedState.habits[0].completions).toEqual([]);
+    expect(savedState.habits[0].trackingStartDate).toBe("2026-08-17");
+
+    // Attempting to toggle Monday Aug 10 (backdated scheduled day on Monday weekly grid)
+    await handleToggleDay(app, "h_weekly_anchor", "2026-08-10", "not_applicable");
+    expect(savedState.habits[0].completions).toEqual(["2026-08-10"]);
+    expect(savedState.habits[0].trackingStartDate).toBe("2026-08-10");
+  });
+
+  // 28. Invariant: Undo preserves audit events and only removes matching resetLogs
+  test("Invariant 10: Undo isolates action events, preserves audit events and non-action reset logs", async () => {
+    let savedState = null;
+    const todayStr = getTodayString();
+
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+      alert: jest.fn(),
+      getNoteContent: jest.fn().mockImplementation(() => {
+        return Promise.resolve(formatStateAsMarkdown(savedState || {
+          version: 2,
+          revision: 1,
+          habits: [
+            {
+              id: "h_mixed_undo",
+              name: "Mixed Undo Habit",
+              type: TRACK_TYPES.COMPLETE,
+              trackingStartDate: "2026-08-01",
+              skips: [],
+              completions: [todayStr],
+              events: [
+                { id: "ev_slip", type: "slip", date: todayStr, timestamp: "2026-08-19T10:00:00.000Z", note: "Slip at 10am" },
+                { id: "ev_audit", type: "calendar_edit", date: todayStr, timestamp: "2026-08-19T12:00:00.000Z", note: "Calendar audit" },
+                { id: "ev_done", type: "done", date: todayStr, timestamp: "2026-08-19T14:00:00.000Z", note: "Done at 2pm" }
+              ],
+              resetLogs: [
+                { id: "rl_slip", date: todayStr, timestamp: "2026-08-19T10:00:00.000Z", note: "Slip log" }
+              ]
+            }
+          ]
+        }));
+      }),
+      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+        savedState = state;
+        return Promise.resolve(true);
+      }),
+      context: { renderEmbed: jest.fn() }
+    };
+
+    // First undo: Undoes 'done' action -> 'slip' remains, so today must revert to 'skipped', resetLog for slip MUST remain!
+    await handleUndoToday(app, "h_mixed_undo");
+    expect(savedState.habits[0].events.find(e => e.id === "ev_done")).toBeUndefined();
+    expect(savedState.habits[0].events.find(e => e.id === "ev_audit")).toBeDefined(); // Audit event preserved!
+    expect(savedState.habits[0].events.find(e => e.id === "ev_slip")).toBeDefined();
+    expect(savedState.habits[0].resetLogs.length).toBe(1); // Reset log from 10am NOT destroyed by undoing 2pm done!
+    expect(savedState.habits[0].skips).toContain(todayStr);
+    expect(savedState.habits[0].completions).not.toContain(todayStr);
+
+    // Second undo: Undoes 'slip' action -> no action events remain -> resetLog is removed, clean state
+    await handleUndoToday(app, "h_mixed_undo");
+    expect(savedState.habits[0].events.find(e => e.id === "ev_slip")).toBeUndefined();
+    expect(savedState.habits[0].events.find(e => e.id === "ev_audit")).toBeDefined(); // Audit event STILL preserved!
+    expect(savedState.habits[0].resetLogs.length).toBe(0);
+    expect(savedState.habits[0].skips).not.toContain(todayStr);
+    expect(savedState.habits[0].completions).not.toContain(todayStr);
+  });
+
+  // 29. Invariant: Strict ISO 8601 validation
+  test("Invariant 11: isValidTimestamp strictly validates ISO 8601 strings", () => {
+    expect(isValidTimestamp("2026-08-19T10:00:00.000Z")).toBe(true);
+    expect(isValidTimestamp("2026-08-19T10:00:00Z")).toBe(true);
+    expect(isValidTimestamp("2026-08-19T10:00:00+05:30")).toBe(true);
+    expect(isValidTimestamp("Aug 19 2026")).toBe(false);
+    expect(isValidTimestamp("2026/08/19")).toBe(false);
+    expect(isValidTimestamp("")).toBe(false);
+    expect(isValidTimestamp(null)).toBe(false);
+  });
+
+  // 30. Invariant: Event types filtering
+  test("Invariant 12: normalizeHabit filters out unrecognized event types", () => {
+    const rawHabit = {
+      id: "h_events_test",
+      name: "Events Schema Test",
+      events: [
+        { id: "e1", type: "done", date: "2026-08-19", timestamp: "2026-08-19T10:00:00.000Z" },
+        { id: "e2", type: "corrupted_type_xyz", date: "2026-08-19", timestamp: "2026-08-19T11:00:00.000Z" },
+        { id: "e3", type: "calendar_edit", date: "2026-08-19", timestamp: "2026-08-19T12:00:00.000Z" }
+      ]
+    };
+
+    const normalized = normalizeHabit(rawHabit);
+    expect(normalized.events.length).toBe(2);
+    expect(normalized.events.map(e => e.type)).toEqual(["done", "calendar_edit"]);
   });
 });
