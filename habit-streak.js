@@ -17,20 +17,8 @@ import { handleImportFromNote } from "./lib/features/importFromNote.js";
 const plugin = {
   // App-level action: launches the Habit Streaks Dashboard (Fullscreen or Sidebar)
   appOption: {
-    "Habit Streaks Dashboard": async function(app) {
+    "Open Dashboard": async function(app) {
       await launchHabitDashboard(app);
-    }
-  },
-
-  // Note-level action to open dashboard or embed widget into any note
-  noteOption: {
-    "Habit Streaks Dashboard": async function(app) {
-      await launchHabitDashboard(app);
-    },
-    "Insert Habit Streaks Widget": async function(app, noteUUID) {
-      const pluginUUID = app.context ? app.context.pluginUUID : "";
-      const embedHtml = `<object data="plugin://${pluginUUID}" data-aspect-ratio="1" type="text/html"></object>`;
-      await app.insertNoteContent({ uuid: noteUUID }, embedHtml);
     }
   },
 

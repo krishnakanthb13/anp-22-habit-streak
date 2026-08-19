@@ -5,12 +5,12 @@
 ### LinkedIn
 Excited to share the latest release of Habit Streaks (v0.0.9) for Amplenote! 🚀
 
-This release focuses on enterprise-grade hardening, complete XSS input sanitization, and a brand new comprehensive 48-test test suite.
+This release focuses on enterprise-grade hardening, complete XSS input sanitization, and a brand new comprehensive 47-test test suite.
 
 What makes Habit Streaks unique:
 • 🛡️ Dual Tracking Model: Quitly-style continuous count-up for sobriety and breaking bad habits, paired with Amplenote-style intentional daily check-in habits.
 • 🔒 Security Hardened: Full HTML entity sanitization across all custom emojis, habit titles, and session notes, with zero external network telemetry.
-• 🧪 100% Test Coverage: 48 automated test cases verifying mathematical streak precision, leap years, milestone unlocks, and offline note UUID resolution.
+• 🧪 100% Test Coverage: 47 automated test cases verifying mathematical streak precision, leap years, milestone unlocks, and offline note UUID resolution.
 • 🎨 5 Visual Themes: Instant switching between Midnight, Frosted Glass, Pure Dark, Light Minimalist, and Cyberpunk Neon.
 • 📥 Note Importer: Instantly convert existing task lists and markdown checklists into tracked habit counters.
 
@@ -26,7 +26,7 @@ https://github.com/krishnakanthb13/amplenote_stg_plugins
 
 ✨ Dual tracking: Sobriety/Quitting (auto count-up) + Positive Habits
 🔒 Security hardened & XSS sanitized
-🧪 48/48 automated tests passed
+🧪 47/47 automated tests passed
 🎨 5 beautiful themes: Frosted Glass, Neon, Dark, Light & Midnight
 
 https://github.com/krishnakanthb13/amplenote_stg_plugins
@@ -36,7 +36,7 @@ https://github.com/krishnakanthb13/amplenote_stg_plugins
 ### Bluesky
 Habit Streaks v0.0.9 for Amplenote is out! 🚀
 
-Brings Quitly-style sobriety & abstinence count-ups + positive action habit tracking with live digital clocks, laurel milestone tiers, 7-day repetition charts, and a complete 48-test verification suite.
+Brings Quitly-style sobriety & abstinence count-ups + positive action habit tracking with live digital clocks, laurel milestone tiers, 7-day repetition charts, and a complete 47-test verification suite.
 
 https://github.com/krishnakanthb13/amplenote_stg_plugins
 
@@ -51,7 +51,7 @@ A high-fidelity habit & sobriety tracking plugin featuring:
 • Dual tracking (Auto-tracked Quitting vs Daily Check-in Practices)
 • Real-time digital clock ticker (Days : Hours : Mins : Secs)
 • Complete XSS protection & zero-telemetry security model
-• 48 automated Jest unit and regression tests (100% pass)
+• 47 automated Jest unit and regression tests (100% pass)
 • 5 themes: Midnight, Frosted Glass, Dark, Light, Neon
 
 https://github.com/krishnakanthb13/amplenote_stg_plugins
@@ -81,7 +81,7 @@ Habit Streaks supports both:
 - **📅 Interactive Monthly Calendar**: Stage multi-day edits with 1-click batch actions (*Mark Clean*, *Mark Missed*).
 - **📥 Task Import Wizard**: Scans any Amplenote note and imports tasks into habit counters.
 - **🔒 Secure & Private**: State stays 100% in your private workspace note. Zero external network tracking.
-- **🧪 48 Automated Tests**: Comprehensive test suite ensuring zero regressions.
+- **🧪 47 Automated Tests**: Comprehensive test suite ensuring zero regressions.
 
 Check out the code and installation instructions on GitHub:
 https://github.com/krishnakanthb13/amplenote_stg_plugins

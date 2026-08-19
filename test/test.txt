@@ -6,8 +6,8 @@
 | Metric              | Result                        |
 |---------------------|-------------------------------|
 | Total test suites   | 4                             |
-| Total tests         | 48                            |
-| Passed              | 48 ✅                          |
+| Total tests         | 47                            |
+| Passed              | 47 ✅                          |
 | Failed              | 0 ❌                          |
 | Skipped             | 0 ⚠️                         |
 | Confidence Score    | 10/10                         |
@@ -72,8 +72,7 @@
   - Launching in fullscreen tab vs sidebar peek viewer (`launchHabitDashboard`).
   - Importing recurring tasks from user-selected notes into streak counters (`handleImportFromNote`).
 
-### 4. `plugin.test.js` (5 tests)
-- Entry point `appOption["Habit Streaks Dashboard"]`.
-- Entry point `noteOption["Habit Streaks Dashboard"]` and `noteOption["Insert Habit Streaks Widget"]`.
+### 4. `plugin.test.js` (4 tests)
+- Entry point `appOption["Open Dashboard"]`.
 - Embed message dispatcher `onEmbedCall` (`setTheme`, `refreshData`).
 - Complete HTML embed document generation (`renderEmbed`).

@@ -30,27 +30,14 @@ function createMockApp(initialState = { version: 1, activeHabitId: "h1", habits:
 }
 
 describe("habit-streak plugin entry point", () => {
-  test("exposes appOption with Habit Streaks Dashboard", async () => {
+  test("exposes appOption with Open Dashboard", async () => {
     expect(plugin.appOption).toBeDefined();
-    expect(typeof plugin.appOption["Habit Streaks Dashboard"]).toBe("function");
+    expect(typeof plugin.appOption["Open Dashboard"]).toBe("function");
 
     const app = createMockApp();
     app.prompt.mockResolvedValue(["fullscreen"]);
-    await plugin.appOption["Habit Streaks Dashboard"](app);
+    await plugin.appOption["Open Dashboard"](app);
     expect(app.openEmbed).toHaveBeenCalled();
-  });
-
-  test("exposes noteOption with Dashboard launcher and Widget embedder", async () => {
-    expect(plugin.noteOption).toBeDefined();
-    expect(typeof plugin.noteOption["Habit Streaks Dashboard"]).toBe("function");
-    expect(typeof plugin.noteOption["Insert Habit Streaks Widget"]).toBe("function");
-
-    const app = createMockApp();
-    await plugin.noteOption["Insert Habit Streaks Widget"](app, "note-uuid-999");
-    expect(app.insertNoteContent).toHaveBeenCalledWith(
-      { uuid: "note-uuid-999" },
-      expect.stringContaining('<object data="plugin://plugin-uuid-test"')
-    );
   });
 
   test("onEmbedCall dispatches setTheme action", async () => {

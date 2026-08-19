@@ -22,7 +22,7 @@ Repository: [amplenote_stg_plugins/anp-22-habit-streak](https://github.com/krish
 
 3. **Insert Code Block**: Below the table, insert a Javascript code block (```` ```javascript ````).
 4. **Paste Compiled Code**: Copy the bundle from [`habit-streak.compiled.js`](https://github.com/krishnakanthb13/amplenote_stg_plugins/blob/main/anp-22-habit-streak/build/habit-streak.compiled.js) and paste it inside the code block.
-5. **Open Dashboard**: Run the app option (`Habit Streaks Dashboard`) or insert the widget into any note.
+5. **Open Dashboard**: Run the app option (`Open Dashboard`).
 
 ---
 

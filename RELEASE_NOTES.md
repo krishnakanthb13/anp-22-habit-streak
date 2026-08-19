@@ -12,8 +12,8 @@
   - [`streakEngine.test.js`](./test/streakEngine.test.js) (15 tests)
   - [`store.test.js`](./test/store.test.js) (9 tests)
   - [`features.test.js`](./test/features.test.js) (19 tests)
-  - [`plugin.test.js`](./test/plugin.test.js) (5 tests)
-- **48/48 Passing Tests**: Validated regression resistance for offline note creation, UUID resolution, start date backfilling, dual tracking mathematics, and batch calendar mutations.
+  - [`plugin.test.js`](./test/plugin.test.js) (4 tests)
+- **47/47 Passing Tests**: Validated regression resistance for offline note creation, UUID resolution, start date backfilling, dual tracking mathematics, and batch calendar mutations.
 
 ### 📦 Distribution Bundle Verification
 - **Compiled & Verified IIFE Bundle**: Built production bundle [`habit-streak.compiled.js`](./build/habit-streak.compiled.js) (136.5 KB) with clean syntax, zero module leaks, and full Amplenote expression compatibility.
