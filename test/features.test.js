@@ -206,7 +206,7 @@ describe("features — Day Toggling & Reset Handling", () => {
     expect(lastSavedMarkdown).toContain("Read chapters 4 and 5");
   });
 
-  test("handleUndoToday clears today's status", async () => {
+  test("handleUndoToday removes today's latest action event and restores status", async () => {
     const today = new Date().toISOString().split("T")[0];
     const initialState = {
       version: 1,
@@ -216,7 +216,10 @@ describe("features — Day Toggling & Reset Handling", () => {
         name: "Read 20 mins",
         type: TRACK_TYPES.COMPLETE,
         completions: [today],
-        skips: []
+        skips: [],
+        events: [
+          { id: "e1", type: "done", date: today, timestamp: `${today}T10:00:00Z` }
+        ]
       }]
     };
     const app = createMockApp(initialState);
@@ -225,6 +228,60 @@ describe("features — Day Toggling & Reset Handling", () => {
 
     const lastSavedMarkdown = app.replaceNoteContent.mock.calls[0][1];
     expect(lastSavedMarkdown).toContain('"completions": []');
+  });
+
+  test("handleUndoToday does not clear calendar-only state if no check-in action event exists", async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const initialState = {
+      version: 1,
+      activeHabitId: "h1",
+      habits: [{
+        id: "h1",
+        name: "Read 20 mins",
+        type: TRACK_TYPES.COMPLETE,
+        completions: [today],
+        skips: [],
+        events: [] // No action events (calendar-only edit)
+      }]
+    };
+    const app = createMockApp(initialState);
+
+    await handleUndoToday(app, "h1");
+
+    expect(app.alert).toHaveBeenCalledWith("No check-in action event found for today to undo.");
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
+  });
+
+  test("handleCompleteToday and handleSkipToday reject off-schedule tracking days", async () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    // Create an anchor 1 day ahead/offset such that today is not scheduled (every 7 days)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    const initialState = {
+      version: 1,
+      activeHabitId: "h1",
+      habits: [{
+        id: "h1",
+        name: "Weekly Review",
+        type: TRACK_TYPES.COMPLETE,
+        trackingStartDate: yesterdayStr,
+        interval: { n: 1, period: "week" }, // scheduled on yesterday's weekday, not today!
+        completions: [],
+        skips: []
+      }]
+    };
+    const app = createMockApp(initialState);
+
+    await handleCompleteToday(app, "h1");
+    expect(app.alert).toHaveBeenCalledWith(expect.stringContaining("not a scheduled tracking day"));
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
+
+    await handleSkipToday(app, "h1");
+    expect(app.alert).toHaveBeenCalledWith(expect.stringContaining("not a scheduled tracking day"));
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
 
   test("handleResetToDate marks date range as skipped", async () => {

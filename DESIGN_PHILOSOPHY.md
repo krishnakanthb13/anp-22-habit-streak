@@ -23,6 +23,7 @@ A core lesson in distributed and local-first application design is maintaining a
 - **Validate Against the Existing Anchor First**: The system never allows input data to alter the reference frame used for its own validation. In recurrence calculations, backdated calendar entries are strictly tested against the established schedule grid before any start-date extension is permitted.
 - **Mutual Exclusivity by Invariant**: A calendar day cannot logically be both completed and skipped. The normalization layer enforces $\text{skips} \cap \text{completions} = \emptyset$ as an invariant, eliminating contradictory persisted state.
 - **Strict Date & Timestamp Hygiene**: All calendar operations operate strictly on real calendar dates (`isValidDateString`), and timestamps are strictly validated against ISO 8601 formatting to prevent silent date drift.
+- **Historical Continuity & User Consent**: Changing a habit's recurrence interval or tracking philosophy changes what past data mathematically means. The system treats settings changes as active migrations and requires explicit user acknowledgment before recalculating historical records.
 
 ---
 
@@ -30,7 +31,7 @@ A core lesson in distributed and local-first application design is maintaining a
 
 Recurrence schedules (Daily, Every N Days, Weekly, Monthly) introduce non-scheduled "off-days":
 - **Neutrality**: Non-scheduled calendar days are classified as `not_applicable`. They never penalize streak momentum, never contribute false missed days, and cannot be transformed into tracked days by accidental clicks.
-- **UI Guardrails**: Off-days are visually dimmed and non-interactive in edit mode to prevent user confusion and maintain clean persisted datasets.
+- **UI Guardrails**: Off-days are visually badged (`☕ Off-Schedule / Rest Day`), with daily action buttons suppressed and calendar cells disabled to prevent phantom check-in records.
 
 ---
 
@@ -43,13 +44,14 @@ User workflows require a clear distinction between daily behavioral check-ins an
 
 ---
 
-## 5. Zero-Lag Responsive Embed UI
+## 5. Zero-Lag Responsive Embed UI & Distributed Safety
 
 Amplenote plugins run within sandboxed iframes. Frequent asynchronous host roundtrips degrade the tactile satisfaction of habit tracking.
 
 - **Instantaneous Client State**: Tab switching, month traversal, theme switching, and view transitions occur entirely in-memory with 0ms delay.
 - **Serialized Mutation Queue**: Persistence across Amplenote notes is strictly serialized through an in-memory promise queue, preventing concurrency race conditions during rapid user check-ins.
-- **Corruption Resilience**: The storage layer strictly refuses to overwrite existing malformed data notes with empty defaults, safeguarding user data against network or format anomalies.
+- **Refusal Over Silent Corruption**: If note content is corrupted or unparseable, the plugin explicitly halts writes rather than silently wiping data with clean defaults. Failing loudly and safely is always superior to losing user records.
+- **Multi-Device Revision Optimism**: Every write asserts expected note revisions to detect concurrent edits from multiple devices or tabs, preventing silent lost updates.
 
 ---
 

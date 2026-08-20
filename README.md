@@ -97,9 +97,23 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 | `Habit_Streak_Data_UUID [Do not Edit!]` | UUID of the authoritative `habit_streak_data` note tagged `-reports/-habit-streak`. | Auto-populated on initial load |
 
 * **Zero Data Loss**: All streak history, reflection notes, and custom settings are stored in JSON format inside the authoritative data note.
-* **Corruption Protection**: The storage layer refuses to overwrite corrupt or malformed notes with empty defaults.
+* **Corruption Protection**: The storage layer detects corrupted notes with `loadStateWithStatus` and strictly blocks all mutators and writes (`mutateState` / `saveState`) from overwriting damaged data with empty defaults.
+* **Optimistic Concurrency & Revision Control**: Every state write verifies `expectedRevision` against the persisted note to prevent multi-device and multi-runtime lost updates.
+* **Cadence & History Safeguards**: Changing the recurrence interval or tracking philosophy on active habits requires explicit user confirmation to prevent accidental recalculation of past historical streaks.
+* **Off-Schedule Day Immunity**: Non-scheduled days are guarded server-side and visually designated (`☕ Off-Schedule / Rest Day`) to prevent phantom check-in records.
 * **Mutation Serialization**: Concurrent mutations are serialized in an in-memory execution queue.
 * **Device Portability**: Synchronizes automatically across all your devices using standard Amplenote note syncing.
+
+---
+
+## 🧪 Testing & Verification
+
+The plugin includes an extensive Jest test suite (100% passing across 95 tests):
+* `test/streakEngine.test.js`: Core math, recurrence interval bridging, leap-year calculations, and defensive guards.
+* `test/store.test.js`: Schema normalization, corruption protection, strict ISO timestamp validation, and concurrency checks.
+* `test/features.test.js`: Habit lifecycle, off-schedule rejection, action event undoing, and note import.
+* `test/ds_scenarios.test.js`: End-to-end design spec scenarios (1–18) and formal recurrence invariants (1–13).
+* `test/plugin.test.js`: Amplenote lifecycle hooks and action dispatching.
 
 ---
 
@@ -107,17 +121,17 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 
 - [`habit-streak.js`](./habit-streak.js): Plugin entry point, embed handlers, and theme action routers.
 - [`lib/constants.js`](./lib/constants.js): Core constants, 11 milestone tiers, categorized templates, allowed themes, and valid event types.
-- [`lib/data/store.js`](./lib/data/store.js): Authoritative JSON data note persistence, mutation serialization queue, strict ISO timestamp validation, and schema normalization.
+- [`lib/data/store.js`](./lib/data/store.js): Authoritative JSON data note persistence, corruption guard, optimistic revision concurrency, mutation queue, and schema normalization.
 - [`lib/engine/streakEngine.js`](./lib/engine/streakEngine.js): Mathematical calculations for continuous streaks, schedule-first status ordering, recurrence grids, and live digital tickers.
 - [`lib/features/`](./lib/features/):
   - `createHabit.js`: Custom habit creation and 1-click template instantiation.
   - `importFromNote.js`: Note scanner with task normalization and interactive setup wizard.
-  - `editHabit.js`: Edit existing counter settings.
+  - `editHabit.js`: Edit existing counter settings with historical recalculation warnings.
   - `resetStreak.js`: Reset handlers with reflection notes, isolated reset logs, and multi-action state reconstruction undo.
   - `toggleDay.js`: Direct calendar day toggle engine with invariant-first anchor validation.
   - `habitManagement.js`: Counter deletion and active tab selection.
   - `launcher.js`: Embed opener and sidebar dispatcher.
-- [`lib/ui/dashboardTemplate.js`](./lib/ui/dashboardTemplate.js): Responsive single-page client-side embedded application.
+- [`lib/ui/dashboardTemplate.js`](./lib/ui/dashboardTemplate.js): Responsive single-page client-side embedded application with off-schedule badges and immutable creation dates.
 
 ---
 

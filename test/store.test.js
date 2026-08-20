@@ -9,6 +9,7 @@ import {
   mutateState,
   normalizeHabit,
   normalizeState,
+  isValidTimestamp,
   SETTING_DATA_NOTE_UUID 
 } from "../lib/data/store.js";
 import { DATA_NOTE_NAME, DATA_NOTE_TAGS, DEFAULT_STATE } from "../lib/constants.js";
@@ -223,5 +224,76 @@ describe("store module — Data Integrity, Concurrency & UUID Verification", () 
     await expect(saveStateOrThrow(app, { version: 2, habits: [] })).rejects.toThrow(
       "Failed to persist Habit Streak state to note."
     );
+  });
+
+  test("mutateState refuses to execute mutator or write when persisted note is corrupt", async () => {
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "note-uuid-1234" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "note-uuid-1234" }),
+      getNoteContent: jest.fn().mockResolvedValue("Corrupted non-json user text that fails parsing"),
+      replaceNoteContent: jest.fn().mockResolvedValue(true)
+    };
+
+    const mutatorFn = jest.fn();
+    await expect(mutateState(app, mutatorFn)).rejects.toThrow(
+      "Cannot mutate state: Habit Streak data note is corrupt or unparseable. Refusing to overwrite."
+    );
+    expect(mutatorFn).not.toHaveBeenCalled();
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
+  });
+
+  test("isValidTimestamp strictly rejects impossible calendar dates and malformed strings", () => {
+    expect(isValidTimestamp("2026-08-20T14:30:00.000Z")).toBe(true);
+    expect(isValidTimestamp("2026-02-28T12:00:00Z")).toBe(true);
+    expect(isValidTimestamp("2024-02-29T12:00:00Z")).toBe(true); // Leap year valid
+    expect(isValidTimestamp("2026-02-29T12:00:00Z")).toBe(false); // 2026 is not a leap year
+    expect(isValidTimestamp("2026-02-31T12:00:00Z")).toBe(false); // Impossible date
+    expect(isValidTimestamp("2026-04-31T12:00:00Z")).toBe(false); // April has 30 days
+    expect(isValidTimestamp("2026-13-01T12:00:00Z")).toBe(false); // Month 13 invalid
+    expect(isValidTimestamp("2026-08-20T25:00:00Z")).toBe(false); // Hour 25 invalid
+    expect(isValidTimestamp("not-a-date")).toBe(false);
+    expect(isValidTimestamp(null)).toBe(false);
+  });
+
+  test("normalizeState deduplicates duplicate habit IDs", () => {
+    const raw = {
+      version: 2,
+      habits: [
+        { id: "duplicate_id", name: "Habit 1" },
+        { id: "duplicate_id", name: "Habit 2" }
+      ]
+    };
+
+    const state = normalizeState(raw);
+    expect(state.habits.length).toBe(2);
+    expect(state.habits[0].id).toBe("duplicate_id");
+    expect(state.habits[1].id).not.toBe("duplicate_id");
+    expect(state.habits[1].id).toMatch(/^habit_/);
+  });
+
+  test("saveState detects optimistic concurrency revision conflict and returns false", async () => {
+    const persistedStateOnDisk = {
+      version: 2,
+      revision: 10,
+      habits: []
+    };
+
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "note-uuid-1234" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "note-uuid-1234" }),
+      getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown(persistedStateOnDisk)),
+      replaceNoteContent: jest.fn().mockResolvedValue(true)
+    };
+
+    const localStaleState = {
+      version: 2,
+      revision: 8,
+      habits: []
+    };
+
+    // Attempt to save state expecting base revision 8 when disk is at 10
+    const result = await saveState(app, localStaleState, 8);
+    expect(result).toBe(false);
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
 });

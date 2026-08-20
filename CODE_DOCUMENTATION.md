@@ -61,15 +61,17 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 
 ### `lib/data/store.js`
 - **`mutationQueue`**: In-process serialized execution promise queue ensuring all `load -> mutate -> save` transactions execute sequentially without race conditions.
-- **`isValidTimestamp(ts)`**: Validates strict ISO 8601 strings (`/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/` and `!isNaN(Date)`).
+- **`isValidTimestamp(ts)`**: Validates strict ISO 8601 strings, extracting date components and running strict calendar validation (`isValidDateString`) along with 24-hour time range checks (rejecting rollover dates like `2026-02-31T12:00:00Z`).
 - **`normalizeHabit(habit)`**:
   - Enforces mutually exclusive sets: $\text{skips} \cap \text{completions} = \emptyset$ (with `skips` taking precedence).
   - Normalizes `createdAt` and `streakAnchor` from `YYYY-MM-DD` to full ISO timestamps (`${d}T00:00:00.000Z`).
   - Constrains `colorTheme` to `COLOR_THEMES` and `type` to `TRACK_TYPES`.
-  - Filters `events` to only recognized `VALID_EVENT_TYPES`.
-- **`normalizeState(state)`**: Validates `version: 2`, integer `revision`, and constrains `theme` to `VALID_THEMES`.
-- **`loadState(app)`**: UUID resolution with settings cache, tag/name fallback search, automatic UUID recovery, and **malformed data protection** (refuses to overwrite corrupted notes).
-- **`saveStateOrThrow(app, state)`**: Writes formatted JSON note markdown block with revision counter incrementation.
+  - Filters `events` to recognized `VALID_EVENT_TYPES` and bounds history to 500 entries (reset logs bounded to 100 entries).
+- **`normalizeState(state)`**: Validates `version: 2`, integer `revision`, constrains `theme` to `VALID_THEMES`, and deduplicates identical habit IDs.
+- **`loadStateWithStatus(app)`**: Resolves UUID, reads note content, and returns `{ state, status: "ok"|"empty"|"corrupt", rawContent }`.
+- **`loadState(app)`**: Loads current state with corruption protection (marks `state._isCorrupt = true` when JSON extraction fails).
+- **`saveState(app, state, expectedRevision)`**: Verifies against `expectedRevision` before overwriting the note, preventing lost updates from concurrent runtimes/devices, and refuses to write if state is marked corrupt.
+- **`mutateState(app, mutator)`**: Serialized transaction queue that blocks execution and refuses to overwrite if `status === "corrupt"`.
 
 ---
 
@@ -87,11 +89,11 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
     4. Explicit skips (`dateStr ∈ skips`) $\implies$ `skipped`
     5. Explicit completions (`dateStr ∈ completions`) $\implies$ `completed`
     6. Default philosophy fallback: `complete` habits $\implies$ `skipped`; `skip` habits $\implies$ `completed`.
-- **`calculateHabitStats(habit, todayStr)`**: Computes current streak, longest record, completion rate, and verified sub-second anchor timestamp.
+- **`calculateHabitStats(habit, todayStr)`**: Computes current streak, longest record, completion rate, and verified sub-second anchor timestamp. Uniformly defensive against `null`/`undefined` habits.
 - **`calculateTierProgress(currentStreak)`**: Computes active laurel tier, milestone percentage, and days remaining.
-- **`calculateWeeklyFrequency(habit, todayStr)`**: Calculates 7-day repetition counts for frequency bar charts.
+- **`calculateWeeklyFrequency(habit, todayStr)`**: Calculates 7-day repetition counts for frequency bar charts (defensive against `null` habits).
 - **`calculateAllHabitsSummary(habits, todayStr)`**: Aggregates dashboard-level statistics.
-- **`generateMonthCalendar(habit, year, month, todayStr)`**: Builds calendar grid days with off-day classification.
+- **`generateMonthCalendar(habit, year, month, todayStr)`**: Builds calendar grid days with off-day classification and parameter bounds validation.
 
 ---
 
@@ -112,15 +114,12 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
   - **`extractTaskEmojiAndTitle(text, defaultEmoji)`**: Scans for leading Unicode pictographic/presentation emojis, auto-populating the emoji selector and assigning the remaining clean string as the habit title.
   - **Batch Limit Notification**: Displays `Showing first 25 of N` if note contains $> 25$ tasks.
   - **Baseline Consistency**: Initializes positive habits with `completions: []` (0-day streak until check-in), matching `createHabit.js`.
-- **`editHabit.js`**: Edits counter metadata with schedule and input validation.
+- **`editHabit.js`**: Edits counter metadata. Prompts for explicit user confirmation if cadence or tracking philosophy is altered on habits with existing history to prevent accidental historical streak recalculation.
 - **`resetStreak.js`**:
-  - `handleSkipToday`: Logs slip with optional reflection note and updates reset logs.
-  - `handleCompleteToday`: Records positive completion event.
+  - `handleSkipToday`: Enforces `isScheduledDate` check, logs slip with optional reflection note, and updates reset logs.
+  - `handleCompleteToday`: Enforces `isScheduledDate` check, records positive completion event.
   - `handleResetToDate`: Backdates relapse, applying skips **only** to scheduled dates in the range.
-  - `handleUndoToday`:
-    - Filters specifically for check-in action events (`done`, `skip`, `slip`), preserving audit events (`calendar_edit`).
-    - Reconstructs today's date state from remaining check-in events.
-    - Removes `resetLog` only if the undone event was a slip/skip.
+  - `handleUndoToday`: Verifies an action event (`done`, `skip`, `slip`) exists today before modifying state; preserves calendar-only edits.
 - **`toggleDay.js`**:
   - `handleToggleDay`: **Invariant-First Anchor Validation** — validates against existing `scheduleAnchor` before mutating `trackingStartDate`. Rejects toggling off-days.
   - `handleSaveCalendarEdits`: Filters out non-scheduled dates, ensures mutual exclusivity, logs audit events only when changes occurred, and extends `trackingStartDate` only after validation passes.
@@ -132,7 +131,8 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 ### `lib/ui/dashboardTemplate.js`
 - Full single-page client-side embedded application.
 - **Responsive Theme Engine**: 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`).
-- **Calendar Dot Matrix**: Visual off-day isolation (`off-day` class), disabling clicks on `not_applicable` days during edit mode.
+- **Off-Schedule Rest Day Display**: Renders `☕ Off-Schedule / Rest Day` badge and suppresses active check-in buttons when `statusToday === "not_applicable"`.
+- **Calendar Save Invariant**: Updates `trackingStartDate` rather than mutating immutable `createdAt`.
 - **Audit Timeline**: Dedicated ✏️ *Calendar History Edited* badge distinguishing administrative audit events from slips.
 - **Live Digital Ticker**: Sub-second ticking counter (`[Days] [Hours] [Mins] [Secs]`).
 - **Keyboard Navigation**: <kbd>←</kbd> / <kbd>→</kbd> for months, <kbd>Esc</kbd> / <kbd>Backspace</kbd> for navigation.
@@ -191,9 +191,9 @@ The persistent JSON stored in `habit_streak_data` conforms to the following sche
 
 ---
 
-## 4. Invariant Test Matrix (84 Unit Tests)
+## 4. Invariant Test Matrix (95 Unit Tests across 5 Suites)
 
-The test suite in [`test/ds_scenarios.test.js`](./test/ds_scenarios.test.js) verifies 18 design-spec scenarios and 13 core behavioral invariants:
+The test suite in [`test/`](./test/) verifies complete behavioral integrity:
 1. **Off-Day Isolation**: Non-scheduled days cannot be transformed into scheduled days by skips or completions.
 2. **Range Reset Filtering**: `handleResetToDate` skips only scheduled days within the range.
 3. **Mutual Exclusivity**: $\text{skips} \cap \text{completions} = \emptyset$ at the normalization boundary.
@@ -204,6 +204,8 @@ The test suite in [`test/ds_scenarios.test.js`](./test/ds_scenarios.test.js) ver
 8. **Defensive Scheduling Fallback**: `isScheduledDate` returns `false` on any invalid/NaN input.
 9. **Schedule Anchor Preservation**: Backdated off-days cannot redefine the recurrence anchor; backdated scheduled occurrences safely extend `trackingStartDate`.
 10. **Action Undo vs Audit Isolation**: Undoing check-in actions preserves `calendar_edit` audit records and only removes matching `resetLog` records.
-11. **Strict ISO 8601 Validation**: `isValidTimestamp` strictly validates ISO 8601 formatting and parseability.
-12. **Event Schema Filtering**: `normalizeHabit` drops unrecognized event types.
+11. **Strict ISO 8601 Validation**: `isValidTimestamp` strictly validates ISO 8601 formatting, parseability, and calendar ranges.
+12. **Event Schema Filtering**: `normalizeHabit` drops unrecognized event types and limits history bounds.
 13. **Calendar-Edit vs Undo Contract**: "Undo Today" operates specifically on daily check-in actions while preserving the full calendar audit history.
+14. **Corruption Protection**: `mutateState` blocks all writes when data note content fails JSON parsing.
+15. **Optimistic Concurrency**: `saveState` detects and rejects writes when persisted note revision > expected revision.

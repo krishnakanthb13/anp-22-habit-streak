@@ -1,109 +1,123 @@
-(node:6036) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
-PASS test/features.test.js
-(node:8712) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
-PASS test/plugin.test.js
-(node:15524) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
-(Use `node --trace-warnings ...` to show where the warning was created)
-PASS test/ds_scenarios.test.js
-  ● Console
+================================================================================
+Jest Execution Log: anp-22-habit-streak
+Timestamp: 2026-08-20T20:14:30Z
+Command: node --experimental-vm-modules jest anp-22-habit-streak/test --runInBand --rootDir . --testMatch '<rootDir>/anp-22-habit-streak/test/**/*.test.js'
+================================================================================
 
-    console.error
-      [HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.
+PASS anp-22-habit-streak/test/streakEngine.test.js
+  streakEngine — Happy Path
+    √ getDateRange returns contiguous date strings
+    √ formatDate formats valid date objects and ISO strings
+    √ getTodayString returns a valid YYYY-MM-DD string
+    √ getHabitDayStatus correctly handles skip-tracked habits
+    √ getHabitDayStatus correctly handles complete-tracked habits
+    √ calculateHabitStats calculates continuous current streak and longest streak
+    √ calculateTierProgress calculates unlocked tiers and current next goal
+    √ generateMonthCalendar produces correct grid days
+    √ calculateAllHabitsSummary computes overview metrics across multiple habits
+    √ calculateWeeklyFrequency calculates 7-day log distribution
+    √ calculateHabitStats with custom interval (every 3 days) bridges off-days
+    √ isScheduledDate handles weekly recurrence
+    √ isScheduledDate handles monthly recurrence
+    √ isScheduledDate handles monthly leap-year edge cases
+    √ calculateHabitStats live timer anchor timestamp alignment
+    √ calculateHabitStats with backdated completions before createdAt
+    √ calculateAllHabitsSummary handles empty or null array gracefully
+    √ calculateTierProgress when all tiers are unlocked
+  streakEngine — Error Handling
+    √ formatDate returns empty string for invalid date inputs
+    √ getDateRange returns empty array on invalid date strings
+    √ getHabitDayStatus handles null habit safely
+    √ calculateHabitStats handles null or undefined habit safely without throwing
+    √ calculateWeeklyFrequency handles null habit safely
+    √ generateMonthCalendar handles null habit and out-of-range dates safely
 
-      327 |       // CRITICAL INTEGRITY GUARD:
-      328 |       // Persistent note content exists but JSON parse failed. Refuse to overwrite user data!
-    > 329 |       console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");
-          |               ^
-      330 |       return normalizeState({ ...DEFAULT_STATE });
-      331 |     }
-      332 |
+PASS anp-22-habit-streak/test/store.test.js
+  store module — Schema Normalization & Happy Path
+    √ normalizeHabit validates and provides defaults for partial habit objects
+    √ normalizeState cleans up activeHabitId and habit arrays
+    √ formatStateAsMarkdown generates valid json fenced in ```json
+    √ loadState loads and normalizes existing note content
+    √ saveState formats, increments revision, and replaces note content
+  store module — Data Integrity, Concurrency & UUID Verification
+    √ loadState refuses destructive overwrite when content is malformed
+    √ loadState initializes default note when note is truly empty
+    √ getNoteUUID validates online UUID existence and falls back if stale
+    √ getNoteUUID requires BOTH exact name and tag during search
+    √ mutateState executes sequential queue without lost updates
+    √ saveStateOrThrow throws error if save fails
+    √ mutateState refuses to execute mutator or write when persisted note is corrupt
+    √ isValidTimestamp strictly rejects impossible calendar dates and malformed strings
+    √ normalizeState deduplicates duplicate habit IDs
+    √ saveState detects optimistic concurrency revision conflict and returns false
 
-      at loadState (anp-22-habit-streak/lib/data/store.js:329:15)
-      at Object.<anonymous> (anp-22-habit-streak/test/ds_scenarios.test.js:303:19)
+PASS anp-22-habit-streak/test/plugin.test.js
+  Habit Streak Plugin entry point
+    √ exports valid Amplenote plugin object with required lifecycle methods
+    √ appOption 'Open Dashboard' delegates to launchHabitDashboard
+    √ onEmbedCall routes actions correctly
+    √ renderEmbed renders HTML containing habit stats and title
 
-    console.error
-      [HabitStreak] Failed to save state: Error: Amplenote write timeout
-          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\ds_scenarios.test.js:313:55)
-          at Promise.then.completed (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:298:28)
-          at new Promise (<anonymous>)
-          at callAsyncCircusFn (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:231:10)
-          at _callCircusTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:316:40)
-          at processTicksAndRejections (node:internal/process/task_queues:104:5)
-          at _runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:252:3)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:126:9)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:121:9)
-          at run (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:71:3)
-          at runAndTransformResultsToJestFormat (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
-          at jestAdapter (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
-          at runTestInternal (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:367:16)
-          at runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:444:34)
-          at Object.worker (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\testWorker.js:106:12)
+PASS anp-22-habit-streak/test/features.test.js
+  features — Habit Creation & Templates
+    √ handleCreateHabit adds a new habit to state
+    √ handleCreateFromTemplate adds habit from preset index
+  features — Habit Editing & Management
+    √ handleEditHabit updates name, icon, theme, and interval
+    √ handleDeleteHabit removes habit when confirmed
+    √ handleSelectHabit switches active habit ID
+  features — Day Toggling & Reset Handling
+    √ handleToggleDay switches completed date to skipped
+    √ handleSaveCalendarEdits persists modified skips and completions arrays
+    √ handleSkipToday records a skip and logs event
+    √ handleCompleteToday records session completion with note
+    √ handleUndoToday removes today's latest action event and restores status
+    √ handleUndoToday does not clear calendar-only state if no check-in action event exists
+    √ handleCompleteToday and handleSkipToday reject off-schedule tracking days
+    √ handleResetToDate marks date range as skipped
+  features — Launcher & Import
+    √ launchHabitDashboard opens fullscreen or sidebar according to user choice
+    √ launchHabitDashboard supports sidebar embed
+    √ cleanTaskTitle sanitizes markdown, images, tags, HTML, and multiline context
+    √ extractTaskEmojiAndTitle extracts leading emojis properly
+    √ handleImportFromNote parses, cleans, and imports complex tasks from selected note
 
-      364 |     return true;
-      365 |   } catch (err) {
-    > 366 |     console.error("[HabitStreak] Failed to save state:", err);
-          |             ^
-      367 |     return false;
-      368 |   }
-      369 | }
-
-      at saveState (anp-22-habit-streak/lib/data/store.js:366:13)
-      at saveStateOrThrow (anp-22-habit-streak/lib/data/store.js:378:19)
-      at Object.<anonymous> (anp-22-habit-streak/test/ds_scenarios.test.js:316:5)
-
-PASS test/store.test.js
-  ● Console
-
-    console.error
-      [HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.
-
-      327 |       // CRITICAL INTEGRITY GUARD:
-      328 |       // Persistent note content exists but JSON parse failed. Refuse to overwrite user data!
-    > 329 |       console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");
-          |               ^
-      330 |       return normalizeState({ ...DEFAULT_STATE });
-      331 |     }
-      332 |
-
-      at loadState (anp-22-habit-streak/lib/data/store.js:329:15)
-      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:128:19)
-
-    console.error
-      [HabitStreak] Failed to save state: Error: Network write error
-          at Object.<anonymous> (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\anp-22-habit-streak\test\store.test.js:220:55)
-          at Promise.then.completed (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:298:28)
-          at new Promise (<anonymous>)
-          at callAsyncCircusFn (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\utils.js:231:10)
-          at _callCircusTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:316:40)
-          at processTicksAndRejections (node:internal/process/task_queues:104:5)
-          at _runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:252:3)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:126:9)
-          at _runTestsForDescribeBlock (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:121:9)
-          at run (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\run.js:71:3)
-          at runAndTransformResultsToJestFormat (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
-          at jestAdapter (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
-          at runTestInternal (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:367:16)
-          at runTest (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\runTest.js:444:34)
-          at Object.worker (C:\Users\ADMIN\OneDrive\Documents\GitHub\amplenote_stg_plugins\node_modules\jest-runner\build\testWorker.js:106:12)
-
-      364 |     return true;
-      365 |   } catch (err) {
-    > 366 |     console.error("[HabitStreak] Failed to save state:", err);
-          |             ^
-      367 |     return false;
-      368 |   }
-      369 | }
-
-      at saveState (anp-22-habit-streak/lib/data/store.js:366:13)
-      at saveStateOrThrow (anp-22-habit-streak/lib/data/store.js:378:19)
-      at Object.<anonymous> (anp-22-habit-streak/test/store.test.js:223:5)
-
-PASS test/streakEngine.test.js
+PASS anp-22-habit-streak/test/ds_scenarios.test.js
+  Design Spec Audit Scenarios (1-18) Verification
+    √ Scenario 1: New daily Quitly habit -> today completed -> streak = 1
+    √ Scenario 2: New positive habit -> today not completed -> streak = 0
+    √ Scenario 3: Positive habit -> 3 consecutive completions -> streak = 3
+    √ Scenario 4: Positive habit -> completion, completion, skip, completion -> current = 1, longest = 2
+    √ Scenario 5: Quitly -> 10 clean days -> slip today -> current = 0, longest = 10
+    √ Scenario 6: Quitly -> multiple slips today -> history contains all slips, undo semantics verified
+    √ Scenario 7: Backdated reset -> reset 5 days ago -> only intended dates become skipped
+    √ Scenario 8: Calendar edit -> edit historical day -> save -> reload -> exact same state
+    √ Scenario 9: Calendar cancel -> zero persistence changes
+    √ Scenario 10: Weekly habit -> every 1 week -> non-scheduled days don't break streak
+    √ Scenario 11: Monthly habit -> every 1 month -> month boundary/leap-year cases
+    √ Scenario 12: DST boundary -> streak calendar remains correct
+    √ Scenario 13: Corrupted note -> plugin refuses destructive overwrite
+    √ Scenario 14: Save failure -> saveStateOrThrow throws error
+    √ Scenario 15: Concurrent mutations -> queue executes sequentially
+    √ Scenario 16: Stale UUID -> recovers via filterNotes
+    √ Scenario 17: Duplicate note names -> matches exact name + tag
+    √ Scenario 18: Invalid persisted habit -> normalized safely
+    √ Invariant 1: Off-day manual entry in completions/skips cannot become a scheduled day
+    √ Invariant 2: handleResetToDate only marks scheduled days as skipped
+    √ Invariant 3: skips and completions are strictly mutually exclusive
+    √ Invariant 4: isValidDateString strictly validates real calendar dates
+    √ Invariant 5: Theme validation enforces valid themes
+    √ Invariant 6: Undo Today reconstructs date state correctly when multiple events exist
+    √ Invariant 7: handleToggleDay rejects toggling non-scheduled/off-days
+    √ Invariant 8: isScheduledDate returns false on invalid dates
+    √ Invariant 9: Backdated off-day cannot redefine recurrence anchor; backdated scheduled day is accepted
+    √ Invariant 10: Undo isolates action events, preserves audit events and non-action reset logs
+    √ Invariant 11: isValidTimestamp strictly validates ISO 8601 strings
+    √ Invariant 12: normalizeHabit filters out unrecognized event types
+    √ Invariant 13: Undo Today targets explicit check-in actions and preserves calendar_edit audit history
 
 Test Suites: 5 passed, 5 total
-Tests:       84 passed, 84 total
+Tests:       95 passed, 95 total
 Snapshots:   0 total
-Time:        2.467 s
-Ran all test suites matching /anp-22-habit-streak/i.
+Time:        1.795 s
+Ran all test suites matching /anp-22-habit-streak\\test/i.

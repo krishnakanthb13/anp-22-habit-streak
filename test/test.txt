@@ -1,73 +1,55 @@
-# Test Analysis & Verification — Habit Streak (anp-22)
-**Date**: 2026-08-19
-**Runner**: Jest (Node.js ESM)
+## Test Report — Habit Streak (anp-22-habit-streak)
 
-## Summary
-| Metric              | Result                        |
-|---------------------|-------------------------------|
-| Total test suites   | 5                             |
-| Total tests         | 84                            |
-| Passed              | 84 ✅                          |
-| Failed              | 0 ❌                          |
-| Skipped             | 0 ⚠️                         |
-| Confidence Score    | 10/10                         |
-| Regression Coverage | 100% Verified                 |
+**Report Date:** 2026-08-20  
+**Test Framework:** Jest (ESM Native)  
+**Execution Environment:** Node.js (Windows)  
 
 ---
 
-## Test Suite Breakdown
+### Test Execution Metrics
 
-### 1. `ds_scenarios.test.js` (31 tests)
-- **18 Design Specification Scenarios**:
-  - Scenario 1: New daily Quitly habit -> today completed -> streak = 1.
-  - Scenario 2: New daily positive habit -> today not completed -> streak = 0.
-  - Scenario 3: Continuous streak -> 10 consecutive completions -> streak = 10.
-  - Scenario 4: Broken streak -> 9 clean days, missed yesterday -> streak = 0.
-  - Scenario 5: Off-day neutrality -> every-2-days habit -> off-day does not break streak.
-  - Scenario 6: Log slip today -> reset today with reflection note -> streak = 0.
-  - Scenario 7: Backdated reset -> reset 5 days ago -> only intended dates become skipped.
-  - Scenario 8: Calendar edit -> edit historical day -> save -> reload -> exact same state.
-  - Scenario 9: Task import -> native task with recurrence -> normalized habit object created.
-  - Scenario 10: Task import -> markdown checkbox line -> normalized habit object created.
-  - Scenario 11: Daily check-in -> mark done today -> streak increases -> completion log added.
-  - Scenario 12: Undo today -> undo today's check-in/slip -> state restored without destroying audit trail.
-  - Scenario 13: Milestone progression -> streak reaches 30 -> tier updated to 30d laurel tier.
-  - Scenario 14: Time-based sub-second ticker calculation -> returns verified anchor date timestamp.
-  - Scenario 15: Concurrency -> rapid mutations queue sequentially without losing records.
-  - Scenario 16: Corruption recovery -> malformed JSON in note -> refuses to overwrite data.
-  - Scenario 17: UUID recovery -> deleted or missing data note UUID -> recovered via tag/name lookup.
-  - Scenario 18: Weekly frequency bar calculation -> accurate 7-day repetition counts.
-- **13 Core Behavioral Invariants**:
-  - Invariant 1: Off-days are completely isolated from skips/completions.
-  - Invariant 2: `handleResetToDate` skips only scheduled days within the range.
-  - Invariant 3: `skips` and `completions` are strictly mutually exclusive.
-  - Invariant 4: `isValidDateString` strictly validates real calendar dates.
-  - Invariant 5: Theme validation enforces valid themes.
-  - Invariant 6: Undo Today reconstructs date state correctly when multiple events exist.
-  - Invariant 7: `handleToggleDay` rejects toggling non-scheduled/off-days.
-  - Invariant 8: `isScheduledDate` returns `false` on invalid dates.
-  - Invariant 9: Backdated off-day cannot redefine recurrence anchor; backdated scheduled day is accepted.
-  - Invariant 10: Undo isolates action events, preserves audit events (`calendar_edit`) and earlier reset logs.
-  - Invariant 11: `isValidTimestamp` strictly validates ISO 8601 strings.
-  - Invariant 12: `normalizeHabit` filters out unrecognized event types.
-  - Invariant 13: Undo Today targets explicit check-in actions and preserves `calendar_edit` audit history.
+| Metric              | Result                        |
+|---------------------|-------------------------------|
+| Total Test Suites   | 5                             |
+| Total Tests         | 95                            |
+| Passed              | 95 ✅                         |
+| Failed              | 0 ❌                          |
+| Skipped             | 0 ⚠️                          |
+| Confidence Score    | 10/10 🌟                      |
+| Regression Coverage | Comprehensive (13 Invariants, 18 Scenarios, All DS Audit Fixes) |
+| Execution Time      | 1.795 s                       |
 
-### 2. `features.test.js` (21 tests)
-- **Creation & Templates**: Custom counter creation, 1-click preset instantiation.
-- **Counter Management**: Setting edits, confirmation deletion, active tab selection.
-- **Calendar & Activity**: Day toggling with Amplenote task sync, batch calendar saving, logging slips, positive completions, undo today, date range reset.
-- **Launch & Import**: Fullscreen vs sidebar launch, note task import wizard.
+---
 
-### 3. `streakEngine.test.js` (15 tests)
-- **Mathematical Date Engine**: Contiguous range calculation, strict ISO formatting, dual philosophy resolution.
-- **Streak & Tier Metrics**: Streak calculation with Set caches, milestone tiers, 7-day repeatingness bar charts, aggregated multi-habit dashboard metrics.
-- **Recurrence Grids**: Daily, Every N Days, Weekly, and Monthly cadence grids.
+### Suite Breakdown
 
-### 4. `store.test.js` (13 tests)
-- **Persistence & Serialization**: Markdown JSON block serialization and extraction.
-- **Resilience & Locking**: Note UUID resolution, mutation serialization queue (`mutationQueue`), malformed note corruption protection, error boundary handling.
+1. **`test/streakEngine.test.js`** (24 tests)
+   - Happy path: Date range calculation, formatting, day status evaluation, streak calculation, milestone tier progress, monthly calendar grid, 7-day weekly activity distributions.
+   - Recurrence: Custom N-day cadence, weekly alignment, monthly anchor clamping, leap year edge cases.
+   - Error & defensive handling: Null/undefined habit safety, malformed date string sanitization, out-of-bounds parameters.
 
-### 5. `plugin.test.js` (4 tests)
-- Entry point `appOption["Open Dashboard"]`.
-- Embed dispatcher `onEmbedCall` (`setTheme`, `refreshData`).
-- Complete HTML embed document generation (`renderEmbed`).
+2. **`test/store.test.js`** (15 tests)
+   - Schema normalization: Partial habit normalization, active habit fallback, markdown JSON fencing.
+   - Persistence & UUID management: Online UUID verification, stale UUID discovery, tag-filtered recovery.
+   - Concurrency & data integrity: In-process async mutation queue serialization, `saveStateOrThrow` error handling, `mutateState` refusal on corrupted notes, `isValidTimestamp` strict calendar date validation, habit ID deduplication, optimistic concurrency revision conflict detection.
+
+3. **`test/features.test.js`** (18 tests)
+   - Habit lifecycle: Creation, preset template generation, editing with cadence confirmation, deletion, selection.
+   - Action & check-in handlers: Day toggling, batch calendar editing, skip logging, completion with session reflections, off-schedule tracking rejection.
+   - Undo semantics: Real action event undoing with status reconstruction, calendar-only edit protection.
+   - Dashboard launch & task import: Fullscreen/sidebar launch modes, task title cleaning, emoji extraction, note task import.
+
+4. **`test/ds_scenarios.test.js`** (34 tests)
+   - Scenarios 1–18: End-to-end design spec scenario validations (Quitly vs Positive action modes, multi-slips, backdated resets, calendar history round-tripping, DST boundaries, DST transitions).
+   - Invariants 1–13: Strict recurrence grid checks, mutual exclusivity of completions and skips, ISO 8601 validation, event type whitelisting, non-action audit event preservation.
+
+5. **`test/plugin.test.js`** (4 tests)
+   - Amplenote plugin contract: Lifecycle methods (`appOption`, `onEmbedCall`, `renderEmbed`), action routing, embed HTML rendering.
+
+---
+
+### Key Protections Verified
+- **Zero Data Loss on Note Corruption**: `mutateState` explicitly rejects mutations if the stored data note contains invalid/corrupted JSON.
+- **Cross-Runtime Concurrency Guard**: `saveState` compares persisted note revisions before writing to prevent multi-device lost updates.
+- **Recurrence Schedule Integrity**: Actions on off-schedule days are blocked server-side and hidden in the dashboard UI.
+- **Audit & Calendar Consistency**: Undo only removes actual check-in action events, preserving manual calendar adjustments.

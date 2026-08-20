@@ -318,4 +318,38 @@ describe("streakEngine — Error Handling", () => {
     expect(getHabitDayStatus(null, "2026-08-01", "2026-08-05")).toBe("before_start");
     expect(getHabitDayStatus(null, "2026-08-05", "2026-08-05")).toBe("completed");
   });
+
+  test("calculateHabitStats handles null or undefined habit safely without throwing", () => {
+    expect(calculateHabitStats(null)).toEqual({
+      currentStreak: 0,
+      longestStreak: 0,
+      totalTrackedDays: 0,
+      totalScheduledDays: 0,
+      completedDays: 0,
+      skippedDays: 0,
+      completionRate: 0,
+      streakStartDate: null,
+      streakAnchorTimestamp: null,
+      statusToday: "not_applicable"
+    });
+    expect(calculateHabitStats(undefined)).toBeDefined();
+  });
+
+  test("calculateWeeklyFrequency handles null habit safely", () => {
+    const result = calculateWeeklyFrequency(null);
+    expect(result.weekCounts).toEqual([]);
+    expect(result.totalWeekLogs).toBe(0);
+    expect(result.completedDaysInWeek).toBe(0);
+  });
+
+  test("generateMonthCalendar handles null habit and out-of-range dates safely", () => {
+    const calNull = generateMonthCalendar(null, 2026, 8);
+    expect(calNull.year).toBe(2026);
+    expect(calNull.month).toBe(8);
+    expect(calNull.days).toEqual([]);
+
+    const calInvalid = generateMonthCalendar(null, 99999, 99);
+    expect(calInvalid.year).toBe(new Date().getFullYear());
+    expect(calInvalid.month).toBe(new Date().getMonth() + 1);
+  });
 });
