@@ -37,13 +37,14 @@ Tap the **`+`** button in the top header or navigate to **Templates**. You have 
 ### 2. Step-by-Step Note Import Wizard
 When importing tasks from your existing Amplenote notes:
 1. **Select Source Note**: A dialog appears to select the note containing your tasks or checklist items.
-2. **Select Tasks**: Check the tasks you want to track from the discovered list (supports both native tasks and `- [ ]` markdown checkboxes).
-3. **Configure Each Habit**: For each selected task, an interactive setup wizard opens pre-filled with the task's title:
+2. **Select Tasks**: Check the tasks you want to track from the discovered list (supports both native tasks and `- [ ]` markdown checkboxes; automatically sanitizes images, links, formatting, and multi-line notes).
+3. **Configure Each Habit**: For each selected task, an interactive setup wizard opens pre-filled with the task's cleaned title:
+   * **Smart Emoji Detection**: Automatically extracts leading emojis (e.g. `🏃 5km Run` -> emoji `🏃`, title `5km Run`).
    * **Tracking Philosophy**: Choose whether this is a **`✨ Positive Habit`** (done when checked in) or a **`🛡️ Bad Habit / Abstinence`** (auto-done unless skipped).
-   * **Emoji Icon**: Assign any emoji (🏃, 📚, 🧘, 🔥, 🍷, etc.).
+   * **Emoji Icon**: Assign or keep the detected emoji (🏃, 📚, 🧘, 🔥, 🍷, etc.).
    * **Color Theme**: Choose from 8 vibrant gradients (Emerald, Sky Blue, Indigo, Teal, Purple, Amber, Rose, Bronze).
    * **Recurrence Cadence**: Set schedule (*Every 1 Day*, *Every 2 Days*, *Every 1 Week*, *Every 1 Month*).
-4. **Immediate Activation**: The newly imported habit opens directly on your dashboard.
+4. **Immediate Activation**: The newly imported habit opens directly on your dashboard with a clean 0-day baseline.
 
 ### 3. Understanding the Dual Tracking Philosophies
 * **🛡️ Bad Habits & Sobriety (Quitly Style)**:

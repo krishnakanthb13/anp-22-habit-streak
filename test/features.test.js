@@ -5,7 +5,7 @@ import { handleDeleteHabit, handleSelectHabit } from "../lib/features/habitManag
 import { handleToggleDay, handleSaveCalendarEdits } from "../lib/features/toggleDay.js";
 import { handleSkipToday, handleCompleteToday, handleUndoToday, handleResetToDate } from "../lib/features/resetStreak.js";
 import { launchHabitDashboard } from "../lib/features/launcher.js";
-import { handleImportFromNote } from "../lib/features/importFromNote.js";
+import { handleImportFromNote, cleanTaskTitle, extractTaskEmojiAndTitle } from "../lib/features/importFromNote.js";
 import { formatStateAsMarkdown, SETTING_DATA_NOTE_UUID } from "../lib/data/store.js";
 import { TRACK_TYPES } from "../lib/constants.js";
 
@@ -272,14 +272,36 @@ describe("features — Launcher & Import", () => {
     expect(app.openSidebarEmbed).toHaveBeenCalledWith(1);
   });
 
-  test("handleImportFromNote parses and imports tasks from selected note", async () => {
+  test("cleanTaskTitle sanitizes markdown, images, tags, HTML, and multiline context", () => {
+    expect(cleanTaskTitle("![preview](https://img.png) Read [Atomic Habits](https://amzn.to) **daily** #habits #reading"))
+      .toBe("Read Atomic Habits daily");
+
+    expect(cleanTaskTitle("- [ ] 🧘 Meditation (15m)\nSubtext context notes here"))
+      .toBe("🧘 Meditation (15m)");
+
+    expect(cleanTaskTitle("<span>Drink 2L Water</span> [[Health Note]] `tracking`"))
+      .toBe("Drink 2L Water Health Note tracking");
+  });
+
+  test("extractTaskEmojiAndTitle extracts leading emojis properly", () => {
+    expect(extractTaskEmojiAndTitle("🏃 Morning 5km Jog", "📝"))
+      .toEqual({ emoji: "🏃", title: "Morning 5km Jog" });
+
+    expect(extractTaskEmojiAndTitle("🔥 No Smoking", "📝"))
+      .toEqual({ emoji: "🔥", title: "No Smoking" });
+
+    expect(extractTaskEmojiAndTitle("Read 30 mins", "📝"))
+      .toEqual({ emoji: "📝", title: "Read 30 mins" });
+  });
+
+  test("handleImportFromNote parses, cleans, and imports complex tasks from selected note", async () => {
     const app = createMockApp();
     app.prompt
       .mockResolvedValueOnce({ uuid: "source-note-uuid" }) // Note picker
       .mockResolvedValueOnce([true]) // Task check list
       .mockResolvedValueOnce(["🏃", "Morning Jog", TRACK_TYPES.COMPLETE, "emerald", "1", "day"]); // Config dialog
 
-    app.getNoteTasks.mockResolvedValue([{ content: "Morning Jog" }]);
+    app.getNoteTasks.mockResolvedValue([{ content: "🏃 [Morning Jog](https://strava.com) **daily** #fitness\nContext note" }]);
 
     await handleImportFromNote(app);
 
@@ -289,3 +311,4 @@ describe("features — Launcher & Import", () => {
     expect(app.alert).toHaveBeenCalledWith(expect.stringContaining("Successfully imported"));
   });
 });
+

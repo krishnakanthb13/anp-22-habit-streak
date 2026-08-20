@@ -97,7 +97,21 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 
 ### `lib/features/`
 - **`createHabit.js`**: Instantiates new custom counters and 1-click templates with initial `completions: []` for positive habits (streak = 0 until check-in).
-- **`importFromNote.js`**: Multi-step note scanner extracting native Amplenote tasks and `- [ ]` markdown checkboxes into an interactive setup wizard.
+- **`importFromNote.js`**: Multi-step note scanner extracting native Amplenote tasks and `- [ ]` markdown checkboxes into an interactive setup wizard:
+  - **Task Discovery & Fallback**: Attempts `app.getNoteTasks({ uuid }, { includeDone: true })`, falling back to line-by-line regex scanning (`/^\s*[-*]?\s*\[\s*[xX]?\s*\]\s*(.+)/`) if `getNoteTasks` is unavailable.
+  - **`cleanTaskTitle(raw)` Pipeline**:
+    1. *Multi-line Normalization*: Extracts the primary first line (`raw.split(/\r?\n/)[0].trim()`), omitting indented subtasks and context notes.
+    2. *Checkbox Marker Stripping*: Strips `- [ ]`, `* [x]`, etc.
+    3. *Image Embed Removal*: Strips markdown image tags `![alt](url)` and reference images `![alt][ref]`.
+    4. *Markdown Link Unwrapping*: Converts `[Link Text](url)` to clean display label `Link Text`.
+    5. *Wiki-link Conversion*: Converts transclusions/note links `[[Note Title]]` to `Note Title`.
+    6. *HTML Tag Stripping*: Removes raw HTML tags `<tag>...</tag>`.
+    7. *Format Marker Removal*: Strips `**bold**`, `*italic*`, `~~strikethrough~~`, and `` `code` `` wrappers.
+    8. *Hashtag Cleaning*: Strips trailing filtering hashtags (e.g., `#habit`, `#daily`).
+    9. *Whitespace Normalization*: Collapses multiple whitespace to single spaces.
+  - **`extractTaskEmojiAndTitle(text, defaultEmoji)`**: Scans for leading Unicode pictographic/presentation emojis, auto-populating the emoji selector and assigning the remaining clean string as the habit title.
+  - **Batch Limit Notification**: Displays `Showing first 25 of N` if note contains $> 25$ tasks.
+  - **Baseline Consistency**: Initializes positive habits with `completions: []` (0-day streak until check-in), matching `createHabit.js`.
 - **`editHabit.js`**: Edits counter metadata with schedule and input validation.
 - **`resetStreak.js`**:
   - `handleSkipToday`: Logs slip with optional reflection note and updates reset logs.

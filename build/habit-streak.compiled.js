@@ -3797,10 +3797,47 @@ async function handleSelectHabit(app, habitId) {
 }
 
 // anp-22-habit-streak/lib/features/importFromNote.js
+function cleanTaskTitle(raw) {
+  if (!raw) return "";
+  let text = String(raw).trim();
+  if (text.includes("\n")) {
+    text = text.split(/\r?\n/)[0].trim();
+  }
+  text = text.replace(/^[-*]?\s*\[\s*[xX]?\s*\]\s*/, "");
+  text = text.replace(/!\[.*?\](?:\(.*?\)|\[.*?\])/g, "");
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  text = text.replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, "$1");
+  text = text.replace(/<[^>]+>/g, "");
+  text = text.replace(/(\*\*|__)(.*?)\1/g, "$2");
+  text = text.replace(/(\*|_)(.*?)\1/g, "$2");
+  text = text.replace(/~~(.*?)~~/g, "$1");
+  text = text.replace(/`([^`]+)`/g, "$1");
+  text = text.replace(/\s+#[\w/-]+/g, "");
+  text = text.replace(/\s+/g, " ").trim();
+  return text;
+}
+function extractTaskEmojiAndTitle(text, defaultEmoji = "\u{1F4DD}") {
+  if (!text) return { emoji: defaultEmoji, title: "" };
+  const emojiRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u2600-\u27BF])\s*/u;
+  const match = text.match(emojiRegex);
+  if (match) {
+    const emoji = match[1];
+    const title = text.slice(match[0].length).trim();
+    return {
+      emoji,
+      title: title || text
+    };
+  }
+  return {
+    emoji: defaultEmoji,
+    title: text
+  };
+}
 function getTaskDisplayText(taskObj, fallback = "Task") {
   if (!taskObj) return fallback;
   const raw = taskObj.content || taskObj.name || taskObj.text || fallback;
-  return String(raw).trim() || fallback;
+  const cleaned = cleanTaskTitle(raw);
+  return cleaned || fallback;
 }
 async function handleImportFromNote(app) {
   try {
@@ -3859,19 +3896,22 @@ async function handleImportFromNote(app) {
       await app.alert("No tasks found in the selected note.");
       return;
     }
-    const taskInputs = tasks.slice(0, 25).map((t, idx) => ({
+    const taskLimit = 25;
+    const taskSlice = tasks.slice(0, taskLimit);
+    const taskInputs = taskSlice.map((t, idx) => ({
       type: "checkbox",
       label: `${idx + 1}. ${getTaskDisplayText(t, "Task")}`,
       value: true
     }));
-    const confirmResult = await app.prompt("Select Tasks to Track as Habits", {
+    const promptTitle = tasks.length > taskLimit ? `Select Tasks to Track (Showing first ${taskLimit} of ${tasks.length})` : "Select Tasks to Track as Habits";
+    const confirmResult = await app.prompt(promptTitle, {
       inputs: taskInputs
     });
     if (confirmResult === null || confirmResult === void 0) {
       return;
     }
     const isCheckedArray = Array.isArray(confirmResult) ? confirmResult : [confirmResult];
-    const selectedTasks = tasks.filter((_, idx) => isCheckedArray[idx]);
+    const selectedTasks = taskSlice.filter((_, idx) => isCheckedArray[idx]);
     if (selectedTasks.length === 0) {
       return;
     }
@@ -3881,20 +3921,22 @@ async function handleImportFromNote(app) {
     const newHabits = [];
     for (let i = 0; i < selectedTasks.length; i++) {
       const taskObj = selectedTasks[i];
-      const taskText = getTaskDisplayText(taskObj, `Task ${i + 1}`);
+      const rawText = taskObj.content || taskObj.name || taskObj.text || "";
+      const cleaned = cleanTaskTitle(rawText) || `Task ${i + 1}`;
+      const { emoji: detectedEmoji, title: defaultTitle } = extractTaskEmojiAndTitle(cleaned, "\u{1F4DD}");
       const defaultTheme = colorThemes[i % colorThemes.length];
       const titlePrefix = selectedTasks.length > 1 ? `(${i + 1}/${selectedTasks.length}) ` : "";
-      const configResult = await app.prompt(`Configure Habit: ${titlePrefix}${taskText.slice(0, 28)}`, {
+      const configResult = await app.prompt(`Configure Habit: ${titlePrefix}${defaultTitle.slice(0, 28)}`, {
         inputs: [
           {
             type: "string",
             label: "Emoji Icon (\u{1F525}, \u{1F3C3}, \u{1F4DA}, \u{1F9D8}, \u{1F377}...)",
-            value: "\u{1F4DD}"
+            value: detectedEmoji
           },
           {
             type: "string",
             label: "Habit / Counter Name",
-            value: taskText
+            value: defaultTitle
           },
           {
             type: "select",
@@ -3942,8 +3984,8 @@ async function handleImportFromNote(app) {
       }
       const configArray = Array.isArray(configResult) ? configResult : [configResult];
       const [iconVal, nameVal, typeVal, themeVal, periodNVal, periodUnitVal] = configArray;
-      const finalName = nameVal && String(nameVal).trim() ? String(nameVal).trim() : taskText;
-      const finalIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F4DD}";
+      const finalName = nameVal && String(nameVal).trim() ? String(nameVal).trim() : defaultTitle;
+      const finalIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : detectedEmoji;
       const finalType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.COMPLETE;
       const finalTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : defaultTheme;
       const parsedN = parseInt(periodNVal, 10);
@@ -3965,7 +4007,7 @@ async function handleImportFromNote(app) {
         streakAnchor: nowISO,
         streakStartedAt: nowISO,
         skips: [],
-        completions: finalType === TRACK_TYPES.COMPLETE ? [todayStr] : [],
+        completions: [],
         events: [],
         resetLogs: []
       };
