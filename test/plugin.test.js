@@ -65,4 +65,13 @@ describe("habit-streak plugin entry point", () => {
     expect(html).toContain("<title>Habit Streaks</title>");
     expect(html).toContain("Habit Streaks");
   });
+
+  test("renderEmbed returns error banner when state is corrupt", async () => {
+    const app = createMockApp();
+    app.getNoteContent = jest.fn().mockResolvedValue("Corrupted markdown content without JSON");
+
+    const html = await plugin.renderEmbed(app);
+    expect(html).toContain("Habit Streak Data Error");
+    expect(html).toContain("Habit Streaks — Data Error");
+  });
 });

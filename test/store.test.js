@@ -296,4 +296,46 @@ describe("store module — Data Integrity, Concurrency & UUID Verification", () 
     expect(result).toBe(false);
     expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
+
+  test("extractJsonFromMarkdown prioritizes ```json code block over arbitrary code block", () => {
+    const markdown = `# Note Title
+\`\`\`bash
+echo "do not parse me"
+\`\`\`
+
+\`\`\`json
+{
+  "version": 2,
+  "habits": [{"id": "h1", "name": "Target Habit"}]
+}
+\`\`\`
+`;
+    const parsed = extractJsonFromMarkdown(markdown);
+    expect(parsed).not.toBeNull();
+    expect(parsed.habits[0].name).toBe("Target Habit");
+  });
+
+  test("loadStateWithStatus returns error status and corrupt flag on fatal read failure", async () => {
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "note-uuid-1234" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "note-uuid-1234" }),
+      getNoteContent: jest.fn().mockRejectedValue(new Error("Amplenote network error"))
+    };
+
+    const { state, status } = await loadState(app).then(() => ({})).catch(() => ({}));
+    const fullResult = await import("../lib/data/store.js").then(m => m.loadStateWithStatus(app));
+    expect(fullResult.status).toBe("error");
+    expect(fullResult.state._isCorrupt).toBe(true);
+    expect(fullResult.state._loadError).toBe(true);
+  });
+
+  test("getNoteUUID works defensively when app.settings is undefined", async () => {
+    const app = {
+      settings: undefined,
+      filterNotes: jest.fn().mockResolvedValue([{ uuid: "found-uuid", name: DATA_NOTE_NAME, tags: DATA_NOTE_TAGS }])
+    };
+
+    const uuid = await getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID);
+    expect(uuid).toBe("found-uuid");
+  });
 });

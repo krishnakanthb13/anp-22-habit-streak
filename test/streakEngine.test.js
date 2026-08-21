@@ -352,4 +352,22 @@ describe("streakEngine — Error Handling", () => {
     expect(calInvalid.year).toBe(new Date().getFullYear());
     expect(calInvalid.month).toBe(new Date().getMonth() + 1);
   });
+
+  test("isScheduledDate and getDateRange correctly handle DST transitions with UTC accuracy", () => {
+    // US Spring forward (March 8, 2026) and Fall back (November 1, 2026)
+    const springRange = getDateRange("2026-03-07", "2026-03-10");
+    expect(springRange).toEqual(["2026-03-07", "2026-03-08", "2026-03-09", "2026-03-10"]);
+
+    const habitEvery2Days = {
+      trackingStartDate: "2026-03-07",
+      interval: { n: 2, period: "day" }
+    };
+    expect(isScheduledDate(habitEvery2Days, "2026-03-07")).toBe(true);
+    expect(isScheduledDate(habitEvery2Days, "2026-03-08")).toBe(false);
+    expect(isScheduledDate(habitEvery2Days, "2026-03-09")).toBe(true);
+    expect(isScheduledDate(habitEvery2Days, "2026-03-10")).toBe(false);
+
+    const fallRange = getDateRange("2026-10-31", "2026-11-03");
+    expect(fallRange).toEqual(["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"]);
+  });
 });

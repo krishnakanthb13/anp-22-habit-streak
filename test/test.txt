@@ -1,6 +1,6 @@
 ## Test Report — Habit Streak (anp-22-habit-streak)
 
-**Report Date:** 2026-08-20  
+**Report Date:** 2026-08-21  
 **Test Framework:** Jest (ESM Native)  
 **Execution Environment:** Node.js (Windows)  
 
@@ -11,45 +11,46 @@
 | Metric              | Result                        |
 |---------------------|-------------------------------|
 | Total Test Suites   | 5                             |
-| Total Tests         | 95                            |
-| Passed              | 95 ✅                         |
+| Total Tests         | 101                           |
+| Passed              | 101 ✅                        |
 | Failed              | 0 ❌                          |
 | Skipped             | 0 ⚠️                          |
 | Confidence Score    | 10/10 🌟                      |
 | Regression Coverage | Comprehensive (13 Invariants, 18 Scenarios, All DS Audit Fixes) |
-| Execution Time      | 1.795 s                       |
+| Execution Time      | 2.577 s                       |
 
 ---
 
 ### Suite Breakdown
 
-1. **`test/streakEngine.test.js`** (24 tests)
+1. **`test/streakEngine.test.js`** (28 tests)
    - Happy path: Date range calculation, formatting, day status evaluation, streak calculation, milestone tier progress, monthly calendar grid, 7-day weekly activity distributions.
-   - Recurrence: Custom N-day cadence, weekly alignment, monthly anchor clamping, leap year edge cases.
+   - Recurrence & DST: Custom N-day cadence, weekly alignment, monthly anchor clamping, leap year edge cases, UTC midnight date arithmetic across US/EU daylight saving transitions.
    - Error & defensive handling: Null/undefined habit safety, malformed date string sanitization, out-of-bounds parameters.
 
-2. **`test/store.test.js`** (15 tests)
-   - Schema normalization: Partial habit normalization, active habit fallback, markdown JSON fencing.
-   - Persistence & UUID management: Online UUID verification, stale UUID discovery, tag-filtered recovery.
-   - Concurrency & data integrity: In-process async mutation queue serialization, `saveStateOrThrow` error handling, `mutateState` refusal on corrupted notes, `isValidTimestamp` strict calendar date validation, habit ID deduplication, optimistic concurrency revision conflict detection.
+2. **`test/store.test.js`** (18 tests)
+   - Schema normalization: Partial habit normalization, active habit fallback, markdown JSON fencing with priority code block matching.
+   - Persistence & UUID management: Online UUID verification, stale UUID discovery, tag-filtered recovery, defensive handling when `app.settings` is undefined.
+   - Concurrency & data integrity: In-process async mutation queue serialization, `saveStateOrThrow` error handling, `mutateState` refusal on corrupted or unreadable notes, `isValidTimestamp` strict calendar date validation, habit ID deduplication, optimistic concurrency revision conflict detection, status `"error"` reporting on load failures.
 
-3. **`test/features.test.js`** (18 tests)
-   - Habit lifecycle: Creation, preset template generation, editing with cadence confirmation, deletion, selection.
-   - Action & check-in handlers: Day toggling, batch calendar editing, skip logging, completion with session reflections, off-schedule tracking rejection.
-   - Undo semantics: Real action event undoing with status reconstruction, calendar-only edit protection.
-   - Dashboard launch & task import: Fullscreen/sidebar launch modes, task title cleaning, emoji extraction, note task import.
+3. **`test/features.test.js`** (19 tests)
+   - Habit lifecycle: Creation, preset template generation (safe integer index bounds checking), editing with cadence confirmation, deletion, selection.
+   - Action & check-in handlers: Day toggling, batch calendar editing, skip logging (duplicate reset log prevention), completion with session reflections, off-schedule tracking rejection.
+   - Undo semantics: Real action event undoing with status reconstruction and streak anchor restoration, calendar-only edit protection.
+   - Dashboard launch & task import: Fullscreen/sidebar launch modes, task title cleaning, Unicode `\p{Extended_Pictographic}` emoji extraction, note task import.
 
-4. **`test/ds_scenarios.test.js`** (34 tests)
+4. **`test/ds_scenarios.test.js`** (31 tests)
    - Scenarios 1–18: End-to-end design spec scenario validations (Quitly vs Positive action modes, multi-slips, backdated resets, calendar history round-tripping, DST boundaries, DST transitions).
    - Invariants 1–13: Strict recurrence grid checks, mutual exclusivity of completions and skips, ISO 8601 validation, event type whitelisting, non-action audit event preservation.
 
-5. **`test/plugin.test.js`** (4 tests)
-   - Amplenote plugin contract: Lifecycle methods (`appOption`, `onEmbedCall`, `renderEmbed`), action routing, embed HTML rendering.
+5. **`test/plugin.test.js`** (5 tests)
+   - Amplenote plugin contract: Lifecycle methods (`appOption`, `onEmbedCall`, `renderEmbed`), action routing, embed HTML rendering, and corrupt note error banner display.
 
 ---
 
 ### Key Protections Verified
-- **Zero Data Loss on Note Corruption**: `mutateState` explicitly rejects mutations if the stored data note contains invalid/corrupted JSON.
+- **Zero Data Loss on Note Corruption**: `mutateState` explicitly rejects mutations if the stored data note contains invalid/corrupted JSON or fails to load.
 - **Cross-Runtime Concurrency Guard**: `saveState` compares persisted note revisions before writing to prevent multi-device lost updates.
 - **Recurrence Schedule Integrity**: Actions on off-schedule days are blocked server-side and hidden in the dashboard UI.
-- **Audit & Calendar Consistency**: Undo only removes actual check-in action events, preserving manual calendar adjustments.
+- **Audit & Calendar Consistency**: Undo only removes actual check-in action events, restoring previous streak anchors while preserving manual calendar adjustments.
+- **DST & Timezone Invariant**: UTC midnight conversions eliminate off-by-one errors during seasonal clock changes.

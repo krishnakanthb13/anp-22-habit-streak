@@ -54,12 +54,21 @@ describe("features — Habit Creation & Templates", () => {
   test("handleCreateFromTemplate adds habit from preset index", async () => {
     const app = createMockApp();
 
-    await handleCreateFromTemplate(app, 0); // First preset (Quitly sober)
+    await handleCreateFromTemplate(app, "0"); // String index from embed
 
     expect(app.replaceNoteContent).toHaveBeenCalled();
     const lastSavedMarkdown = app.replaceNoteContent.mock.calls[0][1];
     expect(lastSavedMarkdown).toContain("I am Sober");
     expect(app.context.renderEmbed).toHaveBeenCalled();
+  });
+
+  test("handleCreateFromTemplate safely ignores invalid template index", async () => {
+    const app = createMockApp();
+    await handleCreateFromTemplate(app, "invalid_index");
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
+
+    await handleCreateFromTemplate(app, 999);
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
 });
 

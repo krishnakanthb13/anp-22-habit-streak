@@ -1,6 +1,6 @@
 ================================================================================
 Jest Execution Log: anp-22-habit-streak
-Timestamp: 2026-08-20T20:14:30Z
+Timestamp: 2026-08-21T10:19:00Z
 Command: node --experimental-vm-modules jest anp-22-habit-streak/test --runInBand --rootDir . --testMatch '<rootDir>/anp-22-habit-streak/test/**/*.test.js'
 ================================================================================
 
@@ -14,13 +14,18 @@ PASS anp-22-habit-streak/test/streakEngine.test.js
     √ calculateHabitStats calculates continuous current streak and longest streak
     √ calculateTierProgress calculates unlocked tiers and current next goal
     √ generateMonthCalendar produces correct grid days
-    √ calculateAllHabitsSummary computes overview metrics across multiple habits
-    √ calculateWeeklyFrequency calculates 7-day log distribution
-    √ calculateHabitStats with custom interval (every 3 days) bridges off-days
-    √ isScheduledDate handles weekly recurrence
-    √ isScheduledDate handles monthly recurrence
-    √ isScheduledDate handles monthly leap-year edge cases
-    √ calculateHabitStats live timer anchor timestamp alignment
+    √ calculateAllHabitsSummary aggregates metrics across multiple habits
+    √ calculateWeeklyFrequency calculates 7-day logs distribution and completed count
+  streakEngine — Recurrence Scheduling (isScheduledDate)
+    √ daily interval: every 2 days
+    √ weekly interval: every 1 week
+    √ weekly habit streak: off-days bridge scheduled completions without breaking streak
+    √ monthly interval: every 1 month on day 15
+  streakEngine — Edge Cases & Live Anchors
+    √ getDateRange returns empty array if start > end
+    √ getDateRange returns single day if start === end
+    √ calculateHabitStats handles habits with zero tracked days
+    √ calculateHabitStats preserves exact streakStartedAt ISO timestamp
     √ calculateHabitStats with backdated completions before createdAt
     √ calculateAllHabitsSummary handles empty or null array gracefully
     √ calculateTierProgress when all tiers are unlocked
@@ -31,6 +36,7 @@ PASS anp-22-habit-streak/test/streakEngine.test.js
     √ calculateHabitStats handles null or undefined habit safely without throwing
     √ calculateWeeklyFrequency handles null habit safely
     √ generateMonthCalendar handles null habit and out-of-range dates safely
+    √ isScheduledDate and getDateRange correctly handle DST transitions with UTC accuracy
 
 PASS anp-22-habit-streak/test/store.test.js
   store module — Schema Normalization & Happy Path
@@ -50,18 +56,23 @@ PASS anp-22-habit-streak/test/store.test.js
     √ isValidTimestamp strictly rejects impossible calendar dates and malformed strings
     √ normalizeState deduplicates duplicate habit IDs
     √ saveState detects optimistic concurrency revision conflict and returns false
+    √ extractJsonFromMarkdown prioritizes ```json code block over arbitrary code block
+    √ loadStateWithStatus returns error status and corrupt flag on fatal read failure
+    √ getNoteUUID works defensively when app.settings is undefined
 
 PASS anp-22-habit-streak/test/plugin.test.js
-  Habit Streak Plugin entry point
-    √ exports valid Amplenote plugin object with required lifecycle methods
-    √ appOption 'Open Dashboard' delegates to launchHabitDashboard
-    √ onEmbedCall routes actions correctly
-    √ renderEmbed renders HTML containing habit stats and title
+  habit-streak plugin entry point
+    √ exposes appOption with Open Dashboard
+    √ onEmbedCall dispatches setTheme action
+    √ onEmbedCall dispatches refreshData action
+    √ renderEmbed returns valid HTML document
+    √ renderEmbed returns error banner when state is corrupt
 
 PASS anp-22-habit-streak/test/features.test.js
   features — Habit Creation & Templates
     √ handleCreateHabit adds a new habit to state
     √ handleCreateFromTemplate adds habit from preset index
+    √ handleCreateFromTemplate safely ignores invalid template index
   features — Habit Editing & Management
     √ handleEditHabit updates name, icon, theme, and interval
     √ handleDeleteHabit removes habit when confirmed
@@ -117,7 +128,7 @@ PASS anp-22-habit-streak/test/ds_scenarios.test.js
     √ Invariant 13: Undo Today targets explicit check-in actions and preserves calendar_edit audit history
 
 Test Suites: 5 passed, 5 total
-Tests:       95 passed, 95 total
+Tests:       101 passed, 101 total
 Snapshots:   0 total
-Time:        1.795 s
-Ran all test suites matching /anp-22-habit-streak\\test/i.
+Time:        2.577 s
+Ran all test suites matching /anp-22-habit-streak/test/i.

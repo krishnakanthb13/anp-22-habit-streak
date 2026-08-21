@@ -112,6 +112,33 @@ const plugin = {
    */
   async renderEmbed(app, ...args) {
     const state = await loadState(app);
+    if (state && (state._isCorrupt === true || state._loadError === true)) {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Habit Streaks — Data Error</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #1e293b; border: 1px solid #ef4444; border-radius: 16px; padding: 32px; max-width: 520px; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    .icon { font-size: 40px; margin-bottom: 16px; }
+    h2 { margin: 0 0 10px 0; font-size: 20px; color: #fca5a5; }
+    p { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; line-height: 1.6; }
+    code { background: #0f172a; padding: 3px 8px; border-radius: 6px; color: #38bdf8; font-family: monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h2>Habit Streak Data Error</h2>
+    <p>Your habit data note could not be parsed or loaded cleanly. Automatic saving is paused to protect your data from being overwritten.</p>
+    <p>Please inspect the <code>Habit Streak Data</code> note to ensure its JSON structure is valid.</p>
+  </div>
+</body>
+</html>`;
+    }
+
     const habits = state.habits || [];
 
     const summary = calculateAllHabitsSummary(habits);

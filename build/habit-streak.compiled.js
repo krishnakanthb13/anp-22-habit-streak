@@ -98,13 +98,15 @@ var DEFAULT_STATE = {
   activeHabitId: null,
   habits: []
 };
+var _idCounter = 0;
 function generateUniqueId(prefix = "habit") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}_${crypto.randomUUID()}`;
   }
   const timestamp = Date.now().toString(36);
   const randomPart = Math.random().toString(36).substring(2, 10);
-  return `${prefix}_${timestamp}_${randomPart}`;
+  const countPart = (++_idCounter).toString(36);
+  return `${prefix}_${timestamp}_${randomPart}_${countPart}`;
 }
 
 // anp-22-habit-streak/lib/engine/streakEngine.js
@@ -134,12 +136,12 @@ function getDateRange(startStr, endStr) {
   if (!isValidDateString(startStr) || !isValidDateString(endStr) || startStr > endStr) {
     return dates;
   }
-  const start = /* @__PURE__ */ new Date(startStr + "T00:00:00");
-  const end = /* @__PURE__ */ new Date(endStr + "T00:00:00");
+  const start = /* @__PURE__ */ new Date(startStr + "T00:00:00Z");
+  const end = /* @__PURE__ */ new Date(endStr + "T00:00:00Z");
   const current = new Date(start);
   while (current <= end) {
-    dates.push(formatDate(current));
-    current.setDate(current.getDate() + 1);
+    dates.push(current.toISOString().split("T")[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
   }
   return dates;
 }
@@ -157,12 +159,12 @@ function isScheduledDate(habit, dateStr, refStartStr, allowBackdated = false) {
   if (period === INTERVAL_PERIODS.DAY && n === 1) {
     return true;
   }
-  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00");
-  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00Z");
+  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00Z");
   if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
     return false;
   }
-  const diffInDays = Math.round((targetDate - startDate) / (1e3 * 60 * 60 * 24));
+  const diffInDays = Math.round((targetDate.getTime() - startDate.getTime()) / (1e3 * 60 * 60 * 24));
   if (!allowBackdated && diffInDays < 0) {
     return false;
   }
@@ -170,17 +172,17 @@ function isScheduledDate(habit, dateStr, refStartStr, allowBackdated = false) {
     return Math.abs(diffInDays) % n === 0;
   }
   if (period === INTERVAL_PERIODS.WEEK) {
-    const isSameWeekday = targetDate.getDay() === startDate.getDay();
+    const isSameWeekday = targetDate.getUTCDay() === startDate.getUTCDay();
     const diffInWeeks = Math.floor(Math.abs(diffInDays) / 7);
     return isSameWeekday && diffInWeeks % n === 0;
   }
   if (period === INTERVAL_PERIODS.MONTH) {
-    const sYear = startDate.getFullYear();
-    const sMonth = startDate.getMonth();
-    const sDay = startDate.getDate();
-    const tYear = targetDate.getFullYear();
-    const tMonth = targetDate.getMonth();
-    const tDay = targetDate.getDate();
+    const sYear = startDate.getUTCFullYear();
+    const sMonth = startDate.getUTCMonth();
+    const sDay = startDate.getUTCDate();
+    const tYear = targetDate.getUTCFullYear();
+    const tMonth = targetDate.getUTCMonth();
+    const tDay = targetDate.getUTCDate();
     const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
     if (!allowBackdated && monthDiff < 0) {
       return false;
@@ -188,7 +190,7 @@ function isScheduledDate(habit, dateStr, refStartStr, allowBackdated = false) {
     if (Math.abs(monthDiff) % n !== 0) {
       return false;
     }
-    const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
+    const lastDayInTargetMonth = new Date(Date.UTC(tYear, tMonth + 1, 0)).getUTCDate();
     const expectedDay = Math.min(sDay, lastDayInTargetMonth);
     return tDay === expectedDay;
   }
@@ -564,7 +566,7 @@ function normalizeState(parsed) {
   };
 }
 async function getNoteUUID(app, noteName, tagNames, settingKey) {
-  const existingUUID = app.settings ? await app.settings[settingKey] : null;
+  const existingUUID = app.settings && typeof app.settings === "object" ? app.settings[settingKey] || null : null;
   if (existingUUID) {
     if (existingUUID.startsWith("local-")) {
       try {
@@ -639,8 +641,9 @@ function extractJsonFromMarkdown(content) {
   if (!content || typeof content !== "string") {
     return null;
   }
-  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/i;
-  const match = content.match(codeBlockRegex);
+  const jsonCodeBlockRegex = /```json\s*([\s\S]*?)\s*```/i;
+  const genericCodeBlockRegex = /```\s*([\s\S]*?)\s*```/i;
+  const match = content.match(jsonCodeBlockRegex) || content.match(genericCodeBlockRegex);
   if (match && match[1]) {
     try {
       return JSON.parse(match[1].trim());
@@ -703,9 +706,11 @@ async function loadStateWithStatus(app) {
   } catch (err) {
     console.error("[HabitStreak] Failed to load state:", err);
     const fallbackState = normalizeState({ ...DEFAULT_STATE });
+    fallbackState._isCorrupt = true;
+    fallbackState._loadError = true;
     return {
       state: fallbackState,
-      status: "ok",
+      status: "error",
       rawContent: ""
     };
   }
@@ -760,6 +765,9 @@ function mutateState(app, mutator) {
     const { state, status } = await loadStateWithStatus(app);
     if (status === "corrupt" || state._isCorrupt === true) {
       throw new Error("Cannot mutate state: Habit Streak data note is corrupt or unparseable. Refusing to overwrite.");
+    }
+    if (status === "error" || state._loadError === true) {
+      throw new Error("Cannot mutate state: Habit Streak data note failed to load. Refusing to overwrite.");
     }
     const expectedRevision = state.revision;
     const result = await mutator(state);
@@ -3341,7 +3349,8 @@ async function handleCreateHabit(app) {
 }
 async function handleCreateFromTemplate(app, templateIndex) {
   try {
-    const template = PRESET_TEMPLATES[templateIndex];
+    const idx = parseInt(templateIndex, 10);
+    const template = !isNaN(idx) && idx >= 0 && idx < PRESET_TEMPLATES.length ? PRESET_TEMPLATES[idx] : null;
     if (!template) return;
     const nowISO = (/* @__PURE__ */ new Date()).toISOString();
     const todayStr = getTodayString();
@@ -3458,7 +3467,7 @@ async function handleEditHabit(app, habitId) {
     const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
     const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
     const colorTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : "blue";
-    const habitType = typeVal === TRACK_TYPES.COMPLETE || habitToEdit.type === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
+    const habitType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
     const hasHistory = habitToEdit.completions && habitToEdit.completions.length > 0 || habitToEdit.skips && habitToEdit.skips.length > 0;
     const intervalChanged = String(habitToEdit.interval?.n) !== String(periodN) || habitToEdit.interval?.period !== periodUnit;
     const typeChanged = habitToEdit.type !== habitType;
@@ -3658,13 +3667,19 @@ async function handleSkipToday(app, habitId) {
       if (!habit2.skips.includes(todayStr)) {
         habit2.skips.push(todayStr);
       }
-      habit2.resetLogs.push({
-        id: generateUniqueId("reset"),
-        date: todayStr,
-        streakLength: stats2.currentStreak,
-        note: noteText,
-        timestamp: nowISO
+      const hasResetLogToday = habit2.resetLogs.some((r) => {
+        const d = r.date || (r.timestamp ? r.timestamp.split("T")[0] : "");
+        return d === todayStr;
       });
+      if (!hasResetLogToday) {
+        habit2.resetLogs.push({
+          id: generateUniqueId("reset"),
+          date: todayStr,
+          streakLength: stats2.currentStreak,
+          note: noteText,
+          timestamp: nowISO
+        });
+      }
       habit2.completions = habit2.completions.filter((d) => d !== todayStr);
       habit2.streakAnchor = nowISO;
       habit2.streakStartedAt = nowISO;
@@ -3757,6 +3772,12 @@ async function handleUndoToday(app, habitId) {
       } else {
         habit2.skips = habit2.skips.filter((d) => d !== todayStr);
         habit2.completions = habit2.completions.filter((d) => d !== todayStr);
+      }
+      const newStats = calculateHabitStats(habit2, todayStr);
+      if (newStats.currentStreak > 0 && newStats.streakStartDate) {
+        const expectedAnchor = `${newStats.streakStartDate}T00:00:00.000Z`;
+        habit2.streakStartedAt = expectedAnchor;
+        habit2.streakAnchor = expectedAnchor;
       }
     });
     if (app.context && typeof app.context.renderEmbed === "function") {
@@ -3882,14 +3903,16 @@ async function handleResetToDate(app, habitId) {
       habit.completions = habit.completions || [];
       habit.resetLogs = habit.resetLogs || [];
       habit.events = habit.events || [];
+      const skipSet = new Set(habit.skips);
+      const completionSet = new Set(habit.completions);
       for (const d of rangeDates) {
         if (isScheduledDate(habit, d, habit.trackingStartDate)) {
-          if (!habit.skips.includes(d)) {
-            habit.skips.push(d);
-          }
+          skipSet.add(d);
         }
-        habit.completions = habit.completions.filter((c) => c !== d);
+        completionSet.delete(d);
       }
+      habit.skips = Array.from(skipSet).sort();
+      habit.completions = Array.from(completionSet).sort();
       habit.events.push({
         id: generateUniqueId("event"),
         type: "skip",
@@ -4284,6 +4307,32 @@ var plugin = {
    */
   async renderEmbed(app, ...args) {
     const state = await loadState(app);
+    if (state && (state._isCorrupt === true || state._loadError === true)) {
+      return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Habit Streaks \u2014 Data Error</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #1e293b; border: 1px solid #ef4444; border-radius: 16px; padding: 32px; max-width: 520px; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    .icon { font-size: 40px; margin-bottom: 16px; }
+    h2 { margin: 0 0 10px 0; font-size: 20px; color: #fca5a5; }
+    p { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; line-height: 1.6; }
+    code { background: #0f172a; padding: 3px 8px; border-radius: 6px; color: #38bdf8; font-family: monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">\u26A0\uFE0F</div>
+    <h2>Habit Streak Data Error</h2>
+    <p>Your habit data note could not be parsed or loaded cleanly. Automatic saving is paused to protect your data from being overwritten.</p>
+    <p>Please inspect the <code>Habit Streak Data</code> note to ensure its JSON structure is valid.</p>
+  </div>
+</body>
+</html>`;
+    }
     const habits = state.habits || [];
     const summary = calculateAllHabitsSummary(habits);
     let activeHabit = null;

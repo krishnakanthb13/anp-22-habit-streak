@@ -1,5 +1,27 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.19 (2026-08-21)
+
+### 🐛 Bug Fixes & Data Integrity
+- **Tracking Type Validation Fix**: Fixed validation condition in [`editHabit.js`](./lib/features/editHabit.js) to correctly compare the new prompt input `typeVal` against allowed tracking types (`TRACK_TYPES.COMPLETE` / `TRACK_TYPES.SKIP`).
+- **Load Error Status & Corruption Protection**: `loadStateWithStatus` in [`store.js`](./lib/data/store.js) now returns `status: "error"` and flags `_isCorrupt` / `_loadError` upon fatal note read errors, preventing `mutateState` from overwriting real user notes with default empty state when network failures occur.
+- **Defensive Settings Access**: Added safe object type verification to `app.settings` in [`store.js`](./lib/data/store.js) to eliminate bootstrap race conditions and duplicate note generation.
+- **Template Index Bounds Validation**: [`createHabit.js`](./lib/features/createHabit.js) now safely parses `templateIndex` as an integer and validates array bounds, preventing `undefined` property crashes.
+- **Embed Corrupt State Banner**: [`habit-streak.js`](./habit-streak.js) now renders a clean, informative error card when data note content is corrupt, protecting data while clearly alerting the user.
+
+### ⚡ Edge-Case & Performance Robustness
+- **UTC Date Arithmetic & DST Invariance**: Converted date intervals, ranges, and recurrence calculations in [`streakEngine.js`](./lib/engine/streakEngine.js) to use UTC midnight parsing (`T00:00:00Z` and UTC getters), eliminating off-by-one errors across daylight saving transitions (23h / 25h days).
+- **$O(N + M)$ Set Range Resets**: Upgraded `handleResetToDate` in [`resetStreak.js`](./lib/features/resetStreak.js) from $O(N \times M)$ array filter loops to ES6 `Set` operations.
+- **Markdown Code Block Regex Prioritization**: Fenced ```` ```json ```` blocks are now matched with high priority in [`store.js`](./lib/data/store.js).
+- **Deduplicated Same-Day Reset Logs**: Prevented duplicate `resetLogs` entries when multiple slips are logged on the same calendar date in [`resetStreak.js`](./lib/features/resetStreak.js).
+- **Streak Anchor Restoration on Undo**: `handleUndoToday` restores previous streak anchors based on recalculated stats.
+- **Monotonic Unique ID Counter**: Added monotonic counter `_idCounter` to `generateUniqueId` in [`constants.js`](./lib/constants.js) to prevent collisions during same-millisecond batch imports.
+
+### 🧪 Comprehensive Test Suite (101/101 Passing)
+- **Expanded Invariant Suite**: Added targeted test cases across all 5 test suites covering DST transitions, corruption recovery, and edit validations.
+
+---
+
 ## v0.0.10 (2026-08-19)
 
 ### 🔒 Security & XSS Hardening

@@ -108,12 +108,12 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 
 ## 🧪 Testing & Verification
 
-The plugin includes an extensive Jest test suite (100% passing across 95 tests):
-* `test/streakEngine.test.js`: Core math, recurrence interval bridging, leap-year calculations, and defensive guards.
-* `test/store.test.js`: Schema normalization, corruption protection, strict ISO timestamp validation, and concurrency checks.
-* `test/features.test.js`: Habit lifecycle, off-schedule rejection, action event undoing, and note import.
-* `test/ds_scenarios.test.js`: End-to-end design spec scenarios (1–18) and formal recurrence invariants (1–13).
-* `test/plugin.test.js`: Amplenote lifecycle hooks and action dispatching.
+The plugin includes an extensive Jest test suite (100% passing across 101 tests):
+* `test/streakEngine.test.js` (28 tests): Core math, recurrence interval bridging, UTC daylight saving time (DST) calculations, leap-year handling, and defensive guards.
+* `test/store.test.js` (18 tests): Schema normalization, markdown code block prioritization, corruption & load error protection, strict ISO timestamp validation, and optimistic concurrency checks.
+* `test/features.test.js` (19 tests): Habit lifecycle, template bounds validation, off-schedule rejection, action event undoing with streak anchor restoration, and note import.
+* `test/ds_scenarios.test.js` (31 tests): End-to-end design spec scenarios (1–18) and formal recurrence invariants (1–13).
+* `test/plugin.test.js` (5 tests): Amplenote lifecycle hooks, action dispatching, embed HTML rendering, and corrupt note error banner display.
 
 ---
 

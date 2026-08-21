@@ -22,7 +22,7 @@ A core lesson in distributed and local-first application design is maintaining a
 
 - **Validate Against the Existing Anchor First**: The system never allows input data to alter the reference frame used for its own validation. In recurrence calculations, backdated calendar entries are strictly tested against the established schedule grid before any start-date extension is permitted.
 - **Mutual Exclusivity by Invariant**: A calendar day cannot logically be both completed and skipped. The normalization layer enforces $\text{skips} \cap \text{completions} = \emptyset$ as an invariant, eliminating contradictory persisted state.
-- **Strict Date & Timestamp Hygiene**: All calendar operations operate strictly on real calendar dates (`isValidDateString`), and timestamps are strictly validated against ISO 8601 formatting to prevent silent date drift.
+- **Strict Date & Timestamp Hygiene**: All calendar operations operate strictly on real calendar dates (`isValidDateString`), timestamps are strictly validated against ISO 8601 formatting, and date arithmetic runs through UTC midnight timestamps to eliminate off-by-one errors caused by seasonal Daylight Saving Time (23h/25h) shifts.
 - **Historical Continuity & User Consent**: Changing a habit's recurrence interval or tracking philosophy changes what past data mathematically means. The system treats settings changes as active migrations and requires explicit user acknowledgment before recalculating historical records.
 
 ---
@@ -38,9 +38,9 @@ Recurrence schedules (Daily, Every N Days, Weekly, Monthly) introduce non-schedu
 ## 4. Action Rollback vs. Audit History Isolation
 
 User workflows require a clear distinction between daily behavioral check-ins and administrative history edits:
-- **Action Rollback**: "Undo Today" operates specifically on explicit daily check-in actions (`done`, `skip`, `slip`), reconstructing today's state from any remaining check-in occurrences.
+- **Action Rollback**: "Undo Today" operates specifically on explicit daily check-in actions (`done`, `skip`, `slip`), reconstructing today's state from any remaining check-in occurrences and restoring exact streak anchors.
 - **Audit Preservation**: Calendar modifications are recorded as administrative audit events (`calendar_edit`) with dedicated styling and are preserved during check-in undos, maintaining an immutable log of historical corrections.
-- **Reset Log Integrity**: Undoing an action never deletes an unrelated reset log from an earlier slip.
+- **Reset Log Integrity**: Undoing an action never deletes an unrelated reset log from an earlier slip, and same-day duplicate slip logs are automatically deduplicated.
 
 ---
 
@@ -50,8 +50,9 @@ Amplenote plugins run within sandboxed iframes. Frequent asynchronous host round
 
 - **Instantaneous Client State**: Tab switching, month traversal, theme switching, and view transitions occur entirely in-memory with 0ms delay.
 - **Serialized Mutation Queue**: Persistence across Amplenote notes is strictly serialized through an in-memory promise queue, preventing concurrency race conditions during rapid user check-ins.
-- **Refusal Over Silent Corruption**: If note content is corrupted or unparseable, the plugin explicitly halts writes rather than silently wiping data with clean defaults. Failing loudly and safely is always superior to losing user records.
+- **Refusal Over Silent Corruption & Visible Error Banners**: If note content is corrupted, unparseable, or temporarily unreachable via network errors, the plugin explicitly halts writes rather than silently wiping data with clean defaults, rendering a protective error banner in the embed to keep the user informed.
 - **Multi-Device Revision Optimism**: Every write asserts expected note revisions to detect concurrent edits from multiple devices or tabs, preventing silent lost updates.
+- **Algorithmic Scaling**: Multi-day operations (such as multi-month backdated resets) use set-based $O(N + M)$ algorithms, and ID generation uses monotonic counter tie-breakers to ensure absolute collision resistance under high-frequency batch imports.
 
 ---
 
