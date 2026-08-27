@@ -703,11 +703,7 @@ function isUninitializedContent(content) {
   if (trimmed.startsWith("{") || trimmed.includes('"habits"') || trimmed.includes('"activeHabitId"')) {
     return false;
   }
-  const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean);
-  const isAllHeadersOrBoilerplate = lines.every(
-    (line) => line.startsWith("#") || line.startsWith(">") || line.startsWith("-") || line === DATA_NOTE_NAME || line.toLowerCase() === "habit streak data" || line.toLowerCase() === "habit_streak_data"
-  );
-  return isAllHeadersOrBoilerplate;
+  return true;
 }
 function formatStateAsMarkdown(state) {
   const jsonStr = JSON.stringify(state, null, 2);

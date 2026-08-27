@@ -68,7 +68,7 @@ describe("habit-streak plugin entry point", () => {
 
   test("renderEmbed returns error banner when state is corrupt", async () => {
     const app = createMockApp();
-    app.getNoteContent = jest.fn().mockResolvedValue("Corrupted markdown content without JSON");
+    app.getNoteContent = jest.fn().mockResolvedValue("```json\n{ damaged json content that fails parsing\n```");
 
     const html = await plugin.renderEmbed(app);
     expect(html).toContain("Habit Streak Data Error");

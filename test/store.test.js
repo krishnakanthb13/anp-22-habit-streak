@@ -272,7 +272,7 @@ describe("store module — Data Integrity, Concurrency & UUID Verification", () 
     const app = {
       settings: { [SETTING_DATA_NOTE_UUID]: "note-uuid-1234" },
       findNote: jest.fn().mockResolvedValue({ uuid: "note-uuid-1234" }),
-      getNoteContent: jest.fn().mockResolvedValue("Corrupted non-json user text that fails parsing"),
+      getNoteContent: jest.fn().mockResolvedValue("```json\n{ corrupted json content that fails parsing\n```"),
       replaceNoteContent: jest.fn().mockResolvedValue(true)
     };
 
