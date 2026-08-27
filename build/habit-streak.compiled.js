@@ -565,76 +565,106 @@ function normalizeState(parsed) {
     habits
   };
 }
+var inFlightNoteResolutions = /* @__PURE__ */ new Map();
+var inMemoryUUIDCache = /* @__PURE__ */ new Map();
 async function getNoteUUID(app, noteName, tagNames, settingKey) {
-  const existingUUID = app.settings && typeof app.settings === "object" ? app.settings[settingKey] || null : null;
-  if (existingUUID) {
-    if (existingUUID.startsWith("local-")) {
-      try {
-        const allNotes = await app.filterNotes({});
-        if (allNotes && Array.isArray(allNotes)) {
-          const matchingNotes = allNotes.filter((note) => {
-            const nameMatches = note.name === noteName;
-            const tagMatches = note.tags && tagNames.every((tag) => note.tags.includes(tag));
-            return nameMatches && tagMatches;
-          });
-          const onlineNote = matchingNotes.find((note) => note.uuid && !note.uuid.startsWith("local-"));
-          if (onlineNote && onlineNote.uuid) {
-            if (typeof app.setSetting === "function") {
-              await app.setSetting(settingKey, onlineNote.uuid);
-            }
-            return onlineNote.uuid;
-          }
-          if (matchingNotes.length > 0 && matchingNotes[0].uuid) {
-            return matchingNotes[0].uuid;
-          }
-        }
+  const cacheKey = `${settingKey || "default"}_${noteName}`;
+  if (inFlightNoteResolutions.has(cacheKey)) {
+    return inFlightNoteResolutions.get(cacheKey);
+  }
+  const resolutionPromise = (async () => {
+    let existingUUID = app?.settings && typeof app.settings === "object" ? app.settings[settingKey] || inMemoryUUIDCache.get(settingKey) || null : inMemoryUUIDCache.get(settingKey) || null;
+    if (existingUUID) {
+      if (existingUUID.startsWith("local-")) {
         try {
-          const localNote = await app.findNote({ uuid: existingUUID });
-          if (localNote) return existingUUID;
-        } catch (findErr) {
-          console.warn("[HabitStreak] Verification of local UUID note failed:", findErr);
+          const allNotes = await app.filterNotes({});
+          if (allNotes && Array.isArray(allNotes)) {
+            const matchingNotes = allNotes.filter((note) => {
+              const nameMatches = note.name === noteName;
+              const tagMatches = !tagNames || !tagNames.length || note.tags && tagNames.every((tag) => note.tags.includes(tag));
+              return nameMatches && tagMatches;
+            });
+            const onlineNote = matchingNotes.find((note) => note.uuid && !note.uuid.startsWith("local-"));
+            if (onlineNote && onlineNote.uuid) {
+              if (typeof app.setSetting === "function") {
+                await app.setSetting(settingKey, onlineNote.uuid);
+              }
+              if (app?.settings && typeof app.settings === "object") {
+                app.settings[settingKey] = onlineNote.uuid;
+              }
+              inMemoryUUIDCache.set(settingKey, onlineNote.uuid);
+              return onlineNote.uuid;
+            }
+            if (matchingNotes.length > 0 && matchingNotes[0].uuid) {
+              return matchingNotes[0].uuid;
+            }
+          }
+          try {
+            const localNote = await app.findNote({ uuid: existingUUID });
+            if (localNote) return existingUUID;
+          } catch (findErr) {
+            console.warn("[HabitStreak] Verification of local UUID note failed:", findErr);
+          }
+        } catch (error) {
+          console.error("[HabitStreak] Error resolving note UUID:", error);
         }
-      } catch (error) {
-        console.error("[HabitStreak] Error resolving note UUID:", error);
-      }
-    } else {
-      try {
-        const note = await app.findNote({ uuid: existingUUID });
-        if (note) {
-          return existingUUID;
+      } else {
+        try {
+          const note = await app.findNote({ uuid: existingUUID });
+          if (note) {
+            if (app?.settings && typeof app.settings === "object") {
+              app.settings[settingKey] = existingUUID;
+            }
+            inMemoryUUIDCache.set(settingKey, existingUUID);
+            return existingUUID;
+          }
+        } catch {
+          console.warn("[HabitStreak] Stored UUID could not be verified, rediscovering note.");
         }
-      } catch {
-        console.warn("[HabitStreak] Stored UUID could not be verified, rediscovering note.");
       }
     }
-  }
+    try {
+      const allNotes = await app.filterNotes({});
+      if (allNotes && Array.isArray(allNotes)) {
+        const match = allNotes.find((n) => {
+          const nameMatches = n.name === noteName;
+          const tagMatches = !tagNames || !tagNames.length || n.tags && tagNames.every((t) => n.tags.includes(t));
+          return nameMatches && tagMatches;
+        });
+        if (match && match.uuid) {
+          if (typeof app.setSetting === "function") {
+            await app.setSetting(settingKey, match.uuid);
+          }
+          if (app?.settings && typeof app.settings === "object") {
+            app.settings[settingKey] = match.uuid;
+          }
+          inMemoryUUIDCache.set(settingKey, match.uuid);
+          return match.uuid;
+        }
+      }
+    } catch (err) {
+      console.warn("[HabitStreak] filterNotes search error:", err);
+    }
+    try {
+      const newUUID = await app.createNote(noteName, tagNames);
+      if (typeof app.setSetting === "function") {
+        await app.setSetting(settingKey, newUUID);
+      }
+      if (app?.settings && typeof app.settings === "object") {
+        app.settings[settingKey] = newUUID;
+      }
+      inMemoryUUIDCache.set(settingKey, newUUID);
+      return newUUID;
+    } catch (error) {
+      console.error("[HabitStreak] Error creating note:", error);
+      throw error;
+    }
+  })();
+  inFlightNoteResolutions.set(cacheKey, resolutionPromise);
   try {
-    const allNotes = await app.filterNotes({});
-    if (allNotes && Array.isArray(allNotes)) {
-      const match = allNotes.find((n) => {
-        const nameMatches = n.name === noteName;
-        const tagMatches = n.tags && tagNames.every((t) => n.tags.includes(t));
-        return nameMatches && tagMatches;
-      });
-      if (match && match.uuid) {
-        if (typeof app.setSetting === "function") {
-          await app.setSetting(settingKey, match.uuid);
-        }
-        return match.uuid;
-      }
-    }
-  } catch (err) {
-    console.warn("[HabitStreak] filterNotes search error:", err);
-  }
-  try {
-    const newUUID = await app.createNote(noteName, tagNames);
-    if (typeof app.setSetting === "function") {
-      await app.setSetting(settingKey, newUUID);
-    }
-    return newUUID;
-  } catch (error) {
-    console.error("[HabitStreak] Error creating note:", error);
-    throw error;
+    return await resolutionPromise;
+  } finally {
+    inFlightNoteResolutions.delete(cacheKey);
   }
 }
 function extractJsonFromMarkdown(content) {
@@ -662,6 +692,23 @@ function extractJsonFromMarkdown(content) {
   }
   return null;
 }
+function isUninitializedContent(content) {
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    return true;
+  }
+  const trimmed = content.trim();
+  if (trimmed.includes("```")) {
+    return false;
+  }
+  if (trimmed.startsWith("{") || trimmed.includes('"habits"') || trimmed.includes('"activeHabitId"')) {
+    return false;
+  }
+  const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean);
+  const isAllHeadersOrBoilerplate = lines.every(
+    (line) => line.startsWith("#") || line.startsWith(">") || line.startsWith("-") || line === DATA_NOTE_NAME || line.toLowerCase() === "habit streak data" || line.toLowerCase() === "habit_streak_data"
+  );
+  return isAllHeadersOrBoilerplate;
+}
 function formatStateAsMarkdown(state) {
   const jsonStr = JSON.stringify(state, null, 2);
   return `# Habit Streak Data
@@ -684,6 +731,16 @@ async function loadStateWithStatus(app) {
           state: normalizeState(parsed),
           status: "ok",
           rawContent: content
+        };
+      }
+      if (isUninitializedContent(content)) {
+        const fallbackState2 = normalizeState({ ...DEFAULT_STATE });
+        const markdown2 = formatStateAsMarkdown(fallbackState2);
+        await app.replaceNoteContent({ uuid: dataNoteUUID }, markdown2);
+        return {
+          state: fallbackState2,
+          status: "empty",
+          rawContent: markdown2
         };
       }
       console.error("[HabitStreak] Refusing to overwrite malformed persisted note content with empty default state.");

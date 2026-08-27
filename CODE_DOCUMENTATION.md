@@ -61,6 +61,7 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 ---
 
 ### `lib/data/store.js`
+- **`inFlightNoteResolutions` & `inMemoryUUIDCache`**: In-flight Promise deduplication map and in-memory cache that serializes concurrent asynchronous note resolution requests, preventing race conditions from creating duplicate `habit_streak_data` notes on fresh installs.
 - **`mutationQueue`**: In-process serialized execution promise queue ensuring all `load -> mutate -> save` transactions execute sequentially without race conditions.
 - **`isValidTimestamp(ts)`**: Validates strict ISO 8601 strings, extracting date components and running strict calendar validation (`isValidDateString`) along with 24-hour time range checks (rejecting rollover dates like `2026-02-31T12:00:00Z`).
 - **`normalizeHabit(habit)`**:
@@ -69,9 +70,10 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
   - Constrains `colorTheme` to `COLOR_THEMES` and `type` to `TRACK_TYPES`.
   - Filters `events` to recognized `VALID_EVENT_TYPES` and bounds history to 500 entries (reset logs bounded to 100 entries).
 - **`normalizeState(state)`**: Validates `version: 2`, integer `revision`, constrains `theme` to `VALID_THEMES`, and deduplicates identical habit IDs.
-- **`loadStateWithStatus(app)`**: Resolves UUID (with safe handling when `app.settings` is undefined), reads note content, and returns `{ state, status: "ok"|"empty"|"corrupt"|"error", rawContent }`. On read/network failure, returns `status: "error"` and flags `state._isCorrupt = true` and `state._loadError = true`.
+- **`isUninitializedContent(content)`**: Checks if raw note content represents an uninitialized or fresh note (empty, title headers `# habit_streak_data`, or comments without code blocks) rather than corrupted JSON data, allowing safe auto-seeding on fresh installs without false corruption alerts.
+- **`loadStateWithStatus(app)`**: Resolves UUID (with concurrency locking and safe fallback when `app.settings` is undefined), reads note content, auto-seeds uninitialized notes, and returns `{ state, status: "ok"|"empty"|"corrupt"|"error", rawContent }`. On read/network failure, returns `status: "error"` and flags `state._isCorrupt = true` and `state._loadError = true`.
 - **`extractJsonFromMarkdown(content)`**: Prioritizes extraction from fenced ```` ```json ```` code blocks before attempting generic code block or bare JSON parsing.
-- **`loadState(app)`**: Loads current state with corruption protection (marks `state._isCorrupt = true` when JSON extraction fails).
+- **`loadState(app)`**: Loads current state with corruption protection (marks `state._isCorrupt = true` when JSON extraction fails on damaged code blocks).
 - **`saveState(app, state, expectedRevision)`**: Verifies against `expectedRevision` before overwriting the note, preventing lost updates from concurrent runtimes/devices, and refuses to write if state is marked corrupt.
 - **`mutateState(app, mutator)`**: Serialized transaction queue that blocks execution and refuses to overwrite if `status === "corrupt"` or `status === "error"`.
 
@@ -194,7 +196,7 @@ The persistent JSON stored in `habit_streak_data` conforms to the following sche
 
 ---
 
-## 4. Invariant Test Matrix (101 Unit Tests across 5 Suites)
+## 4. Invariant Test Matrix (103 Unit Tests across 5 Suites)
 
 The test suite in [`test/`](./test/) verifies complete behavioral integrity:
 1. **Off-Day Isolation**: Non-scheduled days cannot be transformed into scheduled days by skips or completions.
@@ -215,3 +217,5 @@ The test suite in [`test/`](./test/) verifies complete behavioral integrity:
 16. **UTC Daylight Saving Invariance**: Date range and cadence calculations execute over UTC midnight timestamps to eliminate seasonal 23h/25h offsets.
 17. **Corrupt State Banner**: `renderEmbed` renders a prominent error banner when data note parsing fails.
 18. **Defensive Bootstrap Settings**: `getNoteUUID` safely falls back when `app.settings` is undefined.
+19. **Concurrent Resolution Locking**: `getNoteUUID` serializes concurrent note requests through in-flight Promise tracking, preventing duplicate note creation.
+20. **Fresh-Install Auto-Seeding**: `loadStateWithStatus` initializes brand-new notes (even with title headers `# habit_streak_data`) without false corruption flags.

@@ -149,6 +149,48 @@ describe("store module — Data Integrity, Concurrency & UUID Verification", () 
     );
   });
 
+  test("loadState initializes default note when note contains title header only (fresh install scenario)", async () => {
+    const app = {
+      settings: { [SETTING_DATA_NOTE_UUID]: "note-uuid-1234" },
+      findNote: jest.fn().mockResolvedValue({ uuid: "note-uuid-1234" }),
+      getNoteContent: jest.fn().mockResolvedValue("# habit_streak_data\n"),
+      replaceNoteContent: jest.fn().mockResolvedValue(true)
+    };
+
+    const state = await loadState(app);
+    expect(state.version).toBe(2);
+    expect(state._isCorrupt).toBeUndefined();
+    expect(app.replaceNoteContent).toHaveBeenCalledWith(
+      { uuid: "note-uuid-1234" },
+      expect.stringContaining("```json")
+    );
+  });
+
+  test("getNoteUUID serializes concurrent calls to avoid duplicate note creation", async () => {
+    let createCount = 0;
+    const app = {
+      settings: {},
+      filterNotes: jest.fn().mockResolvedValue([]),
+      createNote: jest.fn().mockImplementation(() => {
+        createCount++;
+        return new Promise(resolve => setTimeout(() => resolve(`note-uuid-concurrent-${createCount}`), 10));
+      }),
+      setSetting: jest.fn().mockResolvedValue(true)
+    };
+
+    // Run 3 concurrent calls
+    const [uuid1, uuid2, uuid3] = await Promise.all([
+      getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID),
+      getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID),
+      getNoteUUID(app, DATA_NOTE_NAME, DATA_NOTE_TAGS, SETTING_DATA_NOTE_UUID)
+    ]);
+
+    expect(uuid1).toBe("note-uuid-concurrent-1");
+    expect(uuid2).toBe("note-uuid-concurrent-1");
+    expect(uuid3).toBe("note-uuid-concurrent-1");
+    expect(app.createNote).toHaveBeenCalledTimes(1);
+  });
+
   test("getNoteUUID validates online UUID existence and falls back if stale", async () => {
     const app = {
       settings: { [SETTING_DATA_NOTE_UUID]: "stale-deleted-uuid" },

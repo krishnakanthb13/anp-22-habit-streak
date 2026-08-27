@@ -411,41 +411,47 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
 
   // 20. Invariant: Reset-to-date only resets scheduled days for recurrence
   test("Invariant 2: handleResetToDate only marks scheduled days as skipped", async () => {
-    let savedState = null;
-    const app = {
-      settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
-      findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
-      alert: jest.fn(),
-      prompt: jest.fn().mockResolvedValue(["2026-08-03", "Reset weekly habit", true]),
-      getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown({
-        version: 2,
-        revision: 1,
-        habits: [
-          {
-            id: "weekly_h1",
-            name: "Weekly Monday Review",
-            type: TRACK_TYPES.COMPLETE,
-            trackingStartDate: "2026-08-03", // Monday
-            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
-            skips: [],
-            completions: []
-          }
-        ]
-      })),
-      replaceNoteContent: jest.fn().mockImplementation((_, md) => {
-        const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
-        savedState = state;
-        return Promise.resolve(true);
-      }),
-      context: { renderEmbed: jest.fn() }
-    };
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-08-19T12:00:00Z"));
+    try {
+      let savedState = null;
+      const app = {
+        settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
+        findNote: jest.fn().mockResolvedValue({ uuid: "mock-uuid", name: DATA_NOTE_NAME }),
+        alert: jest.fn(),
+        prompt: jest.fn().mockResolvedValue(["2026-08-03", "Reset weekly habit", true]),
+        getNoteContent: jest.fn().mockResolvedValue(formatStateAsMarkdown({
+          version: 2,
+          revision: 1,
+          habits: [
+            {
+              id: "weekly_h1",
+              name: "Weekly Monday Review",
+              type: TRACK_TYPES.COMPLETE,
+              trackingStartDate: "2026-08-03", // Monday
+              interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+              skips: [],
+              completions: []
+            }
+          ]
+        })),
+        replaceNoteContent: jest.fn().mockImplementation((_, md) => {
+          const state = JSON.parse(md.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)[1]);
+          savedState = state;
+          return Promise.resolve(true);
+        }),
+        context: { renderEmbed: jest.fn() }
+      };
 
-    await handleResetToDate(app, "weekly_h1");
-    expect(savedState).not.toBeNull();
-    const habit = savedState.habits[0];
+      await handleResetToDate(app, "weekly_h1");
+      expect(savedState).not.toBeNull();
+      const habit = savedState.habits[0];
 
-    // Out of 2026-08-03 to 2026-08-19 (17 days), only Mondays (Aug 3, Aug 10, Aug 17) should be in skips
-    expect(habit.skips).toEqual(["2026-08-03", "2026-08-10", "2026-08-17"]);
+      // Out of 2026-08-03 to 2026-08-19 (17 days), only Mondays (Aug 3, Aug 10, Aug 17) should be in skips
+      expect(habit.skips).toEqual(["2026-08-03", "2026-08-10", "2026-08-17"]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   // 21. Invariant: Mutually exclusive sets (skips ∩ completions = ∅)

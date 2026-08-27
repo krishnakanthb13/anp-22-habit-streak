@@ -1,5 +1,15 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.20 (2026-08-27)
+
+### 🐛 Critical Bug Fixes & Fresh Install Stability
+- **In-Flight Note Resolution Locking**: Added `inFlightNoteResolutions` Promise registry and in-memory cache to [`lib/data/store.js`](./lib/data/store.js) to serialize concurrent asynchronous `getNoteUUID` requests during embed initialization, preventing duplicate `habit_streak_data` notes from being created when opening the dashboard in Peek Viewer / sidebar.
+- **Fresh-Install Uninitialized Note Detection**: Introduced `isUninitializedContent(content)` in [`lib/data/store.js`](./lib/data/store.js) to distinguish uninitialized notes (containing only title headers `# habit_streak_data` or boilerplate markdown) from damaged JSON data blocks. Fresh installs now auto-seed with default state cleanly instead of erroneously triggering the red "Habit Streak Data Error" banner.
+- **Synchronous Settings Memory Cache**: Synchronously updates `app.settings[settingKey]` and in-memory caches upon resolving or creating the note UUID, preventing subsequent synchronous reads from missing the new UUID.
+- **Deterministic Test Suite (103/103 Passing)**: Added comprehensive unit tests for concurrent note creation deduplication and fresh install initialization. Fixed fake timer setup in `test/ds_scenarios.test.js` to ensure deterministic execution independent of calendar date.
+
+---
+
 ## v0.0.19 (2026-08-21)
 
 ### 🐛 Bug Fixes & Data Integrity

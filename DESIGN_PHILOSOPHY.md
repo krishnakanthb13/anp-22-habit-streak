@@ -45,12 +45,13 @@ User workflows require a clear distinction between daily behavioral check-ins an
 ---
 
 ## 5. Zero-Lag Responsive Embed UI & Distributed Safety
-
+ 
 Amplenote plugins run within sandboxed iframes. Frequent asynchronous host roundtrips degrade the tactile satisfaction of habit tracking.
-
+ 
 - **Instantaneous Client State**: Tab switching, month traversal, theme switching, and view transitions occur entirely in-memory with 0ms delay.
+- **First-Run Idempotence & In-Flight Locking**: When plugins are opened across multiple views simultaneously (e.g. Peek Viewer sidebar alongside a main embed view), note discovery is deduplicated through an in-flight Promise registry (`inFlightNoteResolutions`). Brand-new notes created with standard markdown headers (`# habit_streak_data`) are recognized as uninitialized and safely seeded with initial state, preventing duplicate note generation and false corruption halts.
 - **Serialized Mutation Queue**: Persistence across Amplenote notes is strictly serialized through an in-memory promise queue, preventing concurrency race conditions during rapid user check-ins.
-- **Refusal Over Silent Corruption & Visible Error Banners**: If note content is corrupted, unparseable, or temporarily unreachable via network errors, the plugin explicitly halts writes rather than silently wiping data with clean defaults, rendering a protective error banner in the embed to keep the user informed.
+- **Refusal Over Silent Corruption & Visible Error Banners**: If persisted note content contains a damaged code block or broken JSON structure, the plugin explicitly halts writes rather than silently wiping data with clean defaults, rendering a protective error banner in the embed to keep the user informed.
 - **Multi-Device Revision Optimism**: Every write asserts expected note revisions to detect concurrent edits from multiple devices or tabs, preventing silent lost updates.
 - **Algorithmic Scaling**: Multi-day operations (such as multi-month backdated resets) use set-based $O(N + M)$ algorithms, and ID generation uses monotonic counter tie-breakers to ensure absolute collision resistance under high-frequency batch imports.
 

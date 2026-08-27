@@ -96,7 +96,8 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 | :--- | :--- | :--- |
 | `Habit_Streak_Data_UUID [Do not Edit!]` | UUID of the authoritative `habit_streak_data` note tagged `-reports/-habit-streak`. | Auto-populated on initial load |
 
-* **Zero Data Loss**: All streak history, reflection notes, and custom settings are stored in JSON format inside the authoritative data note.
+* **Zero Data Loss & Fresh-Install Auto-Seeding**: All streak history, reflection notes, and custom settings are stored in JSON format inside the authoritative data note. Fresh installs auto-initialize cleanly without false corruption alerts.
+* **Concurrent Resolution Locking**: In-flight promise locking prevents duplicate `habit_streak_data` notes during concurrent embed initialization.
 * **Corruption Protection**: The storage layer detects corrupted notes with `loadStateWithStatus` and strictly blocks all mutators and writes (`mutateState` / `saveState`) from overwriting damaged data with empty defaults.
 * **Optimistic Concurrency & Revision Control**: Every state write verifies `expectedRevision` against the persisted note to prevent multi-device and multi-runtime lost updates.
 * **Cadence & History Safeguards**: Changing the recurrence interval or tracking philosophy on active habits requires explicit user confirmation to prevent accidental recalculation of past historical streaks.
@@ -108,9 +109,9 @@ Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
 
 ## 🧪 Testing & Verification
 
-The plugin includes an extensive Jest test suite (100% passing across 101 tests):
+The plugin includes an extensive Jest test suite (100% passing across 103 tests):
 * `test/streakEngine.test.js` (28 tests): Core math, recurrence interval bridging, UTC daylight saving time (DST) calculations, leap-year handling, and defensive guards.
-* `test/store.test.js` (18 tests): Schema normalization, markdown code block prioritization, corruption & load error protection, strict ISO timestamp validation, and optimistic concurrency checks.
+* `test/store.test.js` (20 tests): Schema normalization, markdown code block prioritization, concurrent note resolution deduplication, uninitialized note auto-seeding, corruption & load error protection, strict ISO timestamp validation, and optimistic concurrency checks.
 * `test/features.test.js` (19 tests): Habit lifecycle, template bounds validation, off-schedule rejection, action event undoing with streak anchor restoration, and note import.
 * `test/ds_scenarios.test.js` (31 tests): End-to-end design spec scenarios (1–18) and formal recurrence invariants (1–13).
 * `test/plugin.test.js` (5 tests): Amplenote lifecycle hooks, action dispatching, embed HTML rendering, and corrupt note error banner display.
