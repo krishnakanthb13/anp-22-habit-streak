@@ -49,10 +49,11 @@ When importing tasks from your existing Amplenote notes:
 * **Quitting (Bad Habits to Quit)**:
   * **Concept**: You are succeeding every single second simply by staying clean (e.g. *No Alcohol*, *No Smoking*, *No Junk Food*).
   * **Interaction**: Auto-tracked! Days count up continuously without requiring daily check-ins.
-  * **When a slip occurs**: Tap **`Reset counter today`** or **`Reset counter on date`** to record your reflection note.
+  * **When a slip occurs**: Tap **`Reset counter today`** or **`Reset counter on date`** to record your reflection note. Supports logging multiple slips per day via **`+ Log Additional Slip (+1)`** with superscript count chips on red calendar tiles (`[2]`, `[3]`) and timeline logs.
 * **Building (Good Habits to Build)**:
   * **Concept**: Intentional practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
-  * **Interaction**: Tap **`Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
+  * **Interaction**: Tap **`Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day via **`+ Log Additional Done (+1)`**.
+  * **Multi-Session Display**: Days with multiple check-ins render an emerald superscript count chip (e.g. `[2]`), dynamic status badges (`✔ 2 Sessions Completed Today`), and individual timestamped timeline entries.
   * **Creation Baseline**: Positive habits start at 0 days completed until your first check-in.
 
 ### 4. Pure Daily Cadence
@@ -63,7 +64,7 @@ When importing tasks from your existing Amplenote notes:
 * View any month using the smooth navigation buttons with modern vector SVG icons.
 * **Keyboard Shortcuts**: Navigate months instantly with <kbd>←</kbd> / <kbd>→</kbd> or <kbd>&lt;</kbd> / <kbd>&gt;</kbd>; press <kbd>Esc</kbd> or <kbd>Backspace</kbd> to return to the counters overview.
 * Completed days appear **Green**; skipped/relapsed days appear **Red**; future days are protected.
-* **Click-to-Toggle**: Click any past or current day cell directly to toggle its status between completed and skipped.
+* **Click-to-Toggle**: Click any past or current day cell directly with instant (<1ms) optimistic visual feedback and automatic status synchronization.
 * **Edit Calendar Mode**: Use **`Edit Calendar`** to stage multi-day changes with one-click batch actions (*Mark Month Clean*, *Mark Month Missed*, or *Discard*).
 
 ### 6. Action Undo & Audit History
@@ -73,6 +74,7 @@ When importing tasks from your existing Amplenote notes:
 
 ### 7. Goals & Milestone Badges
 * Track progress toward 11 milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
+* **Vertically-Aligned Layout**: Centered 3-column checklist with lock and checkmark icons aligned along straight vertical lines across all rows.
 * View your current goal card with real-time percentage progress bars and an interactive goals checklist with vector trophy and checkmark badges.
 
 ### 8. Themes & Appearance Customization

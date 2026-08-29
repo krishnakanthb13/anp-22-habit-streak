@@ -58,12 +58,10 @@ const plugin = {
           break;
 
         case "toggleDay":
-          await handleToggleDay(app, args[1], args[2], args[3]);
-          break;
+          return await handleToggleDay(app, args[1], args[2], args[3]);
 
         case "saveCalendarEdits":
-          await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
-          break;
+          return await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
 
         case "skipToday":
           await handleSkipToday(app, args[1]);

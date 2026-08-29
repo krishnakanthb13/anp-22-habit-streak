@@ -1405,15 +1405,19 @@ function buildDashboardTemplate(dashboardData) {
 
     .goal-check-box {
       border-radius: 12px;
-      padding: 10px 8px;
+      padding: 9px 10px;
       display: flex;
       align-items: center;
+      justify-content: flex-start;
       gap: 8px;
       font-size: 12px;
       font-weight: 700;
       border: 1px solid var(--border-color);
       background: var(--card-subtle-bg);
       color: var(--text-main);
+      text-align: left;
+      transition: all 0.15s ease;
+      overflow: hidden;
     }
 
     .goal-check-box.unlocked {
@@ -1423,27 +1427,36 @@ function buildDashboardTemplate(dashboardData) {
     }
 
     .goal-check-icon {
-      font-size: 16px;
+      width: 18px;
+      height: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
     }
 
     .goal-label-wrap {
       display: flex;
       flex-direction: column;
       line-height: 1.15;
+      justify-content: center;
+      min-width: 0;
     }
 
     .goal-days-text {
       font-weight: 800;
-      font-size: 12px;
+      font-size: 11.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .goal-tier-text {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 600;
       opacity: 0.75;
+      white-space: nowrap;
     }
 
     /* Actions Cluster */
@@ -1499,7 +1512,7 @@ function buildDashboardTemplate(dashboardData) {
       background: var(--card-subtle-bg);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
-      padding: 16px;
+      padding: 16px 14px;
       color: var(--text-main);
     }
 
@@ -1508,45 +1521,100 @@ function buildDashboardTemplate(dashboardData) {
       align-items: center;
       justify-content: space-between;
       margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .cal-month-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+    }
+
+    .cal-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cal-nav-buttons {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .btn-month-nav {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--card-container-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-month-nav:hover {
+      background: var(--card-subtle-bg);
+      border-color: #94a3b8;
+      transform: translateY(-1px);
     }
 
     .btn-cal-action {
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 11.5px;
       font-weight: 700;
-      border-radius: 6px;
+      border-radius: 20px;
       border: 1px solid var(--border-color);
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       transition: all 0.15s ease;
       background: var(--card-container-bg);
       color: var(--text-main);
     }
+
     .btn-cal-action:hover {
-      opacity: 0.85;
-    }
-    .btn-cal-action.btn-cal-save {
-      background: #22c55e !important;
-      border-color: #16a34a !important;
-      color: #ffffff !important;
-      font-weight: 800;
-      box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
-    }
-    .btn-cal-action.btn-cal-save:hover {
-      background: #16a34a !important;
-    }
-    .btn-cal-action.btn-cal-cancel {
-      background: #f43f5e !important;
-      border-color: #e11d48 !important;
-      color: #ffffff !important;
+      border-color: #3b82f6;
+      color: #2563eb;
     }
 
+    .btn-cal-action.btn-cal-save {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      border-color: #059669 !important;
+      color: #ffffff !important;
+      font-weight: 800;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-cal-action.btn-cal-save:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-cal-action.btn-cal-cancel {
+      background: rgba(244, 63, 94, 0.1) !important;
+      border-color: rgba(244, 63, 94, 0.25) !important;
+      color: #e11d48 !important;
+    }
+
+    .btn-cal-action.btn-cal-cancel:hover {
+      background: rgba(244, 63, 94, 0.18) !important;
+    }
+
+    /* Edit Mode Banner */
     .cal-edit-active-banner {
-      background: rgba(37, 99, 235, 0.1);
-      border: 1px dashed #3b82f6;
-      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(99, 102, 241, 0.04));
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      border-radius: 10px;
       padding: 8px 12px;
       font-size: 11.5px;
       font-weight: 600;
@@ -1555,12 +1623,29 @@ function buildDashboardTemplate(dashboardData) {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+    }
+
+    .cal-edit-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cal-staged-badge {
+      background: #2563eb;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
     }
 
     .cal-quick-actions-row {
       display: flex;
       gap: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
     }
 
@@ -1570,113 +1655,177 @@ function buildDashboardTemplate(dashboardData) {
       color: var(--text-sub);
       font-size: 10.5px;
       font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 5px;
+      padding: 4px 9px;
+      border-radius: 7px;
       cursor: pointer;
-      transition: all 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.12s ease;
     }
+
     .btn-cal-quick:hover {
       color: var(--text-main);
       border-color: #3b82f6;
       background: rgba(59, 130, 246, 0.08);
     }
 
+    /* Weekday Column Headers */
     .cal-weekdays-row {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      margin-bottom: 6px;
+      gap: 6px;
+      margin-bottom: 8px;
       text-align: center;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 800;
       color: var(--text-sub);
       text-transform: uppercase;
-      opacity: 0.8;
+      letter-spacing: 0.4px;
+      opacity: 0.75;
     }
 
+    /* Calendar Day Grid */
     .cal-grid-mini {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      margin-bottom: 12px;
+      gap: 6px;
+      margin-bottom: 14px;
     }
 
     .day-mini-dot {
       aspect-ratio: 1;
-      border-radius: 6px;
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11.5px;
-      font-weight: 700;
+      font-size: 13.5px;
+      font-weight: 800;
       cursor: pointer;
-      background: rgba(0,0,0,0.06);
+      background: rgba(0, 0, 0, 0.04);
       color: var(--text-sub);
-      transition: transform 0.1s ease, outline 0.1s ease, background 0.15s ease;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease, border-color 0.15s ease;
       position: relative;
+      user-select: none;
     }
 
     .day-mini-dot:hover:not(.future):not(.empty) {
-      transform: scale(1.1);
+      transform: translateY(-1px) scale(1.06);
       z-index: 2;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     }
 
     .day-mini-dot.done {
-      background: #22c55e !important;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
       color: #ffffff !important;
+      box-shadow: 0 2px 5px rgba(16, 185, 129, 0.25);
     }
 
     .day-mini-dot.skip {
-      background: #f43f5e !important;
+      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%) !important;
       color: #ffffff !important;
+      box-shadow: 0 2px 5px rgba(244, 63, 94, 0.25);
     }
 
     .day-mini-dot.before-start {
-      background: rgba(0,0,0,0.03);
+      background: rgba(148, 163, 184, 0.08);
       color: var(--text-sub);
-      opacity: 0.55;
-    }
-
-    .day-mini-dot.off-day {
-      background: rgba(148, 163, 184, 0.15);
-      color: var(--text-sub);
-      border: 1px dashed var(--border-color);
-      opacity: 0.65;
+      opacity: 0.45;
     }
 
     .day-mini-dot.future {
       background: transparent;
-      opacity: 0.25;
-      cursor: not-allowed;
+      color: var(--text-sub);
+      opacity: 0.22;
+      cursor: default;
     }
 
     .day-mini-dot.is-today {
-      box-shadow: 0 0 0 2px #3b82f6 !important;
+      box-shadow: 0 0 0 2px #3b82f6, 0 2px 6px rgba(59, 130, 246, 0.35) !important;
       font-weight: 900;
     }
 
-    .day-mini-dot.editing {
-      outline: 2px dashed #3b82f6;
-      outline-offset: 1px;
+    /* Edit mode behavior on grid */
+    .cal-grid-mini.is-editing .day-mini-dot:not(.future):not(.empty) {
       cursor: pointer;
+    }
+
+    .cal-grid-mini.is-editing .day-mini-dot:not(.future):not(.empty):hover {
+      transform: translateY(-2px) scale(1.08);
+      box-shadow: 0 0 0 2px #3b82f6, 0 4px 12px rgba(59, 130, 246, 0.35);
+      z-index: 3;
     }
 
     .day-mini-dot.empty {
       background: transparent !important;
       cursor: default !important;
-      outline: none !important;
       box-shadow: none !important;
     }
 
+    .day-multi-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1;
+      background: rgba(0, 0, 0, 0.48);
+      color: #ffffff;
+      padding: 1.5px 4px;
+      border-radius: 4px;
+      pointer-events: none;
+      letter-spacing: -0.2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Resets Counter Bottom Bar */
     .resets-counter-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-main);
       padding-top: 10px;
       border-top: 1px solid var(--border-color);
+      font-size: 11.5px;
+      color: var(--text-main);
+    }
+
+    .cal-stats-pills-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 600;
+      font-size: 11.5px;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .stat-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .stat-pill-dot.clean {
+      background: #10b981;
+    }
+
+    .stat-pill-dot.missed {
+      background: #f43f5e;
+    }
+
+    .stat-resets-label {
+      font-size: 11px;
+      color: var(--text-sub);
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     /* Templates Modal / Section */
@@ -2086,8 +2235,38 @@ function buildDashboardTemplate(dashboardData) {
         editModifiedCount++;
         render();
       } else {
-        const toggleTarget = (currentStatus === "completed") ? "completed" : "skipped";
-        callHost('toggleDay', activeHabit.id, dateStr, toggleTarget);
+        // Direct click in normal view:
+        // 1. Optimistic instant local update
+        if (!activeHabit.skips) activeHabit.skips = [];
+        if (!activeHabit.completions) activeHabit.completions = [];
+
+        if (currentStatus === "completed") {
+          // Toggle to skipped
+          activeHabit.completions = activeHabit.completions.filter(d => d !== dateStr);
+          if (!activeHabit.skips.includes(dateStr)) activeHabit.skips.push(dateStr);
+        } else {
+          // Toggle to completed
+          activeHabit.skips = activeHabit.skips.filter(d => d !== dateStr);
+          if (!activeHabit.completions.includes(dateStr)) activeHabit.completions.push(dateStr);
+        }
+
+        // Optimistically update trackingStartDate if earlier dates were recorded
+        const allRecorded = [...activeHabit.completions, ...activeHabit.skips].filter(Boolean).sort();
+        if (allRecorded.length > 0) {
+          const earliest = allRecorded[0];
+          const currentStart = (activeHabit.trackingStartDate && activeHabit.trackingStartDate.length > 0)
+            ? activeHabit.trackingStartDate
+            : (activeHabit.createdAt ? activeHabit.createdAt.split("T")[0] : earliest);
+          if (earliest < currentStart) {
+            activeHabit.trackingStartDate = earliest;
+          }
+        }
+
+        // 2. Instant re-render for zero-latency feedback and reliable subsequent clicks (on/off/on)
+        render();
+
+        // 3. Dispatch to host
+        callHost('toggleDay', activeHabit.id, dateStr, currentStatus);
       }
     }
 
@@ -2268,8 +2447,8 @@ function buildDashboardTemplate(dashboardData) {
           </div>
 
           <div class="quitly-white-sheet">
-            <div style="font-size: 16px; font-weight: 800; margin-bottom: 2px;">
-              \u{1F3A8} Appearance & Themes
+            <div style="font-size: 15px; font-weight: 800; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+              \${ICONS.settings} <span>Appearance & Themes</span>
             </div>
             <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 10px;">
               Choose your visual theme. Changes update in real-time.
@@ -2536,8 +2715,12 @@ function buildDashboardTemplate(dashboardData) {
       const isCompletedToday = stats.statusToday === "completed";
       const isSlipToday = (activeHabit.skips || []).includes(todayStr);
 
-      const todaySlipsCount = (activeHabit.events || []).filter(e => e.type === 'skip' && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length;
-      const todayDoneCount = (activeHabit.events || []).filter(e => e.type === 'done' && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length;
+      const todaySlipsCount = Math.max(
+        (activeHabit.events || []).filter(e => (e.type === 'skip' || e.type === 'slip' || e.type === 'reset') && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length,
+        (activeHabit.resetLogs || []).filter(rl => (rl.date === todayStr || (rl.timestamp && rl.timestamp.split('T')[0] === todayStr))).length,
+        isSlipToday ? 1 : 0
+      );
+      const todayDoneCount = (activeHabit.events || []).filter(e => (e.type === 'done' || e.type === 'complete') && (e.date === todayStr || (e.timestamp && e.timestamp.split('T')[0] === todayStr))).length;
 
       // Contextual Action Buttons & Phrasing
       let actionsClusterHtml = "";
@@ -2672,14 +2855,23 @@ function buildDashboardTemplate(dashboardData) {
         if (d.status === 'completed') monthDoneCount++;
         if (d.status === 'skipped') monthSkipCount++;
         if (d.isToday) cls += ' is-today';
-        if (isCalendarEditMode && d.status !== 'future') cls += ' editing';
+
+        const dayDoneEvents = (activeHabit.events || []).filter(e => (e.type === 'done' || e.type === 'complete') && (e.date === d.dateStr || (e.timestamp && e.timestamp.split('T')[0] === d.dateStr)));
+        const daySlipEvents = (activeHabit.events || []).filter(e => (e.type === 'skip' || e.type === 'slip' || e.type === 'reset') && (e.date === d.dateStr || (e.timestamp && e.timestamp.split('T')[0] === d.dateStr)));
+        const dayResetLogs = (activeHabit.resetLogs || []).filter(rl => (rl.date === d.dateStr || (rl.timestamp && rl.timestamp.split('T')[0] === d.dateStr)));
+
+        const multiDoneCount = dayDoneEvents.length;
+        const multiSlipCount = Math.max(daySlipEvents.length, dayResetLogs.length);
+
+        const multiCount = (d.status === 'completed') ? multiDoneCount : ((d.status === 'skipped') ? multiSlipCount : 0);
+        const multiBadgeHtml = (multiCount > 1) ? \`<span class="day-multi-badge">\${multiCount}</span>\` : "";
 
         let isClickable = (d.status !== 'future');
         let clickAttr = isClickable 
           ? \`onclick="onDayDotClick('\${d.dateStr}', '\${d.status}')"\` 
           : "";
-        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'before_start' ? 'Before Start' : 'Future'))}\`;
-        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${titleTip}">\${d.dayNumber}</div>\`;
+        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? (multiCount > 1 ? \`\${multiCount} sessions completed\` : 'Done / Clean') : (d.status === 'skipped' ? (multiCount > 1 ? \`\${multiCount} slips logged\` : 'Missed / Reset') : (d.status === 'before_start' ? 'Before Start' : 'Future'))}\`;
+        return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${titleTip}">\${d.dayNumber}\${multiBadgeHtml}</div>\`;
       }).join("");
 
       // Build unified timeline of events and reset logs
@@ -2703,6 +2895,29 @@ function buildDashboardTemplate(dashboardData) {
             timestamp: rl.timestamp || null,
             note: rl.note || "Reset logged",
             streakLength: rl.streakLength
+          });
+        }
+      });
+      // Ensure all recorded completions and skips are represented in timeline
+      (activeHabit.completions || []).forEach(compDate => {
+        if (!timelineEntries.some(item => item.date === compDate && item.type === "done")) {
+          timelineEntries.push({
+            type: "done",
+            date: compDate,
+            timestamp: null,
+            note: "Daily check-in completed",
+            streakLength: null
+          });
+        }
+      });
+      (activeHabit.skips || []).forEach(skipDate => {
+        if (!timelineEntries.some(item => item.date === skipDate && (item.type === "slip" || item.type === "reset"))) {
+          timelineEntries.push({
+            type: "slip",
+            date: skipDate,
+            timestamp: null,
+            note: "Slip/Reset logged",
+            streakLength: null
           });
         }
       });
@@ -2802,30 +3017,35 @@ function buildDashboardTemplate(dashboardData) {
           <!-- Yearly / Monthly Activity Log -->
           <div class="activity-section-card">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px;">\${ICONS.calendar} \${calendar.monthName} \${calendar.year}</span>
-              <div style="display: flex; align-items: center; gap: 6px;">
+              <div class="cal-month-title-wrap">
+                \${ICONS.calendar} <span>\${calendar.monthName} \${calendar.year}</span>
+              </div>
+              <div class="cal-header-actions">
                 \${!isCalendarEditMode ? \`
                   <button class="btn-cal-action" onclick="startCalendarEditMode()">\${ICONS.edit} Edit Calendar</button>
                 \` : \`
                   <button class="btn-cal-action btn-cal-save" onclick="saveCalendarEdits()">\${ICONS.save} Save (\${editModifiedCount})</button>
                   <button class="btn-cal-action btn-cal-cancel" onclick="cancelCalendarEditMode()">\${ICONS.close} Cancel</button>
                 \`}
-                <div style="display: flex; gap: 2px; margin-left: 2px;">
-                  <button class="btn-header-round btn-month-nav" title="Previous Month (\u2190 / <)" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(-1)">\${ICONS.chevronLeft}</button>
-                  <button class="btn-header-round btn-month-nav" title="Next Month (\u2192 / >)" style="width: 28px; height: 28px; background: rgba(0,0,0,0.08); color: var(--text-main);" onclick="changeMonth(1)">\${ICONS.chevronRight}</button>
+                <div class="cal-nav-buttons">
+                  <button class="btn-month-nav" title="Previous Month (\u2190 / <)" onclick="changeMonth(-1)">\${ICONS.chevronLeft}</button>
+                  <button class="btn-month-nav" title="Next Month (\u2192 / >)" onclick="changeMonth(1)">\${ICONS.chevronRight}</button>
                 </div>
               </div>
             </div>
 
             \${isCalendarEditMode ? \`
               <div class="cal-edit-active-banner">
-                <span>\${ICONS.edit} <strong>Edit Mode:</strong> Tap any day to toggle (Green \u2194 Red)</span>
-                <span style="background: rgba(37,99,235,0.15); padding: 2px 8px; border-radius: 12px; font-weight: 800;">\${editModifiedCount} change(s) staged</span>
+                <div class="cal-edit-banner-left">
+                  \${ICONS.edit}
+                  <span>Tap any day to toggle status</span>
+                </div>
+                <span class="cal-staged-badge">\${editModifiedCount} staged</span>
               </div>
               <div class="cal-quick-actions-row">
                 <button class="btn-cal-quick" onclick="markMonthAllDone()">\${ICONS.check} Mark Month Clean</button>
                 <button class="btn-cal-quick" onclick="markMonthAllSkipped()">\${ICONS.close} Mark Month Missed</button>
-                <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\${ICONS.close} Discard</button>
+                <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\${ICONS.undo} Discard</button>
               </div>
             \` : ''}
 
@@ -2834,18 +3054,18 @@ function buildDashboardTemplate(dashboardData) {
               <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
             </div>
 
-            <div class="cal-grid-mini">
+            <div class="cal-grid-mini \${isCalendarEditMode ? 'is-editing' : ''}">
               \${emptyDots}
               \${dayDots}
             </div>
 
             <div class="resets-counter-bar">
-              <div style="display: flex; gap: 12px; align-items: center;">
-                <span><strong>\${monthDoneCount}</strong> Done</span>
-                <span><strong>\${monthSkipCount}</strong> Missed</span>
+              <div class="cal-stats-pills-row">
+                <span class="stat-pill clean"><span class="stat-pill-dot clean"></span> <strong>\${monthDoneCount}</strong>&nbsp;Clean</span>
+                <span class="stat-pill missed"><span class="stat-pill-dot missed"></span> <strong>\${monthSkipCount}</strong>&nbsp;Missed</span>
               </div>
-              <div style="font-size: 11.5px; color: var(--text-sub);">
-                \${stats.skippedDays || 0} total resets
+              <div class="stat-resets-label">
+                \${stats.skippedDays || 0}&nbsp;total resets
               </div>
             </div>
           </div>
@@ -3302,12 +3522,13 @@ async function handleEditHabit(app, habitId) {
 
 // anp-22-habit-streak/lib/features/toggleDay.js
 async function handleToggleDay(app, habitId, dateStr, currentStatus) {
-  if (!habitId || !dateStr || !isValidDateString(dateStr)) return;
+  if (!habitId || !dateStr || !isValidDateString(dateStr)) return null;
   const todayStr = getTodayString();
-  if (dateStr > todayStr) return;
+  if (dateStr > todayStr) return null;
   try {
     let linkedTaskUUID = null;
     let toggledToDone = false;
+    let updatedHabit = null;
     await mutateState(app, async (state) => {
       const habit = state.habits.find((h) => h.id === habitId);
       if (!habit) return;
@@ -3321,7 +3542,15 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
       habit.skips = habit.skips || [];
       habit.completions = habit.completions || [];
       habit.events = habit.events || [];
+      let isCurrentlyDone = false;
       if (currentStatus === "completed") {
+        isCurrentlyDone = true;
+      } else if (currentStatus === "skipped") {
+        isCurrentlyDone = false;
+      } else {
+        isCurrentlyDone = habit.completions.includes(dateStr) || habit.type === "skip" && !habit.skips.includes(dateStr);
+      }
+      if (isCurrentlyDone) {
         habit.completions = habit.completions.filter((d) => d !== dateStr);
         if (!habit.skips.includes(dateStr)) {
           habit.skips.push(dateStr);
@@ -3337,9 +3566,9 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
       if (habit.taskUUID) {
         linkedTaskUUID = habit.taskUUID;
       }
+      updatedHabit = habit;
     });
-    const todayStr2 = getTodayString();
-    if (dateStr === todayStr2 && linkedTaskUUID) {
+    if (dateStr === todayStr && linkedTaskUUID) {
       try {
         if (toggledToDone) {
           await app.updateTask(linkedTaskUUID, { completedAt: Math.floor(Date.now() / 1e3) });
@@ -3353,9 +3582,11 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
+    return { success: true, habitId, dateStr, toggledToDone, habit: updatedHabit };
   } catch (err) {
     console.error("[HabitStreak] Error in handleToggleDay:", err);
     await app.alert(`Failed to toggle day: ${err.message || err}`);
+    return { success: false, error: err.message || err };
   }
 }
 async function handleSaveCalendarEdits(app, habitId, skips, completions) {
@@ -3397,9 +3628,11 @@ async function handleSaveCalendarEdits(app, habitId, skips, completions) {
     if (app.context && typeof app.context.renderEmbed === "function") {
       await app.context.renderEmbed();
     }
+    return { success: true, habitId };
   } catch (err) {
     console.error("[HabitStreak] Error in handleSaveCalendarEdits:", err);
     await app.alert(`Failed to save calendar edits: ${err.message || err}`);
+    return { success: false, error: err.message || err };
   }
 }
 
@@ -4038,11 +4271,9 @@ var plugin = {
           await handleDeleteHabit(app, args[1]);
           break;
         case "toggleDay":
-          await handleToggleDay(app, args[1], args[2], args[3]);
-          break;
+          return await handleToggleDay(app, args[1], args[2], args[3]);
         case "saveCalendarEdits":
-          await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
-          break;
+          return await handleSaveCalendarEdits(app, args[1], args[2], args[3]);
         case "skipToday":
           await handleSkipToday(app, args[1]);
           break;

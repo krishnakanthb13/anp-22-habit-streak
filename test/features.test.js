@@ -149,10 +149,64 @@ describe("features — Day Toggling & Reset Handling", () => {
     };
     const app = createMockApp(initialState);
 
-    await handleToggleDay(app, "h1", "2026-08-19", "completed");
+    const res = await handleToggleDay(app, "h1", "2026-08-19", "completed");
+    expect(res.toggledToDone).toBe(false);
 
     const lastSavedMarkdown = app.replaceNoteContent.mock.calls[0][1];
     expect(lastSavedMarkdown).toContain('"skips": [\n        "2026-08-19"\n      ]');
+  });
+
+  test("handleToggleDay handles on -> off -> on sequentially without state loss", async () => {
+    const initialState = {
+      version: 1,
+      activeHabitId: "h1",
+      habits: [{
+        id: "h1",
+        name: "Running",
+        type: TRACK_TYPES.COMPLETE,
+        createdAt: "2026-08-01",
+        completions: [],
+        skips: []
+      }]
+    };
+    const app = createMockApp(initialState);
+
+    // 1. First click: Turn ON (skipped -> completed)
+    const res1 = await handleToggleDay(app, "h1", "2026-08-15", "skipped");
+    expect(res1.toggledToDone).toBe(true);
+
+    // 2. Second click: Turn OFF (completed -> skipped)
+    const res2 = await handleToggleDay(app, "h1", "2026-08-15", "completed");
+    expect(res2.toggledToDone).toBe(false);
+
+    // 3. Third click: Turn ON AGAIN (skipped -> completed)
+    const res3 = await handleToggleDay(app, "h1", "2026-08-15", "skipped");
+    expect(res3.toggledToDone).toBe(true);
+
+    const finalMarkdown = app.replaceNoteContent.mock.calls[app.replaceNoteContent.mock.calls.length - 1][1];
+    expect(finalMarkdown).toContain('"completions": [\n        "2026-08-15"\n      ]');
+  });
+
+  test("handleToggleDay automatically backdates trackingStartDate if earlier date toggled", async () => {
+    const initialState = {
+      version: 1,
+      activeHabitId: "h1",
+      habits: [{
+        id: "h1",
+        name: "Meditation",
+        type: TRACK_TYPES.COMPLETE,
+        trackingStartDate: "2026-08-10",
+        completions: [],
+        skips: []
+      }]
+    };
+    const app = createMockApp(initialState);
+
+    const res = await handleToggleDay(app, "h1", "2026-08-05", "skipped");
+    expect(res.toggledToDone).toBe(true);
+
+    const finalMarkdown = app.replaceNoteContent.mock.calls[0][1];
+    expect(finalMarkdown).toContain('"trackingStartDate": "2026-08-05"');
   });
 
   test("handleSaveCalendarEdits persists modified skips and completions arrays", async () => {

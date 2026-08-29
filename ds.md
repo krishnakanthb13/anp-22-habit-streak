@@ -386,20 +386,18 @@ If `app.context.renderEmbed` is unavailable (which the Amplenote API doesn't gua
 
 ---
 
-We should remove the recurrence pattern functionality of this plugin because:
+### ✅ Resolved Design Decisions & Implementation Status
 
-- bad habits every X days don't really make sense
-- good habits every X days introduce complexity wrt to "streaks" - if you want to keep this feature, it would be nice to have a properly documented design for what a streak even means for a non-daily habit and what "missing" a streak means and how the interactivity with the calendar would work (what constitutes a green day and what constitutes a red day when there can be empty space between two green days without those being considered a reset)
+#### 1. Pure Daily Cadence (Recurrence Removal) — **[COMPLETED]**
+- [x] **Bad habits every X days removed**: Abstinence and quitting tracking operates continuously without artificial gaps.
+- [x] **Good habits non-daily recurrence removed**: Eliminated multi-day period complexities; good habits follow pure daily contiguous momentum.
+- [x] **Removed "7-Day Activity & Logs" histogram**: Removed duplicate visual elements in favor of the full Monthly Calendar and detailed Timestamped History Log.
 
----
-
-User interface
-
-- Let's clarify a lot of the words being used and remove synonyms to clean up the experience:
-    - Use Quitting and Building for the names of the tabs
-    - Use Bad habits to quit and Good habits to build to have every label be unambiguous and symmetric
-    - Let's use Reset counter today and Reset counter on date (same for positive habit screen)
-- We should remove emojis from the user interface altogether except for the ones that symbolize a habit the user added. We should instead use material design icons.
+#### 2. User Interface Symmetries & Material Design SVG Iconography — **[COMPLETED]**
+- [x] **Standardized Tab Names**: Unified navigation tabs strictly to **`Quitting`** and **`Building`**.
+- [x] **Symmetrical Section Headers**: Standardized labels to **`Bad habits to quit`** and **`Good habits to build`**.
+- [x] **Symmetrical Reset Action Prompts**: Standardized across screens to **`Reset counter today`** and **`Reset counter on date`**.
+- [x] **Material Design SVG Icons (`ICONS`)**: Replaced all UI/system emojis across headers, navigation chevrons, tabs, actions, calendar controls, and badges with crisp, modern SVG icons. User-selected habit icons remain preserved.
 
 ---
 
@@ -419,6 +417,6 @@ We adopted **Option A (Pure Daily Cadence)** and removed non-daily recurrence pa
 5. **Streamlined Counter Hierarchy:** Removed redundant "7-Day Activity & Logs" bar chart, eliminating duplicate visual indicators in favor of the interactive Monthly Dot Calendar and timestamped History Log.
 
 ### Verification
-- **Test Suite:** 99/99 passing (5 test suites in `test/`).
-- **Bundle:** Re-compiled via `node esbuild.js 22`.
+- **Test Suite:** 101/101 passing (5 test suites in `test/`).
+- **Bundle:** Re-compiled via `node esbuild.js 22` to `build/habit-streak.compiled.js`.
 - **Links:** 100% relative repository links with zero local file path references.

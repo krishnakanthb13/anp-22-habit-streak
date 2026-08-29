@@ -108,7 +108,7 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
   - `handleResetToDate`: Backdates relapse / reset to a specified date using high-performance $O(N + M)$ `Set` operations.
   - `handleUndoToday`: Verifies an action event (`done`, `skip`, `slip`) exists today before modifying state, restores previous streak anchors based on recalculated stats, and preserves calendar-only edits.
 - **`toggleDay.js`**:
-  - `handleToggleDay`: Rejects toggling future dates (`dateStr > todayStr`) and safely flips between done and slip/reset for past and current days.
+  - `handleToggleDay`: Rejects toggling future dates (`dateStr > todayStr`) and safely flips between done and slip/reset for past and current days. Accurately determines current state from records, handles sequential on/off/on toggling without state loss, and automatically backdates `trackingStartDate` if earlier dates are marked.
   - `handleSaveCalendarEdits`: Batch applies staged calendar changes, ensures mutual exclusivity, logs audit events only when changes occurred, and extends `trackingStartDate` only after validation passes.
 - **`habitManagement.js`**: Safe deletion and tab switching.
 - **`launcher.js`**: Opens embed in sidebar or main workspace.
@@ -117,11 +117,19 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 
 ### `lib/ui/dashboardTemplate.js`
 - Full single-page client-side embedded application.
+- **Optimistic Calendar Interaction**: Immediate (<1ms) local state updates and instant re-rendering on calendar tile clicks, ensuring zero-latency visual feedback and flawless multi-click toggling (`on -> off -> on`).
+- **Multi-Session & Multi-Slip Visual Display (3 Surfaces)**:
+  1. *Top Status Badge*: Dynamically updates to `✔ N Sessions Completed Today` for positive habits and `↺ N Slips Logged Today` for quitting habits when multiple events occur on a single day.
+  2. *Calendar Day Tile*: Renders a compact superscript counter badge (`[2]`, `[3]`) and detailed tooltip on days with multiple completed sessions (green chips) OR multiple slips/resets (red chips).
+  3. *Timestamped Activity Log*: Lists each individual session and slip with its exact timestamp, session badge, and user reflection note.
+- **Vertically-Aligned Milestone Goals Grid**: 3-column milestone checklist with fixed icon anchors and left-aligned text within each box, aligning all checkmarks, locks, and tier labels down consistent vertical column lines while remaining centered within the section.
 - **Pure Material Design SVG Iconography**: Replaced all UI emojis across navigation, action buttons, card headers, calendar controls, and badges with crisp, modern SVGs (`ICONS`). User-selected habit icons remain preserved.
 - **Symmetrical Terminology & Grouping**:
   - Tabs: **`Quitting`** and **`Building`**.
   - Section Headers: **`Bad habits to quit`** and **`Good habits to build`**.
   - Actions: **`Reset counter today`** and **`Reset counter on date`**.
+- **Unified Timeline & Calendar Sync**: All recorded completions and skips from the calendar grid are guaranteed to be represented in the Activity History timeline with exact chronological ordering, ensuring zero discrepancy between calendar day counts and timeline logs.
+- **Enlarged Calendar Typography & Non-Wrapping Stats Bar**: Upgraded day number typography (`13.5px`, `800` weight) and high-contrast multi-session chips (`9px`), with `white-space: nowrap` and `&nbsp;` protection across the month summary bar (`1 Clean`, `0 Missed`, `0 total resets`).
 - **Responsive Theme Engine**: 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`).
 - **Live Digital Ticker**: Sub-second ticking counter (`[Days/Years/Months] [Hours] [Mins] [Secs]`).
 - **Interactive Dot Calendar**: Full month interactive calendar with staged edit mode, quick actions (Mark Month Clean / Mark Month Missed), and visual feedback.

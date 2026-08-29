@@ -1,5 +1,32 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.23 (2026-08-29)
+
+### 🎯 Robust Calendar Toggling & Visual Polish
+- **Multi-Session & Multi-Slip Visual Display (3 Surfaces)**:
+  - Dynamically updates top status badge to `✔ N Sessions Completed Today` for positive habits and `↺ N Slips Logged Today` for quitting habits when multiple events are logged on a single day.
+  - Added subtle superscript count chips (`[2]`, `[3]`) and detailed tooltips directly on calendar day tiles for days with multiple completed sessions (green chips) OR multiple slips (red chips).
+  - Dedicated timestamped entries with exact completion time, icon, and reflection notes in the Activity History timeline.
+- **Vertically-Aligned Milestone Goal Cards**: Standardized goal cards to left-aligned content with fixed icon anchors, ensuring all lock/checkmark icons align on exact vertical lines across all 3 columns without zig-zagging.
+- **Optimistic Calendar Toggling & Zero-Latency Feedback**:
+  - Implemented immediate optimistic client state updates and instant re-renders upon calendar tile clicks, resolving non-responsive tile clicks and ensuring seamless multi-click toggling (`on -> off -> on`).
+  - Self-healing state detection in `handleToggleDay` ensuring reliable status flipping between Clean and Missed/Slip regardless of client latency.
+  - Automatic `trackingStartDate` backdating when earlier calendar dates are clicked.
+- **Sleek Calendar UI & Spacing Overhaul**:
+  - Replaced noisy dashed cell borders during edit mode with smooth hover elevation, tap micro-animations, and subtle glowing focus rings.
+  - Upgraded calendar day tiles with soft vibrant gradients (`#10b981` emerald done, `#f43f5e` rose missed) and smooth `9px` corner radius.
+  - Polished calendar header controls with pill action buttons, navigation chevrons, and elegant stats badges (`● Clean`, `● Missed`).
+  - Harmonized global padding, section gaps (`14px`), and container sizing (`460px` max-width) across all screens and themes.
+- **Enhanced Calendar Typography & Badge Sizing**:
+  - Increased calendar day number font size from `11.5px` to `13.5px` with bolder `800` weight for superior legibility.
+  - Enlarged the top-right multi-log session count badge to `9px` with `padding: 1.5px 4px`, `box-shadow`, and crisp high-contrast styling.
+- **Unified Timeline & Calendar Event Sync**:
+  - Ensured all recorded calendar completions and skips are automatically represented in the Activity History timeline, guaranteeing zero discrepancy between calendar day counts and timeline logs.
+  - Enforced `white-space: nowrap` and non-breaking spaces on the month summary bar (`1 Clean`, `0 Missed`, `0 total resets`) to prevent vertical text wrapping.
+- **101/101 Passing Unit Tests**: Added unit tests verifying sequential on/off/on calendar day toggling and automatic start date adjustment.
+
+---
+
 ## v0.0.22 (2026-08-29)
 
 ### 🚀 Pure Daily Cadence & Clean UI Overhaul (Option A)
