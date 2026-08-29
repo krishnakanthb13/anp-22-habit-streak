@@ -4,14 +4,12 @@ var DATA_NOTE_NAME = "habit_streak_data";
 var DATA_NOTE_TAGS = ["-reports/-habit-streak"];
 var TRACK_TYPES = {
   SKIP: "skip",
-  // Quitly default: habit is done unless explicitly marked skipped (Abstinence)
+  // Quitting / Bad habit: habit is clean unless explicitly marked reset/slip (Abstinence)
   COMPLETE: "complete"
-  // Amplenote default: habit is not done unless explicitly completed (Positive Action)
+  // Building / Good habit: habit is completed when marked done (Positive Action)
 };
 var INTERVAL_PERIODS = {
-  DAY: "day",
-  WEEK: "week",
-  MONTH: "month"
+  DAY: "day"
 };
 var QUITLY_TIERS = [
   { id: "1d", label: "1 Day", days: 1, tierNum: 1, badge: "\u{1F331}", title: "Tier 1: First Step" },
@@ -153,47 +151,6 @@ function isScheduledDate(habit, dateStr, refStartStr, allowBackdated = false) {
   if (!allowBackdated && dateStr < habitStart) {
     return false;
   }
-  const interval = habit?.interval || { n: 1, period: INTERVAL_PERIODS.DAY };
-  const n = interval.n && Number.isInteger(interval.n) && interval.n >= 1 ? interval.n : 1;
-  const period = interval.period || INTERVAL_PERIODS.DAY;
-  if (period === INTERVAL_PERIODS.DAY && n === 1) {
-    return true;
-  }
-  const startDate = /* @__PURE__ */ new Date(habitStart + "T00:00:00Z");
-  const targetDate = /* @__PURE__ */ new Date(dateStr + "T00:00:00Z");
-  if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) {
-    return false;
-  }
-  const diffInDays = Math.round((targetDate.getTime() - startDate.getTime()) / (1e3 * 60 * 60 * 24));
-  if (!allowBackdated && diffInDays < 0) {
-    return false;
-  }
-  if (period === INTERVAL_PERIODS.DAY) {
-    return Math.abs(diffInDays) % n === 0;
-  }
-  if (period === INTERVAL_PERIODS.WEEK) {
-    const isSameWeekday = targetDate.getUTCDay() === startDate.getUTCDay();
-    const diffInWeeks = Math.floor(Math.abs(diffInDays) / 7);
-    return isSameWeekday && diffInWeeks % n === 0;
-  }
-  if (period === INTERVAL_PERIODS.MONTH) {
-    const sYear = startDate.getUTCFullYear();
-    const sMonth = startDate.getUTCMonth();
-    const sDay = startDate.getUTCDate();
-    const tYear = targetDate.getUTCFullYear();
-    const tMonth = targetDate.getUTCMonth();
-    const tDay = targetDate.getUTCDate();
-    const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
-    if (!allowBackdated && monthDiff < 0) {
-      return false;
-    }
-    if (Math.abs(monthDiff) % n !== 0) {
-      return false;
-    }
-    const lastDayInTargetMonth = new Date(Date.UTC(tYear, tMonth + 1, 0)).getUTCDate();
-    const expectedDay = Math.min(sDay, lastDayInTargetMonth);
-    return tDay === expectedDay;
-  }
   return true;
 }
 function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSets = null, effectiveStartStr = null) {
@@ -203,10 +160,6 @@ function getHabitDayStatus(habit, dateStr, todayStr = getTodayString(), cachedSe
   const habitStart = effectiveStartStr && isValidDateString(effectiveStartStr) ? effectiveStartStr : habit?.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit?.createdAt ? habit.createdAt.split("T")[0] : todayStr;
   if (dateStr < habitStart) {
     return "before_start";
-  }
-  const scheduled = isScheduledDate(habit, dateStr, habitStart);
-  if (!scheduled) {
-    return "not_applicable";
   }
   const skips = cachedSets?.skips ?? new Set(habit?.skips || []);
   const completions = cachedSets?.completions ?? new Set(habit?.completions || []);
@@ -233,7 +186,7 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
       completionRate: 0,
       streakStartDate: null,
       streakAnchorTimestamp: null,
-      statusToday: "not_applicable"
+      statusToday: "skipped"
     };
   }
   let habitStart = habit.trackingStartDate && isValidDateString(habit.trackingStartDate) ? habit.trackingStartDate : habit.createdAt ? habit.createdAt.split("T")[0] : todayStr;
@@ -267,18 +220,14 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
   const totalTrackedDays = dayStatuses.length;
   let completedDays = 0;
   let skippedDays = 0;
-  let scheduledDays = 0;
   for (const item of dayStatuses) {
     if (item.status === "completed") {
       completedDays++;
-      scheduledDays++;
     } else if (item.status === "skipped") {
       skippedDays++;
-      scheduledDays++;
     }
   }
-  const totalRelevantDays = scheduledDays > 0 ? scheduledDays : totalTrackedDays;
-  const completionRate = totalRelevantDays > 0 ? Math.round(completedDays / totalRelevantDays * 100) : 0;
+  const completionRate = totalTrackedDays > 0 ? Math.round(completedDays / totalTrackedDays * 100) : 0;
   let currentStreak = 0;
   let streakStartDate = null;
   for (let i = dayStatuses.length - 1; i >= 0; i--) {
@@ -286,8 +235,6 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
     if (status === "completed") {
       currentStreak++;
       streakStartDate = dateStr;
-    } else if (status === "not_applicable") {
-      continue;
     } else {
       break;
     }
@@ -300,8 +247,6 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
       if (tempStreak > longestStreak) {
         longestStreak = tempStreak;
       }
-    } else if (item.status === "not_applicable") {
-      continue;
     } else {
       tempStreak = 0;
     }
@@ -334,7 +279,7 @@ function calculateHabitStats(habit, todayStr = getTodayString()) {
     currentStreak,
     longestStreak,
     totalTrackedDays,
-    totalScheduledDays: scheduledDays,
+    totalScheduledDays: totalTrackedDays,
     completedDays,
     skippedDays,
     completionRate,
@@ -472,17 +417,10 @@ function normalizeHabit(habit) {
   const icon = habit.icon && typeof habit.icon === "string" ? habit.icon.trim().slice(0, 30) : "\u{1F525}";
   const colorTheme = habit.colorTheme && COLOR_THEMES[habit.colorTheme] ? habit.colorTheme : "blue";
   const type = habit.type === TRACK_TYPES.COMPLETE || habit.type === TRACK_TYPES.SKIP ? habit.type : TRACK_TYPES.SKIP;
-  let intervalN = 1;
-  let intervalPeriod = INTERVAL_PERIODS.DAY;
-  if (habit.interval && typeof habit.interval === "object") {
-    const rawN = parseInt(habit.interval.n, 10);
-    if (!isNaN(rawN) && rawN >= 1 && rawN <= 365) {
-      intervalN = rawN;
-    }
-    if ([INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(habit.interval.period)) {
-      intervalPeriod = habit.interval.period;
-    }
-  }
+  const interval = {
+    n: 1,
+    period: INTERVAL_PERIODS.DAY
+  };
   const nowISO = (/* @__PURE__ */ new Date()).toISOString();
   const rawCreated = habit.createdAt;
   const createdAt = rawCreated && isValidTimestamp(rawCreated) ? rawCreated : rawCreated && isValidDateString(rawCreated) ? `${rawCreated}T00:00:00.000Z` : nowISO;
@@ -517,10 +455,7 @@ function normalizeHabit(habit) {
     icon,
     colorTheme,
     type,
-    interval: {
-      n: intervalN,
-      period: intervalPeriod
-    },
+    interval,
     createdAt,
     trackingStartDate,
     streakAnchor,
@@ -1744,51 +1679,6 @@ function buildDashboardTemplate(dashboardData) {
       border-top: 1px solid var(--border-color);
     }
 
-    /* Weekly Frequency Chart */
-    .weekly-bars-container {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 8px;
-      height: 90px;
-      padding: 10px 4px 0 4px;
-      margin-bottom: 8px;
-    }
-
-    .weekly-bar-col {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-      justify-content: flex-end;
-      gap: 4px;
-    }
-
-    .weekly-bar-fill {
-      width: 100%;
-      max-width: 28px;
-      background: #3b82f6;
-      border-radius: 6px 6px 2px 2px;
-      min-height: 6px;
-      transition: height 0.3s ease;
-    }
-    .weekly-bar-col.today .weekly-bar-fill {
-      background: #10b981;
-    }
-
-    .weekly-day-lbl {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--text-sub);
-    }
-
-    .weekly-count-lbl {
-      font-size: 10px;
-      font-weight: 800;
-      color: var(--text-main);
-    }
-
     /* Templates Modal / Section */
     .templates-shelf-card {
       background: var(--card-container-bg);
@@ -1947,10 +1837,24 @@ function buildDashboardTemplate(dashboardData) {
       chevronDown: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="6 9 12 15 18 9"></polyline></svg>',
       arrowLeft: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>',
       close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-      checkCircle: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.15"></circle><polyline points="16 9 10.5 15 8 12.5"></polyline></svg>',
+      checkCircle: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"></circle><polyline points="16 9 10.5 15 8 12.5"></polyline></svg>',
+      check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>',
       lock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
       plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
-      externalLink: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'
+      externalLink: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
+      settings: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
+      edit: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+      trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+      refresh: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>',
+      undo: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>',
+      reset: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>',
+      import: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+      calendar: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
+      chart: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>',
+      shield: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>',
+      target: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+      heart: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:inline-block;vertical-align:middle;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>',
+      save: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>'
     };
 
     let currentData = INITIAL_DATA;
@@ -2280,13 +2184,13 @@ function buildDashboardTemplate(dashboardData) {
       if (habit && habit.icon) return habit.icon;
       const emojiMatch = habit && habit.name ? habit.name.match(/^[\\p{Emoji}\\u200d]+/u) : null;
       if (emojiMatch) return emojiMatch[0];
-      return (habit && habit.type === 'skip' ? '\u26A1' : '\u{1F4DD}');
+      return '\u{1F525}';
     }
 
     function getHabitCleanName(habit) {
       if (!habit || !habit.name) return "";
       if (habit.icon) return habit.name;
-      const emojiMatch = habit.name.match(/^[\\p{Emoji}\\u200d]+/u);
+      const emojiMatch = habit.name.match(/^[p{Emoji}\u200D]+/u);
       return emojiMatch ? habit.name.replace(emojiMatch[0], '').trim() : habit.name;
     }
 
@@ -2304,43 +2208,6 @@ function buildDashboardTemplate(dashboardData) {
       return daysCount + " day" + (daysCount !== 1 ? "s" : "") + ", 0 hrs";
     }
 
-    function getClientIsScheduledDate(habit, dateStr, habitStart) {
-      if (dateStr < habitStart) return false;
-      const interval = (habit && habit.interval) ? habit.interval : { n: 1, period: "day" };
-      const n = (interval.n && Number.isInteger(interval.n) && interval.n >= 1) ? interval.n : 1;
-      const period = interval.period || "day";
-      if (period === "day" && n === 1) return true;
-
-      const startDate = new Date(habitStart + "T00:00:00");
-      const targetDate = new Date(dateStr + "T00:00:00");
-      if (isNaN(startDate.getTime()) || isNaN(targetDate.getTime())) return true;
-      const diffInDays = Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24));
-      if (diffInDays < 0) return false;
-
-      if (period === "day") {
-        return diffInDays % n === 0;
-      }
-      if (period === "week") {
-        const isSameWeekday = targetDate.getDay() === startDate.getDay();
-        const diffInWeeks = Math.floor(diffInDays / 7);
-        return isSameWeekday && (diffInWeeks % n === 0);
-      }
-      if (period === "month") {
-        const sYear = startDate.getFullYear();
-        const sMonth = startDate.getMonth();
-        const sDay = startDate.getDate();
-        const tYear = targetDate.getFullYear();
-        const tMonth = targetDate.getMonth();
-        const tDay = targetDate.getDate();
-        const monthDiff = (tYear - sYear) * 12 + (tMonth - sMonth);
-        if (monthDiff < 0 || monthDiff % n !== 0) return false;
-        const lastDayInTargetMonth = new Date(tYear, tMonth + 1, 0).getDate();
-        const expectedDay = Math.min(sDay, lastDayInTargetMonth);
-        return tDay === expectedDay;
-      }
-      return true;
-    }
-
     function getClientDayStatus(habit, dateStr, todayStr) {
       if (dateStr > todayStr) return "future";
       const skipsList = (isCalendarEditMode && editSkips) ? editSkips : (habit.skips || []);
@@ -2353,9 +2220,6 @@ function buildDashboardTemplate(dashboardData) {
 
       const habitStart = habit.trackingStartDate || (habit.createdAt ? habit.createdAt.split("T")[0] : todayStr);
       if (dateStr < habitStart) return "before_start";
-
-      const isScheduled = getClientIsScheduledDate(habit, dateStr, habitStart);
-      if (!isScheduled) return "not_applicable";
 
       if (habit.type === 'complete') return "skipped";
       return "completed";
@@ -2378,37 +2242,6 @@ function buildDashboardTemplate(dashboardData) {
       }
 
       return { year, month, monthName, firstDayWeekday, totalDaysInMonth, days };
-    }
-
-    function getClientWeeklyFrequency(habit) {
-      const events = habit.events || [];
-      const daysNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const today = new Date();
-      const weekCounts = [];
-      let totalWeekLogs = 0;
-
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-        const dayName = daysNames[d.getDay()];
-
-        let count = 0;
-        for (const ev of events) {
-          if (ev.date === dateStr) count++;
-        }
-
-        if (count === 0) {
-          if (habit.type === 'complete' && (habit.completions || []).includes(dateStr)) count = 1;
-          else if (habit.type === 'skip' && (habit.skips || []).includes(dateStr)) count = 1;
-        }
-
-        totalWeekLogs += count;
-        weekCounts.push({ dateStr, dayName, count, isToday: i === 0 });
-      }
-
-      const maxCount = Math.max(...weekCounts.map(w => w.count), 1);
-      return { weekCounts, maxCount, totalWeekLogs };
     }
 
     function render() {
@@ -2444,34 +2277,34 @@ function buildDashboardTemplate(dashboardData) {
 
             <div class="theme-picker-grid">
               <button class="theme-option-btn \${activeTheme === 'midnight' ? 'active' : ''}" onclick="applyTheme('midnight')">
-                \u{1F30C} Midnight (Default)
+                Midnight (Default)
               </button>
               <button class="theme-option-btn \${activeTheme === 'glass' ? 'active' : ''}" onclick="applyTheme('glass')">
-                \u{1F52E} Frosted Glass
+                Frosted Glass
               </button>
               <button class="theme-option-btn \${activeTheme === 'dark' ? 'active' : ''}" onclick="applyTheme('dark')">
-                \u{1F319} Pure Dark
+                Pure Dark
               </button>
               <button class="theme-option-btn \${activeTheme === 'light' ? 'active' : ''}" onclick="applyTheme('light')">
-                \u2600\uFE0F Light Clean
+                Light Clean
               </button>
               <button class="theme-option-btn \${activeTheme === 'neon' ? 'active' : ''}" onclick="applyTheme('neon')" style="grid-column: span 2;">
-                \u26A1 Cyberpunk Neon
+                Cyberpunk Neon
               </button>
             </div>
             
             <div class="activity-section-card" style="margin-top: 12px;">
-              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F504} Sync Status</div>
+              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">\${ICONS.refresh} Sync Status</div>
               <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4; margin-bottom: 12px;">
                 Your streak logs are stored in the data note with tag <code>-reports/-habit-streak</code>.
               </p>
               <button class="btn-create-custom" style="padding: 10px; font-size: 13px;" onclick="callHost('refreshData')">
-                \u{1F504} Force Refresh from Note
+                \${ICONS.refresh} Force Refresh from Note
               </button>
             </div>
 
             <div class="activity-section-card">
-              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">\u{1F4CA} Total Overview</div>
+              <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">\${ICONS.chart} Total Overview</div>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
                 <div style="background: var(--card-container-bg); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
                   <div style="font-size: 18px; font-weight: 800; color: #2563eb;">\${habits.length}</div>
@@ -2487,14 +2320,14 @@ function buildDashboardTemplate(dashboardData) {
             <!-- Support Developer Section -->
             <div class="activity-section-card support-dev-card" style="margin-top: 12px;">
               <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: #e11d48; margin-bottom: 6px;">
-                <span style="font-size: 16px;">\u{1F496}</span>
+                \${ICONS.heart}
                 <span>Support the Developer</span>
               </div>
               <p style="font-size: 12px; color: var(--text-sub); line-height: 1.45; margin-bottom: 12px;">
                 If Habit Streak helps you stay focused, maintain your streaks, and build positive daily momentum, consider supporting future development and new features!
               </p>
               <a href="https://krishnakanthb13.github.io/S/" target="_blank" rel="noopener noreferrer" class="btn-support-dev">
-                <span>\u2615 Support Development</span>
+                <span style="display: inline-flex; align-items: center; gap: 6px;">\${ICONS.heart} Support Development</span>
                 \${ICONS.externalLink}
               </a>
             </div>
@@ -2507,7 +2340,7 @@ function buildDashboardTemplate(dashboardData) {
         return;
       }
 
-      // 2. TEMPLATES VIEW (Image 3) - Categorized into Quitly (Negative) and Amplenote (Positive)
+      // 2. TEMPLATES VIEW - Categorized into Quitting and Building
       if (currentView === "templates") {
         const renderTemplateRows = (list) => list.map(p => {
           const globalIdx = PRESETS.findIndex(item => item.name === p.name);
@@ -2538,35 +2371,35 @@ function buildDashboardTemplate(dashboardData) {
 
           <div class="filter-segment-bar">
             <button class="filter-tab-btn \${templateFilter === 'all' ? 'active' : ''}" onclick="setTemplateFilter('all')">All</button>
-            <button class="filter-tab-btn \${templateFilter === 'quit' ? 'active' : ''}" onclick="setTemplateFilter('quit')">\u{1F6E1}\uFE0F Quitting</button>
-            <button class="filter-tab-btn \${templateFilter === 'positive' ? 'active' : ''}" onclick="setTemplateFilter('positive')">\u{1F3AF} Positive Habits</button>
+            <button class="filter-tab-btn \${templateFilter === 'quit' ? 'active' : ''}" onclick="setTemplateFilter('quit')">Quitting</button>
+            <button class="filter-tab-btn \${templateFilter === 'positive' ? 'active' : ''}" onclick="setTemplateFilter('positive')">Building</button>
           </div>
 
           <div class="templates-shelf-card">
             <button class="btn-create-custom" onclick="createCustomHabit()">+ Create a Custom Counter</button>
             <button class="btn-quitly-action" style="width: 100%; justify-content: center; margin-top: 6px; margin-bottom: 4px;" onclick="importTasksFromNote()">
-              \u{1F4E5} Import Tasks from Note
+              \${ICONS.import} Import Tasks from Note
             </button>
 
             <details class="guide-accordion">
               <summary>
                 <span style="display: flex; align-items: center; gap: 6px;">
-                  <span>\u{1F4A1}</span> <span>How to Add & Track Habits</span>
+                  \${ICONS.target} <span>How to Add & Track Habits</span>
                 </span>
                 <span style="display: flex; align-items: center; opacity: 0.75;">\${ICONS.chevronDown}</span>
               </summary>
               <div class="guide-accordion-body">
                 <strong>1. Choose Source:</strong> Pick a preset template below, create a custom counter, or import tasks from any note.<br>
                 <strong>2. Dual Tracking Philosophy:</strong><br>
-                &nbsp;&nbsp;\u2022 <strong>\u{1F6E1}\uFE0F Quitting / Abstinence:</strong> Auto-tracked! Days count up continuously unless you log a slip.<br>
-                &nbsp;&nbsp;\u2022 <strong>\u2728 Positive Practice:</strong> Requires daily intentional check-in to build your streak.<br>
+                &nbsp;&nbsp;\u2022 <strong>Quitting (Bad Habits):</strong> Days count up continuously unless you log a reset/slip.<br>
+                &nbsp;&nbsp;\u2022 <strong>Building (Good Habits):</strong> Requires daily intentional check-in to build your streak.<br>
                 <strong>3. Interactive Tracking:</strong> Tap any calendar day to toggle status or log reflections on resets.
               </div>
             </details>
 
             \${(templateFilter === 'all' || templateFilter === 'quit') ? \`
               <div class="templates-category-title">
-                <span>\u{1F6E1}\uFE0F Break Bad Habits & Sobriety (Quitly Style)</span>
+                <span>Bad habits to quit</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 \${quitlyListHtml}
@@ -2575,7 +2408,7 @@ function buildDashboardTemplate(dashboardData) {
 
             \${(templateFilter === 'all' || templateFilter === 'positive') ? \`
               <div class="templates-category-title" style="margin-top: 14px;">
-                <span>\u{1F3AF} Build Positive Daily Habits (Amplenote Style)</span>
+                <span>Good habits to build</span>
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 \${amplenoteListHtml}
@@ -2586,7 +2419,7 @@ function buildDashboardTemplate(dashboardData) {
         return;
       }
 
-      // 3. MAIN COUNTERS LIST VIEW - Segmented into Quitting vs Positive
+      // 3. MAIN COUNTERS LIST VIEW - Segmented into Quitting vs Building
       if (currentView === "main" || !activeHabit) {
         const renderHabitCard = (h, idx) => {
           const grad = getHabitGradientClass(h, idx);
@@ -2608,7 +2441,7 @@ function buildDashboardTemplate(dashboardData) {
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 11px; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 12px; font-weight: 700;">
-                  \${isQuit ? '\u{1F6E1}\uFE0F Auto-Done' : '\u{1F3AF} Check-In'}
+                  \${isQuit ? 'Quitting' : 'Building'}
                 </span>
                 <span class="counter-card-arrow">\${ICONS.chevronRight}</span>
               </div>
@@ -2630,7 +2463,7 @@ function buildDashboardTemplate(dashboardData) {
           if (quittingHabits.length > 0) {
             displayCardsHtml += \`
               <div class="section-category-header">
-                <span>\u{1F6E1}\uFE0F Bad Habits to Break (Abstinence)</span>
+                <span>Bad habits to quit</span>
                 <span style="font-size: 11px; color: var(--text-sub);">\${quittingHabits.length}</span>
               </div>
               \${quittingHabits.map((h, i) => renderHabitCard(h, i)).join("")}
@@ -2640,7 +2473,7 @@ function buildDashboardTemplate(dashboardData) {
           if (positiveHabits.length > 0) {
             displayCardsHtml += \`
               <div class="section-category-header" style="margin-top: 10px;">
-                <span>\u{1F3AF} Positive Habits to Build (Daily Practice)</span>
+                <span>Good habits to build</span>
                 <span style="font-size: 11px; color: var(--text-sub);">\${positiveHabits.length}</span>
               </div>
               \${positiveHabits.map((h, i) => renderHabitCard(h, i + quittingHabits.length)).join("")}
@@ -2650,7 +2483,7 @@ function buildDashboardTemplate(dashboardData) {
 
         root.innerHTML = \`
           <div class="app-top-header">
-            <button class="btn-header-round" title="Settings & Themes" onclick="switchView('settings')">\u2699\uFE0F</button>
+            <button class="btn-header-round" title="Settings & Themes" onclick="switchView('settings')">\${ICONS.settings}</button>
             <span class="header-title-text">Habit Streaks</span>
             <button class="btn-header-round" title="Add Counter" onclick="switchView('templates')">\${ICONS.plus}</button>
           </div>
@@ -2660,24 +2493,24 @@ function buildDashboardTemplate(dashboardData) {
               All (\${habits.length})
             </button>
             <button class="filter-tab-btn \${mainFilter === 'quit' ? 'active' : ''}" onclick="setMainFilter('quit')">
-              \u{1F6E1}\uFE0F Quitting (\${quittingHabits.length})
+              Quitting (\${quittingHabits.length})
             </button>
             <button class="filter-tab-btn \${mainFilter === 'positive' ? 'active' : ''}" onclick="setMainFilter('positive')">
-              \u{1F3AF} Positive (\${positiveHabits.length})
+              Building (\${positiveHabits.length})
             </button>
           </div>
 
           <div class="quitly-white-sheet">
             \${habits.length > 0 ? displayCardsHtml : \`
               <div style="text-align: center; padding: 36px 18px;">
-                <div style="font-size: 44px; margin-bottom: 12px;">\u{1F331}</div>
+                <div style="font-size: 32px; margin-bottom: 12px; opacity: 0.8;">\${ICONS.target}</div>
                 <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">No counters yet</h3>
                 <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.45; max-width: 320px; margin-left: auto; margin-right: auto;">
-                  Track sobriety/quitting goals automatically or build daily positive practices with real-time sub-second tickers & interactive calendars.
+                  Track quitting goals continuously or build daily positive habits with real-time sub-second tickers & interactive calendars.
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 8px; max-width: 280px; margin: 0 auto;">
                   <button class="btn-create-custom" onclick="switchView('templates')">+ Choose a Template</button>
-                  <button class="btn-quitly-action" style="justify-content: center;" onclick="callHost('importFromNote')">\u{1F4E5} Import Tasks from Note</button>
+                  <button class="btn-quitly-action" style="justify-content: center;" onclick="callHost('importFromNote')">\${ICONS.import} Import Tasks from Note</button>
                 </div>
               </div>
             \`}
@@ -2691,7 +2524,6 @@ function buildDashboardTemplate(dashboardData) {
       const stats = hcObj ? hcObj.stats : (currentData.stats || {});
       const tiers = currentData.tiers || [];
       const calendar = getClientMonthCalendar(activeHabit, viewingYear, viewingMonth);
-      const weeklyFreq = getClientWeeklyFrequency(activeHabit);
       const activeTier = tiers.find(t => t.isCurrentGoal) || tiers[0];
       const habitIdx = habits.findIndex(h => h.id === activeHabit.id);
       const grad = getHabitGradientClass(activeHabit, habitIdx >= 0 ? habitIdx : 0);
@@ -2711,72 +2543,43 @@ function buildDashboardTemplate(dashboardData) {
       let actionsClusterHtml = "";
       let statusBadgeHtml = "";
       let philosophyFooterHtml = "";
-      const isOffScheduleToday = stats.statusToday === "not_applicable";
 
-      if (isOffScheduleToday) {
-        statusBadgeHtml = \`
-          <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.4); color: var(--text-sub); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            \u2615 Off-Schedule / Rest Day
-          </div>
-        \`;
-
-        actionsClusterHtml = \`
-          <div class="action-pills-cluster">
-            <div style="font-size: 12px; color: var(--text-sub); padding: 6px 12px; font-style: italic;">
-              No check-in scheduled for today (\${activeHabit.interval?.n || 1} \${activeHabit.interval?.period || 'day'}(s) cadence).
-            </div>
-            <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-              \u{1F504} Backfill Dates with Note
-            </button>
-          </div>
-        \`;
-
-        philosophyFooterHtml = \`
-          <div class="activity-section-card" style="margin-top: 12px; background: rgba(148, 163, 184, 0.08); border-color: rgba(148, 163, 184, 0.25);">
-            <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: var(--text-main); margin-bottom: 4px;">
-              <span>\u2615 Rest Day / Off Schedule</span>
-            </div>
-            <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
-              Today is a scheduled rest day for this habit. Your existing streak remains active and unbroken across off-days.
-            </p>
-          </div>
-        \`;
-      } else if (isQuitly) {
-        // Quitly / Bad Habit / Abstinence
+      if (isQuitly) {
+        // Quitting / Bad Habit / Abstinence
         if (isSlipToday) {
           statusBadgeHtml = \`
             <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-              \u{1F6A8} \${todaySlipsCount > 1 ? todaySlipsCount + ' Slips Logged Today' : 'Slip / Reset Logged Today'}
+              \${ICONS.undo} \${todaySlipsCount > 1 ? todaySlipsCount + ' Slips Logged Today' : 'Reset Logged Today'}
             </div>
           \`;
 
           actionsClusterHtml = \`
             <div class="action-pills-cluster">
               <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')" title="Log additional slip for today">
-                \u{1F6A8} Log Additional Slip (+1)
+                \${ICONS.plus} Log Additional Slip (+1)
               </button>
               <button class="btn-quitly-action btn-done-success" onclick="callHost('undoToday', '\${activeHabit.id}')">
-                \u21A9\uFE0F Undo Slip / Mark Clean Today
+                \${ICONS.undo} Undo Slip / Mark Clean Today
               </button>
               <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-                \u{1F504} Backdate Relapse Date with Note
+                \${ICONS.reset} Reset Counter on Date
               </button>
             </div>
           \`;
         } else {
           statusBadgeHtml = \`
             <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-              \u{1F6E1}\uFE0F Clean Today (Auto-Tracked)
+              \${ICONS.shield} Clean Today
             </div>
           \`;
 
           actionsClusterHtml = \`
             <div class="action-pills-cluster">
               <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')">
-                \u{1F6A8} Log Slip / Reset Today
+                \${ICONS.reset} Reset Counter Today
               </button>
               <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-                \u{1F504} Backdate Relapse Date with Note
+                \${ICONS.reset} Reset Counter on Date
               </button>
             </div>
           \`;
@@ -2785,47 +2588,50 @@ function buildDashboardTemplate(dashboardData) {
         philosophyFooterHtml = \`
           <div class="activity-section-card" style="margin-top: 12px; background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25);">
             <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #10b981; margin-bottom: 4px;">
-              <span>\u{1F6E1}\uFE0F Quitly Abstinence Philosophy (Quitting a Bad Habit)</span>
+              \${ICONS.shield} <span>Quitting / Abstinence Philosophy</span>
             </div>
             <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
-              This is a quitting counter. Days count up automatically as long as you stay clean. You can log single or multiple slips with reflection notes, backdate past relapses, or undo accidental slips.
+              This is a quitting counter. Days count up continuously as long as you stay clean. Tap <strong>"Reset Counter Today"</strong> or <strong>"Reset Counter on Date"</strong> to record slips with reflection notes.
             </p>
           </div>
         \`;
       } else {
-        // Amplenote / Positive Action Habit
+        // Building / Good Habit / Positive Practice
         statusBadgeHtml = isCompletedToday ? \`
           <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            \u2705 \${todayDoneCount > 1 ? todayDoneCount + ' Sessions Completed Today!' : 'Completed for Today!'}
+            \${ICONS.checkCircle} \${todayDoneCount > 1 ? todayDoneCount + ' Sessions Completed Today' : 'Completed Today'}
           </div>
         \` : \`
           <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); color: #6366f1; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            \u23F3 Today Pending Check-In
+            \${ICONS.target} Today Pending Check-In
           </div>
         \`;
 
         actionsClusterHtml = isCompletedToday ? \`
           <div class="action-pills-cluster">
             <button class="btn-quitly-action btn-done-success" onclick="callHost('completeToday', '\${activeHabit.id}')" title="Log additional session with note">
-              + Log Additional Done (+1)
+              \${ICONS.plus} Log Additional Done (+1)
             </button>
             <button class="btn-quitly-action" onclick="callHost('undoToday', '\${activeHabit.id}')">
-              \u21A9\uFE0F Undo / Mark Not Done
+              \${ICONS.undo} Undo Today
+            </button>
+            <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')">
+              \${ICONS.reset} Reset Counter Today
             </button>
             <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-              \u{1F504} Backfill Dates with Note
+              \${ICONS.reset} Reset Counter on Date
             </button>
           </div>
         \` : \`
           <div class="action-pills-cluster">
             <button class="btn-quitly-action btn-done-success" onclick="callHost('completeToday', '\${activeHabit.id}')">
-              \u2705 Mark Done Today
+              \${ICONS.check} Mark Done Today
             </button>
             <button class="btn-quitly-action btn-skip-danger" onclick="callHost('skipToday', '\${activeHabit.id}')">
-              \u{1F6AB} Log Missed / Skip Today
+              \${ICONS.reset} Reset Counter Today
             </button>
             <button class="btn-quitly-action" onclick="callHost('resetToDate', '\${activeHabit.id}')">
-              \u{1F504} Backfill Dates with Note
+              \${ICONS.reset} Reset Counter on Date
             </button>
           </div>
         \`;
@@ -2833,10 +2639,10 @@ function buildDashboardTemplate(dashboardData) {
         philosophyFooterHtml = \`
           <div class="activity-section-card" style="margin-top: 12px; background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25);">
             <div style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; color: #6366f1; margin-bottom: 4px;">
-              <span>\u{1F3AF} Amplenote Intentional Action Philosophy (Positive Habit)</span>
+              \${ICONS.target} <span>Building / Positive Habit Philosophy</span>
             </div>
             <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
-              This is a positive action habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> or <strong>"+ Log Additional Done (+1)"</strong> to log sessions with reflection notes.
+              This is a positive habit. Your streak grows by intentionally completing and checking in each day. Tap <strong>"Mark Done Today"</strong> or <strong>"+ Log Additional Done (+1)"</strong> to log sessions with reflection notes.
             </p>
           </div>
         \`;
@@ -2847,7 +2653,7 @@ function buildDashboardTemplate(dashboardData) {
         const isUnlocked = t.isUnlocked;
         return \`
           <div class="goal-check-box \${isUnlocked ? 'unlocked' : ''}">
-            <span class="goal-check-icon">\${isUnlocked ? '\u2611' : '\u{1F512}'}</span>
+            <span class="goal-check-icon">\${isUnlocked ? ICONS.check : ICONS.lock}</span>
             <div class="goal-label-wrap">
               <span class="goal-days-text">\${t.label}</span>
               <span class="goal-tier-text">Tier \${t.tierNum || t.days}</span>
@@ -2862,17 +2668,17 @@ function buildDashboardTemplate(dashboardData) {
       let monthSkipCount = 0;
 
       let dayDots = calendar.days.map(d => {
-        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : (d.status === 'before_start' ? 'before-start' : (d.status === 'not_applicable' ? 'off-day' : (d.status === 'future' ? 'future' : ''))));
+        let cls = (d.status === 'completed') ? 'done' : ((d.status === 'skipped') ? 'skip' : (d.status === 'before_start' ? 'before-start' : (d.status === 'future' ? 'future' : '')));
         if (d.status === 'completed') monthDoneCount++;
         if (d.status === 'skipped') monthSkipCount++;
         if (d.isToday) cls += ' is-today';
-        if (isCalendarEditMode && d.status !== 'future' && d.status !== 'not_applicable') cls += ' editing';
+        if (isCalendarEditMode && d.status !== 'future') cls += ' editing';
 
-        let isClickable = (d.status !== 'future' && d.status !== 'not_applicable');
+        let isClickable = (d.status !== 'future');
         let clickAttr = isClickable 
           ? \`onclick="onDayDotClick('\${d.dateStr}', '\${d.status}')"\` 
           : "";
-        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'not_applicable' ? 'Off-Day (Not Scheduled)' : (d.status === 'before_start' ? 'Before Start' : 'Future')))}\`;
+        let titleTip = \`\${d.dateStr}: \${d.status === 'completed' ? 'Done / Clean' : (d.status === 'skipped' ? 'Missed / Reset' : (d.status === 'before_start' ? 'Before Start' : 'Future'))}\`;
         return \`<div class="day-mini-dot \${cls}" \${clickAttr} title="\${titleTip}">\${d.dayNumber}</div>\`;
       }).join("");
 
@@ -2906,36 +2712,20 @@ function buildDashboardTemplate(dashboardData) {
         return timeB - timeA;
       });
 
-      // Weekly frequency bars
-      let weeklyBarsHtml = weeklyFreq.weekCounts.map(w => {
-        const heightPct = Math.max(10, Math.round((w.count / weeklyFreq.maxCount) * 100));
-        return \`
-          <div class="weekly-bar-col \${w.isToday ? 'today' : ''}">
-            <span class="weekly-count-lbl">\${w.count > 0 ? w.count : ''}</span>
-            <div class="weekly-bar-fill" style="height: \${w.count > 0 ? heightPct + '%' : '6px'}; opacity: \${w.count > 0 ? 1 : 0.25};"></div>
-            <span class="weekly-day-lbl">\${w.dayName}</span>
-          </div>
-        \`;
-      }).join("");
-
       root.innerHTML = \`
         <!-- Hero Header -->
         <div class="single-counter-hero \${grad}">
           <div class="single-hero-nav">
             <button class="btn-header-round" title="Back to Habits (Esc / Backspace)" onclick="switchView('main')">\${ICONS.arrowLeft}</button>
             <div style="display: flex; gap: 8px;">
-              <button class="btn-header-round" title="Edit Settings" onclick="callHost('editHabit', '\${activeHabit.id}')">\u270F\uFE0F</button>
-              <button class="btn-header-round" title="Delete Counter" onclick="deleteHabitFromDetail('\${activeHabit.id}')">\u{1F5D1}\uFE0F</button>
+              <button class="btn-header-round" title="Edit Settings" onclick="callHost('editHabit', '\${activeHabit.id}')">\${ICONS.edit}</button>
+              <button class="btn-header-round" title="Delete Counter" onclick="deleteHabitFromDetail('\${activeHabit.id}')">\${ICONS.trash}</button>
             </div>
           </div>
 
           <div class="hero-habit-badge">
             <span style="font-size: 22px;">\${escapeHtml(icon)}</span>
             <span class="hero-habit-title">\${escapeHtml(cleanName)}</span>
-          </div>
-
-          <div style="font-size: 11px; opacity: 0.9; margin-top: 2px; margin-bottom: 6px; background: rgba(255,255,255,0.18); display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 700; letter-spacing: 0.2px;">
-            \u{1F4C5} Every \${activeHabit.interval?.n || 1} \${activeHabit.interval?.period || 'day'}\${(activeHabit.interval?.n || 1) > 1 ? 's' : ''}
           </div>
 
           <div class="hero-its-been">\${isQuitly ? "Clean & sober for" : "Continuous unbroken streak"}</div>
@@ -2983,9 +2773,7 @@ function buildDashboardTemplate(dashboardData) {
           <!-- Tier Laurel Header -->
           <div class="tier-laurel-card">
             <div class="laurel-title">
-              <span>\u{1F33F}</span>
               <span>Tier \${activeTier ? activeTier.tierNum : 1}</span>
-              <span>\u{1F33F}</span>
             </div>
             <div class="laurel-subtitle">\${activeTier ? activeTier.days : 1} days</div>
 
@@ -3011,26 +2799,15 @@ function buildDashboardTemplate(dashboardData) {
             </div>
           </div>
 
-          <!-- Weekly Repeatingness Frequency Bar Chart -->
-          <div class="activity-section-card">
-            <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800;">\u{1F4CA} 7-Day Activity & Logs</span>
-              <span style="font-size: 12px; font-weight: 700; color: #2563eb;">\${weeklyFreq.totalWeekLogs} logs \xB7 \${weeklyFreq.completedDaysInWeek || 0} active days</span>
-            </div>
-            <div class="weekly-bars-container">
-              \${weeklyBarsHtml}
-            </div>
-          </div>
-
           <!-- Yearly / Monthly Activity Log -->
           <div class="activity-section-card">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800;">\u{1F4C5} \${calendar.monthName} \${calendar.year}</span>
+              <span style="font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px;">\${ICONS.calendar} \${calendar.monthName} \${calendar.year}</span>
               <div style="display: flex; align-items: center; gap: 6px;">
                 \${!isCalendarEditMode ? \`
-                  <button class="btn-cal-action" onclick="startCalendarEditMode()">\u270F\uFE0F Edit Calendar</button>
+                  <button class="btn-cal-action" onclick="startCalendarEditMode()">\${ICONS.edit} Edit Calendar</button>
                 \` : \`
-                  <button class="btn-cal-action btn-cal-save" onclick="saveCalendarEdits()">\u{1F4BE} Save (\${editModifiedCount})</button>
+                  <button class="btn-cal-action btn-cal-save" onclick="saveCalendarEdits()">\${ICONS.save} Save (\${editModifiedCount})</button>
                   <button class="btn-cal-action btn-cal-cancel" onclick="cancelCalendarEditMode()">\${ICONS.close} Cancel</button>
                 \`}
                 <div style="display: flex; gap: 2px; margin-left: 2px;">
@@ -3042,12 +2819,12 @@ function buildDashboardTemplate(dashboardData) {
 
             \${isCalendarEditMode ? \`
               <div class="cal-edit-active-banner">
-                <span>\u270F\uFE0F <strong>Edit Mode:</strong> Tap any day to toggle (Green \u2194 Red)</span>
+                <span>\${ICONS.edit} <strong>Edit Mode:</strong> Tap any day to toggle (Green \u2194 Red)</span>
                 <span style="background: rgba(37,99,235,0.15); padding: 2px 8px; border-radius: 12px; font-weight: 800;">\${editModifiedCount} change(s) staged</span>
               </div>
               <div class="cal-quick-actions-row">
-                <button class="btn-cal-quick" onclick="markMonthAllDone()">\u2705 Mark Month Clean</button>
-                <button class="btn-cal-quick" onclick="markMonthAllSkipped()">\u{1F6AB} Mark Month Missed</button>
+                <button class="btn-cal-quick" onclick="markMonthAllDone()">\${ICONS.check} Mark Month Clean</button>
+                <button class="btn-cal-quick" onclick="markMonthAllSkipped()">\${ICONS.close} Mark Month Missed</button>
                 <button class="btn-cal-quick" onclick="cancelCalendarEditMode()">\${ICONS.close} Discard</button>
               </div>
             \` : ''}
@@ -3064,8 +2841,8 @@ function buildDashboardTemplate(dashboardData) {
 
             <div class="resets-counter-bar">
               <div style="display: flex; gap: 12px; align-items: center;">
-                <span>\u{1F7E2} <strong>\${monthDoneCount}</strong> Done</span>
-                <span>\u{1F534} <strong>\${monthSkipCount}</strong> Missed</span>
+                <span><strong>\${monthDoneCount}</strong> Done</span>
+                <span><strong>\${monthSkipCount}</strong> Missed</span>
               </div>
               <div style="font-size: 11.5px; color: var(--text-sub);">
                 \${stats.skippedDays || 0} total resets
@@ -3076,29 +2853,29 @@ function buildDashboardTemplate(dashboardData) {
           <!-- Reset & Activity History Log with Timestamps -->
           <div class="activity-section-card" style="margin-top: 12px;">
             <div class="activity-header">
-              <span style="font-size: 14px; font-weight: 800;">\u{1F4DD} Activity & Timestamped History</span>
+              <span style="font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px;">\${ICONS.chart} Activity & Timestamped History</span>
               <span style="font-size: 12px; font-weight: 700; color: var(--text-sub);">\${timelineEntries.length} entries</span>
             </div>
             \${(timelineEntries && timelineEntries.length > 0) ? \`
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 \${timelineEntries.map((log, idx) => {
-                  let badgeIcon = '\u{1F6A8}';
+                  let badgeIcon = ICONS.reset;
                   let badgeColor = '#be123c';
                   let badgeBg = '#ffe4e6';
-                  let headline = log.streakLength ? \`\${log.streakLength} days streak before reset\` : 'Slip / Reset';
+                  let headline = log.streakLength ? \`\${log.streakLength} days streak before reset\` : 'Reset';
 
                   if (log.type === 'done') {
-                    badgeIcon = '\u2705';
+                    badgeIcon = ICONS.check;
                     badgeColor = '#15803d';
                     badgeBg = '#dcfce7';
                     headline = \`Check-in #\${timelineEntries.length - idx}\`;
                   } else if (log.type === 'calendar_edit') {
-                    badgeIcon = '\u270F\uFE0F';
+                    badgeIcon = ICONS.edit;
                     badgeColor = '#1d4ed8';
                     badgeBg = '#dbeafe';
                     headline = 'Calendar History Edited';
                   } else if (log.type === 'reset') {
-                    badgeIcon = '\u{1F504}';
+                    badgeIcon = ICONS.reset;
                     badgeColor = '#b45309';
                     badgeBg = '#fef3c7';
                     headline = log.streakLength ? \`Reset (\${log.streakLength}d streak)\` : 'Streak Reset';
@@ -3110,8 +2887,8 @@ function buildDashboardTemplate(dashboardData) {
                     <div style="background: var(--card-container-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; font-size: 12px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--text-main); margin-bottom: 3px;">
                         <span style="display: flex; align-items: center; gap: 6px;">
-                          <span style="background: \${badgeBg}; color: \${badgeColor}; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
-                            \${badgeIcon} \${headline}
+                          <span style="background: \${badgeBg}; color: \${badgeColor}; padding: 2px 6px; border-radius: 4px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                            \${badgeIcon} <span>\${headline}</span>
                           </span>
                         </span>
                         <div style="font-size: 11px; color: var(--text-sub); display: flex; align-items: center; gap: 4px;">
@@ -3328,33 +3105,17 @@ async function handleCreateHabit(app) {
           type: "select",
           label: "Tracking Philosophy",
           options: [
-            { label: "\u26A1 Quitly Style: Auto-Done (Considered done unless skipped)", value: TRACK_TYPES.SKIP },
-            { label: "\u{1F4DD} Amplenote Style: Manual Log (Considered done only when marked)", value: TRACK_TYPES.COMPLETE }
+            { label: "Quitting / Bad Habit (Sobriety & Abstinence: clean unless slipped)", value: TRACK_TYPES.SKIP },
+            { label: "Building / Good Habit (Positive Action: completed when marked)", value: TRACK_TYPES.COMPLETE }
           ],
           value: TRACK_TYPES.SKIP
-        },
-        {
-          type: "string",
-          label: "Every (Number)",
-          placeholder: "1",
-          value: "1"
-        },
-        {
-          type: "select",
-          label: "Period",
-          options: [
-            { label: "Day(s)", value: INTERVAL_PERIODS.DAY },
-            { label: "Week(s)", value: INTERVAL_PERIODS.WEEK },
-            { label: "Month(s)", value: INTERVAL_PERIODS.MONTH }
-          ],
-          value: INTERVAL_PERIODS.DAY
         }
       ]
     });
     if (!result || !Array.isArray(result)) {
       return;
     }
-    const [iconVal, nameVal, themeVal, typeVal, periodNVal, periodUnitVal] = result;
+    const [iconVal, nameVal, themeVal, typeVal] = result;
     if (!nameVal || !String(nameVal).trim()) {
       await app.alert("Habit name cannot be empty.");
       return;
@@ -3363,9 +3124,6 @@ async function handleCreateHabit(app) {
     const habitIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : "\u{1F525}";
     const colorTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : "blue";
     const habitType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
-    const parsedN = parseInt(periodNVal, 10);
-    const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
-    const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
     const nowISO = (/* @__PURE__ */ new Date()).toISOString();
     const todayStr = getTodayString();
     const newHabit = {
@@ -3375,8 +3133,8 @@ async function handleCreateHabit(app) {
       colorTheme,
       type: habitType,
       interval: {
-        n: periodN,
-        period: periodUnit
+        n: 1,
+        period: INTERVAL_PERIODS.DAY
       },
       createdAt: nowISO,
       trackingStartDate: todayStr,
@@ -3486,50 +3244,31 @@ async function handleEditHabit(app, habitId) {
           type: "select",
           label: "Tracking Philosophy",
           options: [
-            { label: "\u26A1 Quitly Style: Auto-Done (Considered done unless skipped)", value: TRACK_TYPES.SKIP },
-            { label: "\u{1F4DD} Amplenote Style: Manual Log (Considered done only when marked)", value: TRACK_TYPES.COMPLETE }
+            { label: "Quitting / Bad Habit (Sobriety & Abstinence: clean unless slipped)", value: TRACK_TYPES.SKIP },
+            { label: "Building / Good Habit (Positive Action: completed when marked)", value: TRACK_TYPES.COMPLETE }
           ],
           value: currentType
-        },
-        {
-          type: "string",
-          label: "Every (Number)",
-          value: currentIntervalN
-        },
-        {
-          type: "select",
-          label: "Period",
-          options: [
-            { label: "Day(s)", value: INTERVAL_PERIODS.DAY },
-            { label: "Week(s)", value: INTERVAL_PERIODS.WEEK },
-            { label: "Month(s)", value: INTERVAL_PERIODS.MONTH }
-          ],
-          value: currentIntervalPeriod
         }
       ]
     });
     if (!result || !Array.isArray(result)) {
       return;
     }
-    const [iconVal, nameVal, themeVal, typeVal, periodNVal, periodUnitVal] = result;
+    const [iconVal, nameVal, themeVal, typeVal] = result;
     if (!nameVal || !String(nameVal).trim()) {
       await app.alert("Habit name cannot be empty.");
       return;
     }
-    const parsedN = parseInt(periodNVal, 10);
-    const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
-    const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
     const colorTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : "blue";
     const habitType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.SKIP;
     const hasHistory = habitToEdit.completions && habitToEdit.completions.length > 0 || habitToEdit.skips && habitToEdit.skips.length > 0;
-    const intervalChanged = String(habitToEdit.interval?.n) !== String(periodN) || habitToEdit.interval?.period !== periodUnit;
     const typeChanged = habitToEdit.type !== habitType;
-    if (hasHistory && (intervalChanged || typeChanged)) {
-      const confirmRecalc = await app.prompt("Warning: Cadence / Philosophy Changed", {
+    if (hasHistory && typeChanged) {
+      const confirmRecalc = await app.prompt("Warning: Tracking Philosophy Changed", {
         inputs: [
           {
             type: "checkbox",
-            label: "Changing interval or tracking type will recalculate historical streaks and stats against the new cadence. Confirm?",
+            label: "Changing tracking philosophy will recalculate historical streaks and stats against the new rules. Confirm?",
             value: true
           }
         ]
@@ -3548,8 +3287,8 @@ async function handleEditHabit(app, habitId) {
       habit.colorTheme = colorTheme;
       habit.type = habitType;
       habit.interval = {
-        n: periodN,
-        period: periodUnit
+        n: 1,
+        period: INTERVAL_PERIODS.DAY
       };
     });
     if (app.context && typeof app.context.renderEmbed === "function") {
@@ -3564,6 +3303,8 @@ async function handleEditHabit(app, habitId) {
 // anp-22-habit-streak/lib/features/toggleDay.js
 async function handleToggleDay(app, habitId, dateStr, currentStatus) {
   if (!habitId || !dateStr || !isValidDateString(dateStr)) return;
+  const todayStr = getTodayString();
+  if (dateStr > todayStr) return;
   try {
     let linkedTaskUUID = null;
     let toggledToDone = false;
@@ -3597,8 +3338,8 @@ async function handleToggleDay(app, habitId, dateStr, currentStatus) {
         linkedTaskUUID = habit.taskUUID;
       }
     });
-    const todayStr = getTodayString();
-    if (dateStr === todayStr && linkedTaskUUID) {
+    const todayStr2 = getTodayString();
+    if (dateStr === todayStr2 && linkedTaskUUID) {
       try {
         if (toggledToDone) {
           await app.updateTask(linkedTaskUUID, { completedAt: Math.floor(Date.now() / 1e3) });
@@ -3679,17 +3420,17 @@ async function handleSkipToday(app, habitId) {
     const alreadySkippedToday = (habit.skips || []).includes(todayStr);
     const stats = calculateHabitStats(habit, todayStr);
     const currentStreak = stats.currentStreak;
-    const promptTitle = isQuitly ? alreadySkippedToday ? "Log Additional Slip (+1)" : "Log Slip / Reset Today" : "Mark Missed / Skip Today";
+    const promptTitle = isQuitly ? alreadySkippedToday ? "Log Additional Slip (+1)" : "Reset Counter Today" : "Reset Counter Today";
     const result = await app.prompt(promptTitle, {
       inputs: [
         {
           type: "string",
           label: "Reflection / Reason Note (Optional)",
-          placeholder: "e.g., Felt tempted or overwhelmed, resetting with renewed focus"
+          placeholder: "e.g., Resetting counter with renewed focus"
         },
         {
           type: "checkbox",
-          label: `Confirm logging a ${isQuitly ? "slip/reset" : "missed day"} for ${habitName}? (Current streak: ${currentStreak} days)`,
+          label: `Confirm resetting counter for ${habitName}? (Current streak: ${currentStreak} days)`,
           value: true
         }
       ]
@@ -3909,7 +3650,7 @@ async function handleResetToDate(app, habitId) {
   if (!habitId) return;
   try {
     const todayStr = getTodayString();
-    const result = await app.prompt("Reset Counter with Note", {
+    const result = await app.prompt("Reset Counter on Date", {
       inputs: [
         {
           type: "string",
@@ -3920,11 +3661,11 @@ async function handleResetToDate(app, habitId) {
         {
           type: "string",
           label: "Reset Reflection / Reason Note (Optional)",
-          placeholder: "e.g., Felt overwhelmed at party, resolved to restart tomorrow"
+          placeholder: "e.g., Resetting counter from this date"
         },
         {
           type: "checkbox",
-          label: "Mark all days between this date and today as skipped / reset",
+          label: "Mark all days between this date and today as reset",
           value: true
         }
       ]
@@ -4189,8 +3930,8 @@ async function handleImportFromNote(app) {
             type: "select",
             label: "Tracking Philosophy",
             options: [
-              { label: "\u2728 Positive Habit (Considered done when marked)", value: TRACK_TYPES.COMPLETE },
-              { label: "\u{1F6E1}\uFE0F Bad Habit / Abstinence (Considered done unless skipped)", value: TRACK_TYPES.SKIP }
+              { label: "Building / Good Habit (Positive Action: completed when marked)", value: TRACK_TYPES.COMPLETE },
+              { label: "Quitting / Bad Habit (Sobriety & Abstinence: clean unless slipped)", value: TRACK_TYPES.SKIP }
             ],
             value: TRACK_TYPES.COMPLETE
           },
@@ -4208,21 +3949,6 @@ async function handleImportFromNote(app) {
               { label: "Bronze (Warm Brown)", value: "bronze" }
             ],
             value: defaultTheme
-          },
-          {
-            type: "string",
-            label: "Every (Number)",
-            value: "1"
-          },
-          {
-            type: "select",
-            label: "Period",
-            options: [
-              { label: "Day(s)", value: INTERVAL_PERIODS.DAY },
-              { label: "Week(s)", value: INTERVAL_PERIODS.WEEK },
-              { label: "Month(s)", value: INTERVAL_PERIODS.MONTH }
-            ],
-            value: INTERVAL_PERIODS.DAY
           }
         ]
       });
@@ -4230,14 +3956,11 @@ async function handleImportFromNote(app) {
         continue;
       }
       const configArray = Array.isArray(configResult) ? configResult : [configResult];
-      const [iconVal, nameVal, typeVal, themeVal, periodNVal, periodUnitVal] = configArray;
+      const [iconVal, nameVal, typeVal, themeVal] = configArray;
       const finalName = nameVal && String(nameVal).trim() ? String(nameVal).trim() : defaultTitle;
       const finalIcon = iconVal && String(iconVal).trim() ? String(iconVal).trim() : detectedEmoji;
       const finalType = typeVal === TRACK_TYPES.COMPLETE || typeVal === TRACK_TYPES.SKIP ? typeVal : TRACK_TYPES.COMPLETE;
       const finalTheme = themeVal && COLOR_THEMES[themeVal] ? themeVal : defaultTheme;
-      const parsedN = parseInt(periodNVal, 10);
-      const periodN = !isNaN(parsedN) && parsedN >= 1 && parsedN <= 365 ? parsedN : 1;
-      const periodUnit = [INTERVAL_PERIODS.DAY, INTERVAL_PERIODS.WEEK, INTERVAL_PERIODS.MONTH].includes(periodUnitVal) ? periodUnitVal : INTERVAL_PERIODS.DAY;
       const habitId = generateUniqueId("habit");
       const newHabit = {
         id: habitId,
@@ -4246,8 +3969,8 @@ async function handleImportFromNote(app) {
         type: finalType,
         colorTheme: finalTheme,
         interval: {
-          n: periodN,
-          period: periodUnit
+          n: 1,
+          period: INTERVAL_PERIODS.DAY
         },
         createdAt: nowISO,
         trackingStartDate: todayStr,

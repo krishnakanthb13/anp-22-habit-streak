@@ -3,7 +3,6 @@ import {
   calculateHabitStats, 
   calculateTierProgress, 
   calculateAllHabitsSummary, 
-  calculateWeeklyFrequency, 
   generateMonthCalendar, 
   getDateRange, 
   formatDate, 
@@ -140,84 +139,37 @@ describe("streakEngine — Happy Path", () => {
     expect(summary.habitCards[0].stats.currentStreak).toBe(5);
     expect(summary.habitCards[1].stats.currentStreak).toBe(0);
   });
-
-  test("calculateWeeklyFrequency calculates 7-day logs distribution and completed count", () => {
-    const habit = {
-      type: TRACK_TYPES.SKIP,
-      createdAt: "2026-08-01",
-      skips: ["2026-08-18"],
-      events: [
-        { type: "skip", date: "2026-08-18", note: "Tempted" },
-        { type: "done", date: "2026-08-19", note: "Morning run" }
-      ]
-    };
-
-    const freq = calculateWeeklyFrequency(habit, "2026-08-19");
-    expect(freq.weekCounts.length).toBe(7);
-    expect(freq.weekCounts[6].isToday).toBe(true);
-    expect(freq.weekCounts[6].dateStr).toBe("2026-08-19");
-    expect(freq.totalWeekLogs).toBeGreaterThanOrEqual(2);
-    expect(freq.completedDaysInWeek).toBeGreaterThanOrEqual(1);
-  });
 });
 
-describe("streakEngine — Recurrence Scheduling (isScheduledDate)", () => {
-  test("daily interval: every 2 days", () => {
+describe("streakEngine — Scheduling (isScheduledDate)", () => {
+  test("daily scheduling: all active dates on or after tracking start date are scheduled", () => {
     const habit = {
       type: TRACK_TYPES.COMPLETE,
       trackingStartDate: "2026-08-01",
-      interval: { n: 2, period: INTERVAL_PERIODS.DAY }
+      interval: { n: 1, period: INTERVAL_PERIODS.DAY }
     };
 
     expect(isScheduledDate(habit, "2026-08-01", "2026-08-01")).toBe(true);  // day 0
-    expect(isScheduledDate(habit, "2026-08-02", "2026-08-01")).toBe(false); // day 1 (off-day)
+    expect(isScheduledDate(habit, "2026-08-02", "2026-08-01")).toBe(true);  // day 1
     expect(isScheduledDate(habit, "2026-08-03", "2026-08-01")).toBe(true);  // day 2
-    expect(isScheduledDate(habit, "2026-08-04", "2026-08-01")).toBe(false); // day 3 (off-day)
-    expect(isScheduledDate(habit, "2026-08-05", "2026-08-01")).toBe(true);  // day 4
+    expect(isScheduledDate(habit, "2026-07-31", "2026-08-01")).toBe(false); // before start
   });
 
-  test("weekly interval: every 1 week", () => {
+  test("daily habit streak: consecutive daily completions build streak", () => {
     const habit = {
       type: TRACK_TYPES.COMPLETE,
-      trackingStartDate: "2026-08-05", // Wednesday
-      interval: { n: 1, period: INTERVAL_PERIODS.WEEK }
-    };
-
-    // Every Wednesday should be scheduled
-    expect(isScheduledDate(habit, "2026-08-05", "2026-08-05")).toBe(true);  // Wed
-    expect(isScheduledDate(habit, "2026-08-06", "2026-08-05")).toBe(false); // Thu
-    expect(isScheduledDate(habit, "2026-08-12", "2026-08-05")).toBe(true);  // Next Wed
-    expect(isScheduledDate(habit, "2026-08-19", "2026-08-05")).toBe(true);  // Wed after next
-  });
-
-  test("weekly habit streak: off-days bridge scheduled completions without breaking streak", () => {
-    const habit = {
-      type: TRACK_TYPES.COMPLETE,
-      trackingStartDate: "2026-08-05", // Wed
-      interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
-      completions: ["2026-08-05", "2026-08-12", "2026-08-19"], // 3 consecutive weekly check-ins
+      trackingStartDate: "2026-08-01",
+      interval: { n: 1, period: INTERVAL_PERIODS.DAY },
+      completions: ["2026-08-01", "2026-08-02", "2026-08-03"],
       skips: []
     };
 
-    const stats = calculateHabitStats(habit, "2026-08-19");
+    const stats = calculateHabitStats(habit, "2026-08-03");
     expect(stats.currentStreak).toBe(3);
     expect(stats.longestStreak).toBe(3);
     expect(stats.completedDays).toBe(3);
     expect(stats.totalScheduledDays).toBe(3);
     expect(stats.completionRate).toBe(100);
-  });
-
-  test("monthly interval: every 1 month on day 15", () => {
-    const habit = {
-      type: TRACK_TYPES.COMPLETE,
-      trackingStartDate: "2026-01-15",
-      interval: { n: 1, period: INTERVAL_PERIODS.MONTH }
-    };
-
-    expect(isScheduledDate(habit, "2026-01-15", "2026-01-15")).toBe(true);
-    expect(isScheduledDate(habit, "2026-01-16", "2026-01-15")).toBe(false);
-    expect(isScheduledDate(habit, "2026-02-15", "2026-01-15")).toBe(true);
-    expect(isScheduledDate(habit, "2026-03-15", "2026-01-15")).toBe(true);
   });
 });
 
@@ -330,16 +282,9 @@ describe("streakEngine — Error Handling", () => {
       completionRate: 0,
       streakStartDate: null,
       streakAnchorTimestamp: null,
-      statusToday: "not_applicable"
+      statusToday: "skipped"
     });
     expect(calculateHabitStats(undefined)).toBeDefined();
-  });
-
-  test("calculateWeeklyFrequency handles null habit safely", () => {
-    const result = calculateWeeklyFrequency(null);
-    expect(result.weekCounts).toEqual([]);
-    expect(result.totalWeekLogs).toBe(0);
-    expect(result.completedDaysInWeek).toBe(0);
   });
 
   test("generateMonthCalendar handles null habit and out-of-range dates safely", () => {
@@ -358,14 +303,14 @@ describe("streakEngine — Error Handling", () => {
     const springRange = getDateRange("2026-03-07", "2026-03-10");
     expect(springRange).toEqual(["2026-03-07", "2026-03-08", "2026-03-09", "2026-03-10"]);
 
-    const habitEvery2Days = {
+    const habitDaily = {
       trackingStartDate: "2026-03-07",
-      interval: { n: 2, period: "day" }
+      interval: { n: 1, period: "day" }
     };
-    expect(isScheduledDate(habitEvery2Days, "2026-03-07")).toBe(true);
-    expect(isScheduledDate(habitEvery2Days, "2026-03-08")).toBe(false);
-    expect(isScheduledDate(habitEvery2Days, "2026-03-09")).toBe(true);
-    expect(isScheduledDate(habitEvery2Days, "2026-03-10")).toBe(false);
+    expect(isScheduledDate(habitDaily, "2026-03-07")).toBe(true);
+    expect(isScheduledDate(habitDaily, "2026-03-08")).toBe(true);
+    expect(isScheduledDate(habitDaily, "2026-03-09")).toBe(true);
+    expect(isScheduledDate(habitDaily, "2026-03-10")).toBe(true);
 
     const fallRange = getDateRange("2026-10-31", "2026-11-03");
     expect(fallRange).toEqual(["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"]);

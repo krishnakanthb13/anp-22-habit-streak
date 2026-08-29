@@ -346,11 +346,11 @@ If `app.context.renderEmbed` is unavailable (which the Amplenote API doesn't gua
 
 | Item | Location | Why It Is Necessary | Status |
 | :--- | :--- | :--- | :--- |
-| **BUG-1** | [`editHabit.js:99`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/editHabit.js#L99) | **Broken validation logic:** Checks `habitToEdit.type === TRACK_TYPES.SKIP` instead of `typeVal === TRACK_TYPES.SKIP`. | ✅ Fixed & Tested |
-| **BUG-2** | [`store.js:394-401`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/data/store.js#L394-L401) | **False "ok" status on hard error:** Returns `status: "error"`, marks `_isCorrupt` & `_loadError`, guards `mutateState`. | ✅ Fixed & Tested |
-| **BUG-3** | [`store.js:215`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/data/store.js#L215) | **Improper settings access:** Defensively checks `app.settings && typeof app.settings === "object"`. | ✅ Fixed & Tested |
-| **IMP-1** | [`createHabit.js:136`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/createHabit.js#L136) | **Type coercion & bounds check:** Parses `templateIndex` with `parseInt` and validates array bounds. | ✅ Fixed & Tested |
-| **IMP-3** | [`habit-streak.js:113-148`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/habit-streak.js#L113-L148) | **Corrupt state visibility:** Renders prominent warning banner when note is corrupted or unreadable. | ✅ Fixed & Tested |
+| **BUG-1** | [`editHabit.js:99`](./lib/features/editHabit.js#L99) | **Broken validation logic:** Checks `habitToEdit.type === TRACK_TYPES.SKIP` instead of `typeVal === TRACK_TYPES.SKIP`. | ✅ Fixed & Tested |
+| **BUG-2** | [`store.js:394-401`](./lib/data/store.js#L394-L401) | **False "ok" status on hard error:** Returns `status: "error"`, marks `_isCorrupt` & `_loadError`, guards `mutateState`. | ✅ Fixed & Tested |
+| **BUG-3** | [`store.js:215`](./lib/data/store.js#L215) | **Improper settings access:** Defensively checks `app.settings && typeof app.settings === "object"`. | ✅ Fixed & Tested |
+| **IMP-1** | [`createHabit.js:136`](./lib/features/createHabit.js#L136) | **Type coercion & bounds check:** Parses `templateIndex` with `parseInt` and validates array bounds. | ✅ Fixed & Tested |
+| **IMP-3** | [`habit-streak.js:113-148`](./habit-streak.js#L113-L148) | **Corrupt state visibility:** Renders prominent warning banner when note is corrupted or unreadable. | ✅ Fixed & Tested |
 
 ---
 
@@ -359,13 +359,13 @@ If `app.context.renderEmbed` is unavailable (which the Amplenote API doesn't gua
 
 | Item | Location | Why It Is Recommended | Status |
 | :--- | :--- | :--- | :--- |
-| **EDGE-1** | [`streakEngine.js:109`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/engine/streakEngine.js#L109) | **DST / Timezone Skew:** Uses UTC midnight parsing (`T00:00:00Z` and UTC methods) across all calculations. | ✅ Fixed & Tested |
-| **EDGE-3** | [`resetStreak.js:385`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/resetStreak.js#L385) | **$O(N^2)$ Range Deletion:** Uses ES6 `Set` for $O(N + M)$ deletion on large date spans. | ✅ Fixed & Tested |
-| **EDGE-4** | [`store.js:312`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/data/store.js#L312) | **Markdown Regex Guard:** Prioritizes matching fenced ```` ```json ```` blocks over arbitrary code blocks. | ✅ Fixed & Tested |
-| **EDGE-5** | [`resetStreak.js:87-93`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/resetStreak.js#L87-L93) | **Duplicate Reset Logs:** Prevents redundant `resetLogs` entries when skipping multiple times on same date. | ✅ Fixed & Tested |
-| **EDGE-6** | [`dashboardTemplate.js`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/ui/dashboardTemplate.js) / [`importFromNote.js`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/importFromNote.js) | **Unicode Emoji Regex:** Uses `\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u2600-\u27BF]`. | ✅ Verified & Tested |
-| **IMP-4 / IMP-5** | [`constants.js:115-123`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/constants.js#L115-L123) | Monotonic counter added to `generateUniqueId` fallback to prevent millisecond collisions. | ✅ Fixed & Tested |
-| **IMP-11** | [`resetStreak.js:210-216`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/lib/features/resetStreak.js#L210-L216) | Restores streak anchor timestamp on undo based on recalculated stats. | ✅ Fixed & Tested |
+| **EDGE-1** | [`streakEngine.js:109`](./lib/engine/streakEngine.js#L109) | **DST / Timezone Skew:** Uses UTC midnight parsing (`T00:00:00Z` and UTC methods) across all calculations. | ✅ Fixed & Tested |
+| **EDGE-3** | [`resetStreak.js:385`](./lib/features/resetStreak.js#L385) | **$O(N^2)$ Range Deletion:** Uses ES6 `Set` for $O(N + M)$ deletion on large date spans. | ✅ Fixed & Tested |
+| **EDGE-4** | [`store.js:312`](./lib/data/store.js#L312) | **Markdown Regex Guard:** Prioritizes matching fenced ```` ```json ```` blocks over arbitrary code blocks. | ✅ Fixed & Tested |
+| **EDGE-5** | [`resetStreak.js:87-93`](./lib/features/resetStreak.js#L87-L93) | **Duplicate Reset Logs:** Prevents redundant `resetLogs` entries when skipping multiple times on same date. | ✅ Fixed & Tested |
+| **EDGE-6** | [`dashboardTemplate.js`](./lib/ui/dashboardTemplate.js) / [`importFromNote.js`](./lib/features/importFromNote.js) | **Unicode Emoji Regex:** Uses `\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u2600-\u27BF]`. | ✅ Verified & Tested |
+| **IMP-4 / IMP-5** | [`constants.js:115-123`](./lib/constants.js#L115-L123) | Monotonic counter added to `generateUniqueId` fallback to prevent millisecond collisions. | ✅ Fixed & Tested |
+| **IMP-11** | [`resetStreak.js:210-216`](./lib/features/resetStreak.js#L210-L216) | Restores streak anchor timestamp on undo based on recalculated stats. | ✅ Fixed & Tested |
 
 ---
 
@@ -383,3 +383,42 @@ If `app.context.renderEmbed` is unavailable (which the Amplenote API doesn't gua
 - **Test Suite:** **101 / 101 passing** (5 test suites)
 - **Compilation:** `node esbuild.js 22` completed cleanly (`build/habit-streak.compiled.js`)
 - **Regressions:** None detected; all previous scenarios and new edge-case tests pass 100%.
+
+---
+
+We should remove the recurrence pattern functionality of this plugin because:
+
+- bad habits every X days don't really make sense
+- good habits every X days introduce complexity wrt to "streaks" - if you want to keep this feature, it would be nice to have a properly documented design for what a streak even means for a non-daily habit and what "missing" a streak means and how the interactivity with the calendar would work (what constitutes a green day and what constitutes a red day when there can be empty space between two green days without those being considered a reset)
+
+---
+
+User interface
+
+- Let's clarify a lot of the words being used and remove synonyms to clean up the experience:
+    - Use Quitting and Building for the names of the tabs
+    - Use Bad habits to quit and Good habits to build to have every label be unambiguous and symmetric
+    - Let's use Reset counter today and Reset counter on date (same for positive habit screen)
+- We should remove emojis from the user interface altogether except for the ones that symbolize a habit the user added. We should instead use material design icons.
+
+---
+
+## 🏛️ Architecture Decision Record: Option A (Pure Daily Cadence & Clean UI Overhaul)
+
+### Decision & Rationale
+We adopted **Option A (Pure Daily Cadence)** and removed non-daily recurrence patterns from `anp-22-habit-streak`:
+1. **Bad habits (Quitting) every X days don't make conceptual sense:** Abstinence / quitting counters operate continuously from the point of sobriety or clean commitment.
+2. **Good habits (Building) every X days introduce unneeded ambiguity:** Non-daily intervals created conceptual confusion over what constitutes an active streak, what missing a day means, and how calendar interactivity renders without ambiguous off-day states.
+3. **Pure Contiguous Mechanics:** Streaks are now strictly daily, deterministic, and intuitive.
+
+### UI Symmetries & Iconography Refactor
+1. **Tab Naming:** Unified and standardized to **`Quitting`** and **`Building`**.
+2. **Section Headers:** Symmetrically categorized into **`Bad habits to quit`** and **`Good habits to build`**.
+3. **Action Prompts:** Standardized across both tracking modes to **`Reset counter today`** and **`Reset counter on date`**.
+4. **Clean SVG Iconography:** Eliminated system/UI emojis across navigation, action buttons, card headers, calendar controls, and badges, replacing them with modern SVG/Material Design icons. User-selected habit icons remain preserved.
+5. **Streamlined Counter Hierarchy:** Removed redundant "7-Day Activity & Logs" bar chart, eliminating duplicate visual indicators in favor of the interactive Monthly Dot Calendar and timestamped History Log.
+
+### Verification
+- **Test Suite:** 99/99 passing (5 test suites in `test/`).
+- **Bundle:** Re-compiled via `node esbuild.js 22`.
+- **Links:** 100% relative repository links with zero local file path references.

@@ -26,7 +26,7 @@ describe("store module — Schema Normalization & Happy Path", () => {
     const normalized = normalizeHabit(raw);
     expect(normalized.name).toBe("Reading Daily");
     expect(normalized.type).toBe("complete");
-    expect(normalized.interval).toEqual({ n: 3, period: "day" });
+    expect(normalized.interval).toEqual({ n: 1, period: "day" });
     expect(normalized.skips).toEqual(["2026-08-01"]);
     expect(normalized.completions).toEqual([]);
     expect(normalized.id).toMatch(/^habit_/);

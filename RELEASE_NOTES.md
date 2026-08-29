@@ -1,5 +1,21 @@
 # Release Notes: Habit Streaks Plugin
 
+## v0.0.22 (2026-08-29)
+
+### 🚀 Pure Daily Cadence & Clean UI Overhaul (Option A)
+- **Pure Daily Cadence**: Standardized all habits to a daily tracking model, eliminating recurrence intervals ("Every (Number)" and "Period"). Bad habits track continuous sobriety/abstinence without artificial gaps; good habits build streaks through daily intentional check-in.
+- **Symmetric UI Phrasing & Category Terminology**:
+  - Unified navigation filter tabs to **`Quitting`** and **`Building`**.
+  - Symmetric section headers: **`Bad habits to quit`** and **`Good habits to build`**.
+  - Symmetric reset action buttons: **`Reset counter today`** and **`Reset counter on date`**.
+- **Modern Material Design SVG Iconography**: Replaced all UI/system emojis across navigation, action pills, card headers, calendar controls, and badges with crisp, high-resolution SVG vector icons (`ICONS`). User-selected habit icons remain preserved.
+- **Streamlined Counter Hierarchy**: Removed redundant "7-Day Activity & Logs" bar chart and `calculateWeeklyFrequency` in favor of the interactive Monthly Dot Calendar and detailed Activity History timeline.
+- **Future Date Toggle Protection**: Added validation in `toggleDay.js` rejecting manual status toggle on future calendar dates (`dateStr > todayStr`).
+- **100% Passing Test Matrix (99/99 Tests)**: Updated all test suites in `test/` for pure daily scheduling and new symmetrical UI strings.
+- **Re-bundled & Verified**: Updated bundle [`habit-streak.compiled.js`](./build/habit-streak.compiled.js).
+
+---
+
 ## v0.0.20 (2026-08-27)
 
 ### 🐛 Critical Bug Fixes & Fresh Install Stability
@@ -98,7 +114,7 @@
   - **Amplenote Positive Habits**: Tapping **`✅ Mark Done Today`** or **`+ Log Additional Done (+1)`** now prompts with an interactive dialog to record an optional session reflection note (*"Morning meditation completed"*, *"Read Chapter 4"*) and displays the count of daily sessions (*"2 Sessions Completed Today!"*).
   - **Quitly Abstinence Counters**: Users can now log multiple slips in a single day with individual timestamped notes via **`🚨 Log Additional Slip (+1)`**, in addition to having **`↩️ Undo Slip / Mark Clean Today`**.
 - **Interactive Ticker Unit Toggles (`[Y] [M] [D]`)**: The Hero digital sub-clock ticker now features 1-tap unit switching between **Days (`D`)**, **Months (`M`)**, and **Years (`Y`)** with instant sub-clock calculation.
-- **Fixed `setTheme` Import Reference**: Added missing `saveState` import in [`habit-streak.js`](file:///c:/Users/ADMIN/OneDrive/Documents/GitHub/amplenote_stg_plugins/anp-22-habit-streak/habit-streak.js), preventing `ReferenceError: saveState is not defined` when syncing theme settings.
+- **Fixed `setTheme` Import Reference**: Added missing `saveState` import in [`habit-streak.js`](./habit-streak.js), preventing `ReferenceError: saveState is not defined` when syncing theme settings.
 - **Seamless Scroll Position Retention**: Editing, toggling days, saving the calendar, or logging check-ins now preserves your exact vertical scroll position in real-time (`sessionStorage` + `requestAnimationFrame`), preventing page jumps back to the top.
 - **Return to Homescreen on Deletion**: Deleting a counter from the detail view now automatically cleans up session tracking and returns the dashboard cleanly to the main homescreen list.
 - **↩️ Undo for Bad Habits (Abstinence)**: When a slip is logged for a Quitly habit, the dashboard now shows a dedicated **`↩️ Undo Slip / Mark Clean Today`** button, allowing instant reversal of accidental slips.

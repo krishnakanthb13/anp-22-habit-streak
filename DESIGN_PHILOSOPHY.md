@@ -11,7 +11,7 @@ Traditional habit trackers enforce a single rigid model: every habit starts as "
 
 ### B. The Intentional Practice Paradigm (Amplenote Style)
 - **Concept**: If your goal is *Daily Workout*, *Meditation*, or *Reading*, you must actively expend effort to complete the practice.
-- **Interaction Model**: Requires an explicit check-in each period. Supports multiple session repetitions per day with a 7-day frequency chart.
+- **Interaction Model**: Requires an intentional daily check-in to build and advance your streak.
 - **Creation Baseline**: Starts with clean zero completions on creation rather than artificially pre-completing the first day.
 
 ---
@@ -27,11 +27,12 @@ A core lesson in distributed and local-first application design is maintaining a
 
 ---
 
-## 3. Off-Day Immunity & Schedule-First Evaluation
+## 3. Pure Daily Cadence & Deterministic Momentum
 
-Recurrence schedules (Daily, Every N Days, Weekly, Monthly) introduce non-scheduled "off-days":
-- **Neutrality**: Non-scheduled calendar days are classified as `not_applicable`. They never penalize streak momentum, never contribute false missed days, and cannot be transformed into tracked days by accidental clicks.
-- **UI Guardrails**: Off-days are visually badged (`☕ Off-Schedule / Rest Day`), with daily action buttons suppressed and calendar cells disabled to prevent phantom check-in records.
+Habit streaks in this plugin operate on a pure daily model:
+- **Sobriety / Quitting Contiguity**: Bad habits count uninterrupted continuous days as long as the user stays clean, without artificial off-day gaps.
+- **Positive Building Daily Momentum**: Good habits require intentional daily check-in to build and sustain streak momentum.
+- **Symmetric & Unambiguous Terminology**: Navigation tabs (**`Quitting`** and **`Building`**), section headers (**`Bad habits to quit`** and **`Good habits to build`**), and reset actions (**`Reset counter today`** and **`Reset counter on date`**) use unified, consistent phrasing without confusing synonyms.
 
 ---
 

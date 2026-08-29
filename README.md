@@ -1,6 +1,6 @@
 # Habit Streaks Plugin (Beautiful Streaks & Days-Since Counter)
 
-> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Break Bad Habits vs Build Positive Habits), flexible recurrence (Daily, Every N Days, Weekly, Monthly), real-time live digital tickers, 7-day repeatingness bar charts, interactive monthly dot calendars, tiered milestone badges, per-task import wizard, non-destructive undo, and robust reflection history logging.
+> A modern, high-fidelity habit and streak tracking plugin for Amplenote with Quitly-inspired dual philosophy (Bad Habits to Quit vs Good Habits to Build), pure daily cadence, real-time live digital tickers, interactive monthly dot calendars, tiered milestone badges, per-task note import wizard, non-destructive undo, modern SVG iconography, and robust reflection history logging.
 
 Icon: `local_fire_department`  
 Author: [Krishna Kanth B](https://github.com/krishnakanthb13)  
@@ -30,9 +30,9 @@ Repository: [amplenote_stg_plugins/anp-22-habit-streak](https://github.com/krish
 
 ### 1. Adding a New Habit Counter
 Tap the **`+`** button in the top header or navigate to **Templates**. You have 3 intuitive options:
-* **Option A: 1-Click Templates**: Browse curated presets (*I am Sober*, *No Smoking*, *Daily Workout*, *Meditation*, etc.) and tap `+` to add immediately.
-* **Option B: Custom Counter**: Tap **`+ Create a Custom Counter`** to define your own habit name, emoji icon, gradient color theme, tracking philosophy, and cadence.
-* **Option C: Import Tasks from Any Note**: Tap **`📥 Import Tasks from Note`**.
+* **Option A: 1-Click Templates**: Browse curated presets categorized into **Bad habits to quit** (*I am Sober*, *No Smoking*, etc.) and **Good habits to build** (*Daily Workout*, *Meditation*, etc.) and tap `+` to add immediately.
+* **Option B: Custom Counter**: Tap **`+ Create a Custom Counter`** to define your own habit name, emoji icon, gradient color theme, and tracking philosophy.
+* **Option C: Import Tasks from Any Note**: Tap **`Import Tasks from Note`**.
 
 ### 2. Step-by-Step Note Import Wizard
 When importing tasks from your existing Amplenote notes:
@@ -40,37 +40,35 @@ When importing tasks from your existing Amplenote notes:
 2. **Select Tasks**: Check the tasks you want to track from the discovered list (supports both native tasks and `- [ ]` markdown checkboxes; automatically sanitizes images, links, formatting, and multi-line notes).
 3. **Configure Each Habit**: For each selected task, an interactive setup wizard opens pre-filled with the task's cleaned title:
    * **Smart Emoji Detection**: Automatically extracts leading emojis (e.g. `🏃 5km Run` -> emoji `🏃`, title `5km Run`).
-   * **Tracking Philosophy**: Choose whether this is a **`✨ Positive Habit`** (done when checked in) or a **`🛡️ Bad Habit / Abstinence`** (auto-done unless skipped).
+   * **Tracking Philosophy**: Choose whether this is a **`Good habits to build`** (done when checked in) or a **`Bad habits to quit`** (auto-done unless skipped).
    * **Emoji Icon**: Assign or keep the detected emoji (🏃, 📚, 🧘, 🔥, 🍷, etc.).
    * **Color Theme**: Choose from 8 vibrant gradients (Emerald, Sky Blue, Indigo, Teal, Purple, Amber, Rose, Bronze).
-   * **Recurrence Cadence**: Set schedule (*Every 1 Day*, *Every 2 Days*, *Every 1 Week*, *Every 1 Month*).
 4. **Immediate Activation**: The newly imported habit opens directly on your dashboard with a clean 0-day baseline.
 
 ### 3. Understanding the Dual Tracking Philosophies
-* **🛡️ Bad Habits & Sobriety (Quitly Style)**:
+* **Quitting (Bad Habits to Quit)**:
   * **Concept**: You are succeeding every single second simply by staying clean (e.g. *No Alcohol*, *No Smoking*, *No Junk Food*).
   * **Interaction**: Auto-tracked! Days count up continuously without requiring daily check-ins.
-  * **When a slip occurs**: Tap **`🚨 Log Slip / Reset Today`** or **`🔄 Backdate Relapse Date with Note`** to record your reflection note.
-* **🎯 Positive Daily Habits (Amplenote Style)**:
+  * **When a slip occurs**: Tap **`Reset counter today`** or **`Reset counter on date`** to record your reflection note.
+* **Building (Good Habits to Build)**:
   * **Concept**: Intentional practices that require physical effort (e.g. *Exercise*, *Reading*, *Meditation*).
-  * **Interaction**: Tap **`✅ Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
+  * **Interaction**: Tap **`Mark Done Today`** each day to advance your streak. Supports multiple check-ins per day.
   * **Creation Baseline**: Positive habits start at 0 days completed until your first check-in.
 
-### 4. Recurrence Schedules & Off-Day Isolation
-* Supports **Daily**, **Every N Days**, **Weekly** (e.g. Every Monday), and **Monthly** (same day of month) recurrence.
-* **Off-Day Immunity**: Non-scheduled calendar days are classified as `not_applicable` and are visually disabled in the calendar. They never break your streak, never contribute false missed days, and cannot be corrupted by manual edits.
-* **Invariant-First Backdating**: Backdating an entry validates against the established schedule grid before extending the start date, preventing accidental weekday cadence drift.
+### 4. Pure Daily Cadence
+* All habits follow a daily cadence for contiguous, deterministic momentum.
+* Abstinence / quitting counters calculate unbroken sober time; positive building counters grow with each intentional day completed.
 
 ### 5. Interactive Monthly Calendar & Keyboard Navigation
-* View any month using the smooth navigation buttons with modern vector icons (`←` / `→`).
+* View any month using the smooth navigation buttons with modern vector SVG icons.
 * **Keyboard Shortcuts**: Navigate months instantly with <kbd>←</kbd> / <kbd>→</kbd> or <kbd>&lt;</kbd> / <kbd>&gt;</kbd>; press <kbd>Esc</kbd> or <kbd>Backspace</kbd> to return to the counters overview.
-* Completed days appear **Green**; skipped/relapsed days appear **Red**; off-days appear dim and non-interactive.
-* **Click-to-Toggle**: Click any scheduled past or current day cell directly to toggle its status between completed and skipped.
-* **Edit Calendar Mode**: Use **`✏️ Edit Calendar`** to stage multi-day changes with one-click batch actions (*Mark Month Clean*, *Mark Month Missed*, or *Discard*).
+* Completed days appear **Green**; skipped/relapsed days appear **Red**; future days are protected.
+* **Click-to-Toggle**: Click any past or current day cell directly to toggle its status between completed and skipped.
+* **Edit Calendar Mode**: Use **`Edit Calendar`** to stage multi-day changes with one-click batch actions (*Mark Month Clean*, *Mark Month Missed*, or *Discard*).
 
 ### 6. Action Undo & Audit History
 * **Non-Destructive Undo**: Tapping **`Undo Today`** rolls back your latest daily check-in action (`done`, `skip`, `slip`) and reconstructs today's status from any remaining check-in events.
-* **Audit Trail Preservation**: Calendar modifications are recorded with dedicated ✏️ *Calendar History Edited* badges and are preserved when rolling back daily check-ins.
+* **Audit Trail Preservation**: Calendar modifications are recorded with dedicated *Calendar History Edited* badges and are preserved when rolling back daily check-ins.
 * **Reset Log Isolation**: Undoing a `done` action preserves earlier today's `resetLog` records.
 
 ### 7. Goals & Milestone Badges
@@ -78,12 +76,12 @@ When importing tasks from your existing Amplenote notes:
 * View your current goal card with real-time percentage progress bars and an interactive goals checklist with vector trophy and checkmark badges.
 
 ### 8. Themes & Appearance Customization
-Open Settings (**⚙️**) to choose from 5 aesthetic visual themes:
-* **🌌 Midnight**: Deep Obsidian with crisp white card sheets.
-* **🔮 Frosted Glass**: Modern glassmorphism with dynamic backdrop blur.
-* **🌙 Pure Dark**: OLED true dark mode.
-* **☀️ Light Clean**: Minimal daylight appearance.
-* **⚡ Cyberpunk Neon**: High-contrast dark theme with neon cyan & purple accents.
+Open Settings to choose from 5 aesthetic visual themes:
+* **Midnight**: Deep Obsidian with crisp white card sheets.
+* **Frosted Glass**: Modern glassmorphism with dynamic backdrop blur.
+* **Pure Dark**: OLED true dark mode.
+* **Light Clean**: Minimal daylight appearance.
+* **Cyberpunk Neon**: High-contrast dark theme with neon cyan & purple accents.
 
 ### 9. Support the Developer
 * If Habit Streak empowers your daily routines, visit the **Support the Developer** section at the bottom of the Settings sheet or support future development directly at [krishnakanthb13.github.io/S](https://krishnakanthb13.github.io/S/).

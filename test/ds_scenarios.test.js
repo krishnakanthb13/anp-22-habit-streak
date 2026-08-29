@@ -242,20 +242,20 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
 
-  // 10. Weekly habit → every 1 week → non-scheduled days don't break streak
-  test("Scenario 10: Weekly habit -> every 1 week -> non-scheduled days don't break streak", () => {
+  // 10. Daily habit → consecutive daily check-ins build streak
+  test("Scenario 10: Daily habit -> consecutive daily check-ins build streak", () => {
     const habit = {
       type: TRACK_TYPES.COMPLETE,
-      trackingStartDate: "2026-08-05", // Wednesday
-      createdAt: "2026-08-05",
-      interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
-      completions: ["2026-08-05", "2026-08-12", "2026-08-19"], // Completed on 3 scheduled Wednesdays
+      trackingStartDate: "2026-08-17",
+      createdAt: "2026-08-17",
+      interval: { n: 1, period: INTERVAL_PERIODS.DAY },
+      completions: ["2026-08-17", "2026-08-18", "2026-08-19"],
       skips: []
     };
 
-    // Off-days (Thu-Tue) return 'not_applicable'
-    expect(getHabitDayStatus(habit, "2026-08-06", "2026-08-19")).toBe("not_applicable");
-    expect(getHabitDayStatus(habit, "2026-08-12", "2026-08-19")).toBe("completed");
+    expect(getHabitDayStatus(habit, "2026-08-17", "2026-08-19")).toBe("completed");
+    expect(getHabitDayStatus(habit, "2026-08-18", "2026-08-19")).toBe("completed");
+    expect(getHabitDayStatus(habit, "2026-08-19", "2026-08-19")).toBe("completed");
 
     const stats = calculateHabitStats(habit, "2026-08-19");
     expect(stats.currentStreak).toBe(3);
@@ -264,18 +264,17 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(stats.completionRate).toBe(100);
   });
 
-  // 11. Monthly habit → every 1 month → month boundary/leap-year cases
-  test("Scenario 11: Monthly habit -> every 1 month -> month boundary/leap-year cases", () => {
+  // 11. Daily habit → date bounds across leap-year
+  test("Scenario 11: Daily habit -> date bounds across leap-year", () => {
     const habit = {
       type: TRACK_TYPES.COMPLETE,
-      trackingStartDate: "2024-01-31", // Leap year test
-      interval: { n: 1, period: INTERVAL_PERIODS.MONTH }
+      trackingStartDate: "2024-02-28",
+      interval: { n: 1, period: INTERVAL_PERIODS.DAY }
     };
 
-    // Jan 31 -> Feb 29 (leap year 2024 clamps to 29th) -> Mar 31
-    expect(isScheduledDate(habit, "2024-01-31", "2024-01-31")).toBe(true);
-    expect(isScheduledDate(habit, "2024-02-29", "2024-01-31")).toBe(true);
-    expect(isScheduledDate(habit, "2024-03-31", "2024-01-31")).toBe(true);
+    expect(isScheduledDate(habit, "2024-02-28", "2024-02-28")).toBe(true);
+    expect(isScheduledDate(habit, "2024-02-29", "2024-02-28")).toBe(true);
+    expect(isScheduledDate(habit, "2024-03-01", "2024-02-28")).toBe(true);
   });
 
   // 12. DST boundary → streak calendar remains correct
@@ -387,30 +386,29 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(normalized.id).toBeDefined();
   });
 
-  // 19. Invariant: Off-day manual entry cannot become scheduled/tracked day
-  test("Invariant 1: Off-day manual entry in completions/skips cannot become a scheduled day", () => {
+  // 19. Invariant: Daily day status evaluation
+  test("Invariant 1: Day status evaluates to completed or skipped accurately based on daily sets", () => {
     const habit = {
       type: TRACK_TYPES.COMPLETE,
       trackingStartDate: "2026-08-18",
       createdAt: "2026-08-18",
-      interval: { n: 2, period: INTERVAL_PERIODS.DAY }, // Every 2 days: Aug 18, Aug 20
-      completions: ["2026-08-18", "2026-08-19", "2026-08-20"], // 2026-08-19 is OFF-DAY
-      skips: []
+      interval: { n: 1, period: INTERVAL_PERIODS.DAY },
+      completions: ["2026-08-18", "2026-08-20"],
+      skips: ["2026-08-19"]
     };
 
-    // Off-day Aug 19 must evaluate to not_applicable
-    const offDayStatus = getHabitDayStatus(habit, "2026-08-19", "2026-08-20");
-    expect(offDayStatus).toBe("not_applicable");
+    expect(getHabitDayStatus(habit, "2026-08-18", "2026-08-20")).toBe("completed");
+    expect(getHabitDayStatus(habit, "2026-08-19", "2026-08-20")).toBe("skipped");
+    expect(getHabitDayStatus(habit, "2026-08-20", "2026-08-20")).toBe("completed");
 
     const stats = calculateHabitStats(habit, "2026-08-20");
-    // Only Aug 18 and Aug 20 are scheduled days
-    expect(stats.totalScheduledDays).toBe(2);
+    expect(stats.totalScheduledDays).toBe(3);
     expect(stats.completedDays).toBe(2);
-    expect(stats.currentStreak).toBe(2);
+    expect(stats.skippedDays).toBe(1);
   });
 
-  // 20. Invariant: Reset-to-date only resets scheduled days for recurrence
-  test("Invariant 2: handleResetToDate only marks scheduled days as skipped", async () => {
+  // 20. Invariant: Reset-to-date marks days as skipped
+  test("Invariant 2: handleResetToDate marks active days as skipped", async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-08-19T12:00:00Z"));
     try {
@@ -428,8 +426,8 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
               id: "weekly_h1",
               name: "Weekly Monday Review",
               type: TRACK_TYPES.COMPLETE,
-              trackingStartDate: "2026-08-03", // Monday
-              interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+              trackingStartDate: "2026-08-03",
+              interval: { n: 1, period: INTERVAL_PERIODS.DAY },
               skips: [],
               completions: []
             }
@@ -447,8 +445,10 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
       expect(savedState).not.toBeNull();
       const habit = savedState.habits[0];
 
-      // Out of 2026-08-03 to 2026-08-19 (17 days), only Mondays (Aug 3, Aug 10, Aug 17) should be in skips
-      expect(habit.skips).toEqual(["2026-08-03", "2026-08-10", "2026-08-17"]);
+      // Out of 2026-08-03 to 2026-08-19 (17 days), all 17 days should be in skips
+      expect(habit.skips.length).toBe(17);
+      expect(habit.skips).toContain("2026-08-03");
+      expect(habit.skips).toContain("2026-08-19");
     } finally {
       jest.useRealTimers();
     }
@@ -550,7 +550,8 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
   });
 
   // 25. Invariant: Off-day toggle rejection at mutation boundary
-  test("Invariant 7: handleToggleDay rejects toggling non-scheduled/off-days", async () => {
+  // 25. Invariant: handleToggleDay rejects toggling future dates
+  test("Invariant 7: handleToggleDay rejects toggling future dates", async () => {
     let savedState = null;
     const app = {
       settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
@@ -561,11 +562,11 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
         revision: 1,
         habits: [
           {
-            id: "h_weekly",
-            name: "Weekly Habit",
+            id: "h_daily",
+            name: "Daily Habit",
             type: TRACK_TYPES.COMPLETE,
-            trackingStartDate: "2026-08-17", // Monday
-            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+            trackingStartDate: "2026-08-17",
+            interval: { n: 1, period: INTERVAL_PERIODS.DAY },
             skips: [],
             completions: []
           }
@@ -579,12 +580,10 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
       context: { renderEmbed: jest.fn() }
     };
 
-    // 2026-08-18 is Tuesday (off-day for Monday weekly habit)
-    await handleToggleDay(app, "h_weekly", "2026-08-18", "not_applicable");
-    expect(savedState).not.toBeNull();
-    // Non-scheduled day must NOT be added to completions or skips
-    expect(savedState.habits[0].completions).toEqual([]);
-    expect(savedState.habits[0].skips).toEqual([]);
+    // 2099-01-01 is a future date
+    await handleToggleDay(app, "h_daily", "2099-01-01", "future");
+    expect(savedState).toBeNull();
+    expect(app.replaceNoteContent).not.toHaveBeenCalled();
   });
 
   // 26. Invariant: isScheduledDate returns false on invalid date inputs
@@ -594,8 +593,8 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
     expect(isScheduledDate(habit, "2026-02-30")).toBe(false);
   });
 
-  // 27. Invariant: Backdated edits preserve existing recurrence anchor
-  test("Invariant 9: Backdated off-day cannot redefine recurrence anchor; backdated scheduled day is accepted", async () => {
+  // 27. Invariant: Backdated edits expand tracking start date
+  test("Invariant 9: Backdated edits expand tracking start date accurately", async () => {
     let savedState = null;
     const app = {
       settings: { [SETTING_DATA_NOTE_UUID]: "mock-uuid" },
@@ -606,11 +605,11 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
         revision: 1,
         habits: [
           {
-            id: "h_weekly_anchor",
-            name: "Monday Weekly Habit",
+            id: "h_daily_anchor",
+            name: "Daily Habit",
             type: TRACK_TYPES.COMPLETE,
-            trackingStartDate: "2026-08-17", // Monday
-            interval: { n: 1, period: INTERVAL_PERIODS.WEEK },
+            trackingStartDate: "2026-08-17",
+            interval: { n: 1, period: INTERVAL_PERIODS.DAY },
             skips: [],
             completions: []
           }
@@ -624,13 +623,8 @@ describe("Design Spec Audit Scenarios (1-18) Verification", () => {
       context: { renderEmbed: jest.fn() }
     };
 
-    // Attempting to toggle Sunday Aug 16 (backdated off-day for Monday weekly habit)
-    await handleToggleDay(app, "h_weekly_anchor", "2026-08-16", "not_applicable");
-    expect(savedState.habits[0].completions).toEqual([]);
-    expect(savedState.habits[0].trackingStartDate).toBe("2026-08-17");
-
-    // Attempting to toggle Monday Aug 10 (backdated scheduled day on Monday weekly grid)
-    await handleToggleDay(app, "h_weekly_anchor", "2026-08-10", "not_applicable");
+    // Attempting to toggle Monday Aug 10 (backdated date)
+    await handleToggleDay(app, "h_daily_anchor", "2026-08-10", "before_start");
     expect(savedState.habits[0].completions).toEqual(["2026-08-10"]);
     expect(savedState.habits[0].trackingStartDate).toBe("2026-08-10");
   });

@@ -26,14 +26,15 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
                     │   - getHabitDayStatus()         │
                     │   - calculateHabitStats()       │
                     │   - calculateTierProgress()     │
-                    │   - calculateWeeklyFrequency()  │
                     │   - calculateAllHabitsSummary() │
+                    │   - generateMonthCalendar()     │
                     └────────────────┬────────────────┘
-                                     ▼
+                    │
+                    ▼
                     ┌─────────────────────────────────┐
                     │   lib/ui/dashboardTemplate.js   │
                     │   - Main Overview Screen        │
-                    │   - Counter Detail (Ticker/Bars)│
+                    │   - Counter Detail (Live Ticker)│
                     │   - Interactive Dot Calendar    │
                     │   - Multi-Action Timeline Log   │
                     │   - Themes & Settings Drawer    │
@@ -48,13 +49,13 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 - `DATA_NOTE_NAME = "habit_streak_data"`
 - `DATA_NOTE_TAGS = ["-reports/-habit-streak"]`
 - `TRACK_TYPES`:
-  - `SKIP`: Quitly auto-tracked model (Clean/done unless skipped).
-  - `COMPLETE`: Amplenote intentional practice model (Done only when explicitly completed).
-- `INTERVAL_PERIODS`: `{ DAY: "day", WEEK: "week", MONTH: "month" }`.
+  - `SKIP`: Quitting / Bad habit model (Clean/done continuous streak unless a slip/reset is logged).
+  - `COMPLETE`: Building / Good habit model (Intentional practice; streak grows only with daily check-in).
+- `INTERVAL_PERIODS`: `{ DAY: "day" }` (Pure daily tracking model).
 - `VALID_THEMES`: `["midnight", "glass", "dark", "light", "neon"]`.
 - `VALID_EVENT_TYPES`: `["done", "skip", "slip", "reset", "calendar_edit"]`.
 - `QUITLY_TIERS`: Array of 11 progressive milestone tiers (1d, 3d, 7d, 14d, 30d, 60d, 90d, 180d, 365d, 730d, 1825d).
-- `QUITLY_TEMPLATES` & `AMPLENOTE_TEMPLATES`: Categorized preset templates.
+- `QUITLY_TEMPLATES` & `AMPLENOTE_TEMPLATES`: Categorized preset templates for Quitting and Building.
 - `COLOR_THEMES`: 8 gradient palette tokens.
 - `generateUniqueId(prefix)`: Generates collision-resistant IDs using `crypto.randomUUID()` when available, falling back to a combination of base-36 timestamps, random entropy, and a monotonic counter (`_idCounter`) to prevent collisions during same-millisecond batch operations.
 
@@ -66,6 +67,7 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 - **`isValidTimestamp(ts)`**: Validates strict ISO 8601 strings, extracting date components and running strict calendar validation (`isValidDateString`) along with 24-hour time range checks (rejecting rollover dates like `2026-02-31T12:00:00Z`).
 - **`normalizeHabit(habit)`**:
   - Enforces mutually exclusive sets: $\text{skips} \cap \text{completions} = \emptyset$ (with `skips` taking precedence).
+  - Normalizes interval to `{ n: 1, period: "day" }`.
   - Normalizes `createdAt` and `streakAnchor` from `YYYY-MM-DD` to full ISO timestamps (`${d}T00:00:00.000Z`).
   - Constrains `colorTheme` to `COLOR_THEMES` and `type` to `TRACK_TYPES`.
   - Filters `events` to recognized `VALID_EVENT_TYPES` and bounds history to 500 entries (reset logs bounded to 100 entries).
@@ -81,53 +83,33 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 
 ### `lib/engine/streakEngine.js`
 - **`getDateRange(startStr, endStr)`**: Generates inclusive date sequences using UTC midnight date arithmetic, ensuring exact 86,400,000 ms increments immune to Daylight Saving Time (DST) 23h/25h shifts.
-- **`isScheduledDate(habit, dateStr, refStartStr, allowBackdated)`**:
-  - Validates recurrence cadence for Daily ($N=1$), Every $N$ Days, Weekly (same weekday $\text{diffWeeks} \pmod N = 0$), and Monthly (same clamped day-of-month $\text{diffMonths} \pmod N = 0$).
-  - Evaluates day differences using UTC timestamps (`(target.getTime() - start.getTime()) / 86400000`) and UTC methods (`getUTCDay()`, `getUTCMonth()`, `getUTCDate()`) for cross-timezone and DST invariance.
-  - Supports bidirectional grid calculation against the anchor date when `allowBackdated = true`.
-  - Defensive fallback: returns `false` on any parsing or NaN error.
+- **`isScheduledDate(habit, dateStr, refStartStr, allowBackdated)`**: Daily schedule evaluation; returns `true` for all dates $\ge \text{start}$ (or bidirectional when `allowBackdated = true`).
 - **`getHabitDayStatus(habit, dateStr, todayStr, cachedSets)`**:
-  - **Schedule-First Evaluation Ordering**:
+  - **Deterministic Status Evaluation**:
     1. Future (`dateStr > todayStr`) $\implies$ `future`
     2. Before start (`dateStr < habitStart`) $\implies$ `before_start`
-    3. Recurrence check (`!isScheduledDate(...)`) $\implies$ `not_applicable`
-    4. Explicit skips (`dateStr ∈ skips`) $\implies$ `skipped`
-    5. Explicit completions (`dateStr ∈ completions`) $\implies$ `completed`
-    6. Default philosophy fallback: `complete` habits $\implies$ `skipped`; `skip` habits $\implies$ `completed`.
-- **`calculateHabitStats(habit, todayStr)`**: Computes current streak, longest record, completion rate, and verified sub-second anchor timestamp. Uniformly defensive against `null`/`undefined` habits.
+    3. Explicit skips (`dateStr ∈ skips`) $\implies$ `skipped`
+    4. Explicit completions (`dateStr ∈ completions`) $\implies$ `completed`
+    5. Default philosophy fallback: `complete` habits $\implies$ `skipped`; `skip` habits $\implies$ `completed`.
+- **`calculateHabitStats(habit, todayStr)`**: Computes contiguous current streak, longest record, completion rate, and verified sub-second anchor timestamp. Uniformly defensive against `null`/`undefined` habits.
 - **`calculateTierProgress(currentStreak)`**: Computes active laurel tier, milestone percentage, and days remaining.
-- **`calculateWeeklyFrequency(habit, todayStr)`**: Calculates 7-day repetition counts for frequency bar charts using UTC date windows (defensive against `null` habits).
 - **`calculateAllHabitsSummary(habits, todayStr)`**: Aggregates dashboard-level statistics.
-- **`generateMonthCalendar(habit, year, month, todayStr)`**: Builds calendar grid days with off-day classification and parameter bounds validation.
+- **`generateMonthCalendar(habit, year, month, todayStr)`**: Builds monthly calendar grid with interactive daily status dots and parameter bounds validation.
 
 ---
 
 ### `lib/features/`
-- **`createHabit.js`**: Instantiates new custom counters and 1-click templates (with `parseInt` and bounds checking on `templateIndex`) with initial `completions: []` for positive habits (streak = 0 until check-in).
-- **`importFromNote.js`**: Multi-step note scanner extracting native Amplenote tasks and `- [ ]` markdown checkboxes into an interactive setup wizard:
-  - **Task Discovery & Fallback**: Attempts `app.getNoteTasks({ uuid }, { includeDone: true })`, falling back to line-by-line regex scanning (`/^\s*[-*]?\s*\[\s*[xX]?\s*\]\s*(.+)/`) if `getNoteTasks` is unavailable.
-  - **`cleanTaskTitle(raw)` Pipeline**:
-    1. *Multi-line Normalization*: Extracts the primary first line (`raw.split(/\r?\n/)[0].trim()`), omitting indented subtasks and context notes.
-    2. *Checkbox Marker Stripping*: Strips `- [ ]`, `* [x]`, etc.
-    3. *Image Embed Removal*: Strips markdown image tags `![alt](url)` and reference images `![alt][ref]`.
-    4. *Markdown Link Unwrapping*: Converts `[Link Text](url)` to clean display label `Link Text`.
-    5. *Wiki-link Conversion*: Converts transclusions/note links `[[Note Title]]` to `Note Title`.
-    6. *HTML Tag Stripping*: Removes raw HTML tags `<tag>...</tag>`.
-    7. *Format Marker Removal*: Strips `**bold**`, `*italic*`, `~~strikethrough~~`, and `` `code` `` wrappers.
-    8. *Hashtag Cleaning*: Strips trailing filtering hashtags (e.g., `#habit`, `#daily`).
-    9. *Whitespace Normalization*: Collapses multiple whitespace to single spaces.
-  - **`extractTaskEmojiAndTitle(text, defaultEmoji)`**: Scans for leading Unicode pictographic/presentation emojis using `\p{Extended_Pictographic}|\p{Emoji_Presentation}|[\u2600-\u27BF]`, auto-populating the emoji selector and assigning the remaining clean string as the habit title.
-  - **Batch Limit Notification**: Displays `Showing first 25 of N` if note contains $> 25$ tasks.
-  - **Baseline Consistency**: Initializes positive habits with `completions: []` (0-day streak until check-in), matching `createHabit.js`.
-- **`editHabit.js`**: Edits counter metadata with proper `typeVal` validation. Prompts for explicit user confirmation if cadence or tracking philosophy is altered on habits with existing history to prevent accidental historical streak recalculation.
+- **`createHabit.js`**: Instantiates new custom counters and 1-click templates with initial `completions: []` for positive habits (streak = 0 until check-in).
+- **`importFromNote.js`**: Multi-step note scanner extracting native Amplenote tasks and `- [ ]` markdown checkboxes into an interactive setup wizard with clean title sanitization and leading emoji extraction.
+- **`editHabit.js`**: Edits counter metadata (name, emoji, color theme, tracking type) with proper `typeVal` validation.
 - **`resetStreak.js`**:
-  - `handleSkipToday`: Enforces `isScheduledDate` check, logs slip with optional reflection note, prevents duplicate `resetLogs` entries for same-day skips, and updates live anchors.
-  - `handleCompleteToday`: Enforces `isScheduledDate` check, records positive completion event.
-  - `handleResetToDate`: Backdates relapse, applying skips **only** to scheduled dates in the range using high-performance $O(N + M)$ `Set` operations.
+  - `handleSkipToday`: Logs reset/slip with optional reflection note, updates live anchors, and records streak length before reset.
+  - `handleCompleteToday`: Records positive completion check-in with optional reflection notes.
+  - `handleResetToDate`: Backdates relapse / reset to a specified date using high-performance $O(N + M)$ `Set` operations.
   - `handleUndoToday`: Verifies an action event (`done`, `skip`, `slip`) exists today before modifying state, restores previous streak anchors based on recalculated stats, and preserves calendar-only edits.
 - **`toggleDay.js`**:
-  - `handleToggleDay`: **Invariant-First Anchor Validation** — validates against existing `scheduleAnchor` before mutating `trackingStartDate`. Rejects toggling off-days.
-  - `handleSaveCalendarEdits`: Filters out non-scheduled dates, ensures mutual exclusivity, logs audit events only when changes occurred, and extends `trackingStartDate` only after validation passes.
+  - `handleToggleDay`: Rejects toggling future dates (`dateStr > todayStr`) and safely flips between done and slip/reset for past and current days.
+  - `handleSaveCalendarEdits`: Batch applies staged calendar changes, ensures mutual exclusivity, logs audit events only when changes occurred, and extends `trackingStartDate` only after validation passes.
 - **`habitManagement.js`**: Safe deletion and tab switching.
 - **`launcher.js`**: Opens embed in sidebar or main workspace.
 
@@ -135,11 +117,14 @@ The Habit Streaks Plugin runs as an interactive Amplenote Embed Dashboard plugin
 
 ### `lib/ui/dashboardTemplate.js`
 - Full single-page client-side embedded application.
+- **Pure Material Design SVG Iconography**: Replaced all UI emojis across navigation, action buttons, card headers, calendar controls, and badges with crisp, modern SVGs (`ICONS`). User-selected habit icons remain preserved.
+- **Symmetrical Terminology & Grouping**:
+  - Tabs: **`Quitting`** and **`Building`**.
+  - Section Headers: **`Bad habits to quit`** and **`Good habits to build`**.
+  - Actions: **`Reset counter today`** and **`Reset counter on date`**.
 - **Responsive Theme Engine**: 5 visual appearance modes (`theme-midnight`, `theme-glass`, `theme-dark`, `theme-light`, `theme-neon`).
-- **Off-Schedule Rest Day Display**: Renders `☕ Off-Schedule / Rest Day` badge and suppresses active check-in buttons when `statusToday === "not_applicable"`.
-- **Calendar Save Invariant**: Updates `trackingStartDate` rather than mutating immutable `createdAt`.
-- **Audit Timeline**: Dedicated ✏️ *Calendar History Edited* badge distinguishing administrative audit events from slips.
-- **Live Digital Ticker**: Sub-second ticking counter (`[Days] [Hours] [Mins] [Secs]`).
+- **Live Digital Ticker**: Sub-second ticking counter (`[Days/Years/Months] [Hours] [Mins] [Secs]`).
+- **Interactive Dot Calendar**: Full month interactive calendar with staged edit mode, quick actions (Mark Month Clean / Mark Month Missed), and visual feedback.
 - **Keyboard Navigation**: <kbd>←</kbd> / <kbd>→</kbd> for months, <kbd>Esc</kbd> / <kbd>Backspace</kbd> for navigation.
 
 ---
